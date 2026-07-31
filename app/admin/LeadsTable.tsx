@@ -177,7 +177,7 @@ export function LeadsTable({
           {leads.length === 0 && (
             <tr>
               <td colSpan={10} className="px-4 py-6 text-center text-neutral-500">
-                Henüz lead yok — Gün 5-7 (Gmail entegrasyonu) tamamlanınca burada görünecek.
+                Henüz lead yok — form doldurulup Gmail üzerinden işlendiğinde burada görünecek.
               </td>
             </tr>
           )}

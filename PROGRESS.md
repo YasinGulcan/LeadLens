@@ -4,7 +4,7 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 
 ## Güncel Durum (son güncelleme: 2026-07-31)
 
-**Faz:** Faz 1 — Prototip → **Gün 1-15'in tamamı bitti** (Gün 1-12, Gün 13-14, Gün 15 — hepsi gerçek veriyle uçtan uca test edildi). Çekirdek pipeline baştan sona çalışıyor: form (KVKK onaylı) → Gmail → Supabase → site taraması → RAG eşleştirme → Claude analizi (satış notu dahil) → Gmail bildirimi (HTML) → `status='sent_to_sales'`. **Canlı URL: https://lead-lens-ten.vercel.app**. Kalan: test verisi temizliği + Faz 2 kararı.
+**Faz:** Faz 1 — Prototip → **Gün 1-15'in tamamı bitti, prototip artık canlı ve tertemiz.** Çekirdek pipeline: form (KVKK onaylı) → Gmail → Supabase → site taraması → RAG eşleştirme → Claude analizi (site bulgusu + satış notu dahil) → Gmail bildirimi (HTML) → `status='sent_to_sales'`. **Canlı URL: https://lead-lens-ten.vercel.app**. `leads` tablosu artık boş (tüm test verisi temizlendi) — gerçek kullanıma hazır. Kalan: KVKK metnindeki placeholder'lar, admin panel kimlik doğrulama, `APP_URL` production env, Faz 2 kararı.
 
 - [x] Next.js (App Router, TypeScript, Tailwind, ESLint) proje iskeleti oluşturuldu
 - [x] GitHub reposuna bağlandı ve push edildi: https://github.com/YasinGulcan/LeadLens
@@ -54,8 +54,9 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
   - `0006_leads_consent.sql`: `leads.consent_given_at` alanı; onay zamanı forma gönderilirken damgalanıp e-postaya eklenip (`Onay: <ISO tarih>`) geri ayrıştırılıyor ve kaydediliyor
   - Playwright ile doğrulandı: onaysız gönderim reddediliyor (net hata mesajı), onaylı gönderim başarılı, `consent_given_at` veritabanına doğru yazılıyor
 - [x] **"Site bulgusu" iyileştirmesi** — kullanıcı "web kısmı için rapor yetersiz geliyor" dedi (ham site içeriği taranıyor ama gerçek bir teşhis yoktu). `0007_leads_site_finding.sql` (`leads.site_finding`); `lib/claude.ts`'e ürün önerisinden bağımsız `site_bulgusu` alanı eklendi (ölçemediği şeyleri — sayfa hızı vb. — uydurmaması, sadece içerikten gözlemleyebildiğini yazması talimatı ile). Gmail raporuna ve admin panelin genişletilmiş satırına eklendi. Gerçek testte iyi bir örnek çıktı: "sitenin ana sayfası büyük ölçüde logo listesi, gerçek metin içerik sınırlı" gibi kullanışlı bir gözlem.
-- [ ] Gerçek kullanıcı denemesinde iki lead işlendi: "Yasin Gülcan" (kocaeli.bel.tr) — Firecrawl bu siteyi 3 denemede de tarayamadı (`ERR_TUNNEL_CONNECTION_FAILED`, muhtemelen belediye sitesinin bot koruması); site doğrudan erişilebilir olmasına rağmen kalıcı hata olarak bırakıldı, kullanıcı "bir şey yapmaya gerek yok" dedi. "Muhammet Yasin" (poki.com) sorunsuz işlendi, dürüstçe düşük skor (0.15) verdi.
-- [ ] `leads` tablosunda artık ~13 satır (test verisi) — gerçek kullanıma geçmeden temizlenebilir
+- Gerçek kullanıcı denemesinde bir lead'de ilginç bir bulgu çıktı: "Yasin Gülcan" (kocaeli.bel.tr) — Firecrawl bu siteyi 3 denemede de tarayamadı (`ERR_TUNNEL_CONNECTION_FAILED`, muhtemelen belediye sitesinin bot koruması); site doğrudan erişilebilir olmasına rağmen kalıcı hata olarak bırakıldı (kullanıcı onayıyla). Bu tür kalıcı Firecrawl hataları için `/admin`'deki "Yeniden Dene" hâlâ elde mevcut.
+- [x] **Test verisi temizlendi** — kullanıcı onayıyla `leads` tablosundaki 12 kayıt (9 script testi + 3 kullanıcının kendi denemesi) tamamen silindi; `lead_status_history` cascade ile otomatik temizlendi. Production'da doğrulandı: 0 lead, 0 hatalı lead, ürün kaynakları/chunk'lar (7/221) etkilenmedi. `leads` tablosu artık gerçek kullanıma hazır.
+- [x] Admin panelindeki eski/yanlış "Gün 5-7 tamamlanınca..." boş durum mesajı güncellendi
 - [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
 - [ ] Cron şu an günde 1 kez (06:00 UTC) çalışıyor — daha sık/anlık işlem isteniyorsa Vercel Pro'ya geçmek gerekecek
 - [ ] **Vercel production env değişkenlerine `APP_URL=https://lead-lens-ten.vercel.app` eklenmedi** — eklenmezse Gmail raporundaki "Admin panelinde görüntüle" linki production'da görünmez (kullanıcı bilinçli olarak erteledi)
