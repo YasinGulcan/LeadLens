@@ -1,6 +1,3 @@
-import { config } from "dotenv";
-config({ path: ".env.local" });
-
 import { supabase } from "../lib/supabase";
 
 // Kullanım: npm run sources:add -- https://ornek.com/urunler "Ürün Kataloğu"

@@ -1,6 +1,3 @@
-import { config } from "dotenv";
-config({ path: ".env.local" });
-
 import { supabase } from "../lib/supabase";
 import { scrapeMarkdown } from "../lib/firecrawl";
 import { chunkMarkdown } from "../lib/chunk";
