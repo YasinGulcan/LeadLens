@@ -9,11 +9,13 @@
     "lint": "eslint",
     "check:setup": "tsx --env-file=.env.local scripts/check-setup.ts",
     "sources:add": "tsx --env-file=.env.local scripts/add-source.ts",
-    "ingest:products": "tsx --env-file=.env.local scripts/ingest-products.ts"
+    "ingest:products": "tsx --env-file=.env.local scripts/ingest-products.ts",
+    "gmail:auth": "tsx --env-file=.env.local scripts/gmail-auth.ts"
   },
   "dependencies": {
     "@mendable/firecrawl-js": "^4.31.1",
     "@supabase/supabase-js": "^2.111.0",
+    "googleapis": "^173.0.0",
     "next": "16.2.12",
     "openai": "^7.2.0",
     "react": "19.2.4",
