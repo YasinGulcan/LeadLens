@@ -29,15 +29,19 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - [x] **Gün 12 revizyonu — Resend kaldırıldı, bildirim Gmail'e taşındı:** Kullanıcı hem intake hem bildirimin aynı Gmail hesabından (`yasingulcan92@gmail.com`) gitmesini istedi (Resend'in sandbox kısıtı — sadece hesap sahibine gönderim — buna zaten engeldi). `lib/resend.ts` ve `resend` paketi silindi; `lib/gmail.ts#sendAnalysisNotificationEmail` eklendi (mevcut `sendSelfEmail` helper'ı ile aynı Gmail hesabına "Lead Analiz Raporu — ..." konulu mail gönderiyor). `app/api/cron/notify-sales` artık bunu çağırıyor.
 - [x] `.env.example`/`.env.local`'dan `RESEND_API_KEY`/`SALES_NOTIFICATION_EMAIL` kaldırıldı — artık gerekmiyor, her şey Gmail üzerinden
 - [x] 4 test lead ile yeni akış doğrulandı: `notify-sales` → 4/4 başarılı → Gmail'de gerçekten "Lead Analiz Raporu" konulu 4 mail bulundu → admin panelinde "Satışa Gönderildi"
+- [x] **Kullanıcı `/form`'u kendi tarayıcısından gerçek veriyle doldurdu** (isim: Yasin, site: sidestarhotels.com) — bu ilk gerçek (test dışı) uçtan uca kullanım
+- [x] Bulgu: pipeline hâlâ tamamen elle tetikleniyor (Vercel Cron yok) — kullanıcı formu doldurunca otomatik rapor gelmedi, çünkü `fetch-leads`/`scrape-leads`/`analyze-leads`/`notify-sales` sırayla elle çağrılması gerekiyordu. Bunlar çağrılınca çalıştı.
+- [x] Kalite bulgusu: müşteri mesajı anlamsızdı ("Merhaba Test") ve site alakasızdı (otel sitesi vs. pazarlama ajansı ürünleri) — Claude doğru şekilde uydurmadı, düşük skor (0.1) verdi, ama `onerilen_urun` alanına "<UNKNOWN>" (İngilizce placeholder) yazdı. Prompt'a Türkçe fallback talimatı eklendi ("Net bir eşleşme bulunamadı"), yeniden çalıştırılıp Gmail'deki güncel rapor içeriği doğrulandı.
 - [x] `npx tsc --noEmit` ve `npx eslint .` temiz geçiyor
-- [ ] `leads` tablosundaki 4 satır **test verisi**, tam pipeline'ı baştan sona geçti (new → scraping → analyzed → sent_to_sales) — gerçek kullanıma geçmeden temizlenebilir
+- [ ] `leads` tablosunda artık 5 satır: 4 test + 1 gerçek kullanıcı denemesi — gerçek kullanıma geçmeden temizlenebilir
+- [ ] **Vercel Cron Job henüz bağlı değil** — bu prototipte en somut eksik: kullanıcı formu doldurduğunda pipeline kendiliğinden ilerlemiyor, her adımı elle tetiklemek gerekiyor. Gün 15'te (deploy) çözülecek.
 - [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
 
 ## Sıradaki Adım
 
-Çekirdek pipeline (Gün 1-12) tamamlandı. Sıradaki seçenekler:
-1. `PROJECT_PLAN.md` §2 Faz 1 — **Gün 13-14: Uçtan uca test** (daha fazla hata senaryosu: bozuk mail formatı, scrape timeout, geçersiz LLM çıktısı) + **KVKK rıza metni taslağı**
-2. **Gün 15: Demo/deploy** — Vercel'e bağlama, Cron Job'ları gerçek zamanlayıcıya bağlama (şu an tüm endpoint'ler elle/curl ile tetikleniyor)
+Kullanıcının kendi denemesi net bir ihtiyaç ortaya çıkardı: **pipeline otomatik ilerlemiyor**, her adımı elle/curl ile tetiklemek gerekiyor. Bu Gün 15'in (deploy) konusu — Vercel'e bağlanıp Cron Job'lar kurulunca çözülecek. Öncelik sırası:
+1. **Vercel'e deploy + Cron Job'lar** — `fetch-leads`/`scrape-leads`/`analyze-leads`/`notify-sales` periyodik otomatik çalışsın (Vercel hesabı gerekiyor, henüz yok)
+2. `PROJECT_PLAN.md` §2 Faz 1 — **Gün 13-14: Uçtan uca test** (daha fazla hata senaryosu) + **KVKK rıza metni taslağı**
 3. Kullanıcıyla birlikte karar: prototip yeterince olgun mu, yoksa Faz 2 iyileştirmelerine mi geçilsin (Sentry, otomatik testler, webhook'a geçiş değerlendirmesi)
 
 **Netleşmemiş açık sorular** (`PROJECT_PLAN.md` §5):
@@ -79,6 +83,9 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - **Faz 1'in çekirdek pipeline'ı (Gün 1-12) tamamen bitti**: form → Gmail → Supabase → scrape → RAG eşleştirme → Claude analiz → Resend bildirimi, hepsi gerçek servislerle uçtan uca doğrulandı
 - Kullanıcı geri döndü: hem intake hem bildirim aynı Gmail hesabından (`yasingulcan92@gmail.com`) gitsin istedi; ayrıca ileride kendi ayrı bir form web sitesi kuracağını belirtti (henüz yok) — mimariyi netleştirmek için soru soruldu, kullanıcı "bizim /form sayfamızı kullanalım, rapor da Gmail'e gitsin" diye onayladı
 - **Gün 12 revize edildi:** `lib/resend.ts` silindi, `resend` paketi kaldırıldı; `lib/gmail.ts#sendAnalysisNotificationEmail` eklendi, `notify-sales` buna geçirildi. 4 test lead tekrar (sent_to_sales'ten analyzed'e resetlenip) denendi, 4/4 başarılı; Gmail'de "Lead Analiz Raporu" konulu 4 mailin gerçekten oluştuğu ayrıca doğrulandı
+- Kullanıcı `/form`'u kendi tarayıcısından gerçek veriyle doldurdu (ilk gerçek/test-dışı kullanım) ama rapor gelmedi — sebep: pipeline hâlâ elle tetikleniyor, Vercel Cron yok. Dört endpoint sırayla elle çağrılıp lead işlendi.
+- Kalite bulgusu: anlamsız mesaj + alakasız site kombinasyonunda Claude `onerilen_urun` alanına İngilizce "<UNKNOWN>" yazmış — doğru davranış (uydurmadı) ama kötü UX. Prompt'a Türkçe fallback eklendi ("Net bir eşleşme bulunamadı"), aynı lead yeniden analiz edilip Gmail'deki güncel mailin doğru metni içerdiği doğrulandı.
+- Not: Vercel Cron eksikliği artık en somut açık iş — kullanıcı bunu bizzat deneyimledi, bir sonraki oturumda öncelik bu olmalı.
 
 ---
 

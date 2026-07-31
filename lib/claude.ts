@@ -59,7 +59,9 @@ export async function analyzeLead(params: {
           properties: {
             onerilen_urun: {
               type: "string",
-              description: "Önerilen ürün/hizmetin adı — sadece verilen parçalarda geçen gerçek bir ürün/hizmet",
+              description:
+                "Önerilen ürün/hizmetin adı — sadece verilen parçalarda geçen gerçek bir ürün/hizmet. " +
+                'Anlamlı bir eşleşme yoksa (müşteri mesajı belirsiz, site alakasız vb.) "Net bir eşleşme bulunamadı" yaz, İngilizce placeholder/token kullanma.',
             },
             eslesme_skoru: { type: "number", description: "0 ile 1 arasında eşleşme skoru" },
             gerekce: { type: "string", description: "Önerinin kısa gerekçesi (1-3 cümle)" },
