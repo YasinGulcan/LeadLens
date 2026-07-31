@@ -153,7 +153,7 @@ Bunlar planı bloklamıyor (Faz 1'e başlanabilir) ama Gün 1-2 içinde netleşm
 - [x] Next.js + TypeScript proje iskeleti oluştur, Vercel'e bağla *(Vercel bağlantısı henüz yapılmadı, repo hazır)*
 - [x] Supabase projesi kur, `leads` ve `product_chunks` tablolarını + `pgvector` extension'ı oluştur *(gerçek projede çalıştırıldı ve doğrulandı)*
 - [x] `.env` / Vercel environment variables yapılandır (secrets asla commit edilmesin) *(`.env.local` dolduruldu — Vercel env değişkenleri deploy aşamasında ayrıca girilecek)*
-- [x] Firecrawl ile ürün sitesi taraması + chunking + embedding + `pgvector`'a yükleme scripti *(gerçek veriyle test edildi: 7 ürün sitesi, 233 chunk, cookie-boilerplate filtresi eklendi)*
+- [x] Firecrawl ile ürün sitesi taraması + chunking + embedding + `pgvector`'a yükleme scripti *(gerçek veriyle test edildi: 7 ürün sitesi, 221 chunk, cookie-boilerplate filtresi eklendi)*
 - [ ] Gmail OAuth2 entegrasyonu + Vercel Cron Job ile polling
 - [ ] Mail ayrıştırma (parser) + zorunlu alan doğrulama + `status='new'` yazma + hata durumunda `status='error'`
 - [ ] Firecrawl ile müşteri sitesi tarama entegrasyonu (`status='scraping'`)
@@ -173,7 +173,7 @@ Bunlar planı bloklamıyor (Faz 1'e başlanabilir) ama Gün 1-2 içinde netleşm
 
 ### Faz 2 — Prototip onaylanırsa
 - [ ] Sentry entegrasyonu
-- [ ] Basit `/admin` durum paneli
+- [x] Basit `/admin` durum paneli *(plandan öne alındı — kullanıcı isteğiyle Faz 1'de yapıldı: `app/admin/page.tsx`, kaynak + lead listesi)*
 - [ ] Otomatik test paketi (birim + entegrasyon)
 - [ ] CI pipeline (lint, type-check, test)
 - [ ] Webhook tabanlı veri toplamaya geçiş değerlendirmesi

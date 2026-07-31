@@ -13,7 +13,7 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - [x] Veritabanı şeması Supabase'de gerçekten çalıştırıldı ve doğrulandı: `leads`, `lead_status_history`, `product_chunks`, `product_sources`
 - [x] `.env.local` dolduruldu: Supabase, OpenAI, Anthropic, Firecrawl anahtarları aktif (Gmail, Resend henüz yok — sırası gelince eklenecek)
 - [x] RAG ingestion pipeline yazıldı VE test edildi: `lib/chunk.ts` (chunking), `lib/clean.ts` (boilerplate filtresi), `lib/firecrawl.ts` (scrape), `lib/embeddings.ts` (OpenAI embedding), `scripts/ingest-products.ts`, `scripts/add-source.ts`, `scripts/check-setup.ts`
-- [x] **7 gerçek ürün sitesi taranıp embed edildi** (233 chunk, `product_chunks` tablosunda): 2gether Social, The Content Up, The SEO Up, The Accumulate, AI Vault, Digital Exporter, The Unique Sales
+- [x] **7 gerçek ürün sitesi taranıp embed edildi** (221 chunk, `product_chunks` tablosunda): 2gether Social, The Content Up, The SEO Up, The Accumulate, AI Vault, Digital Exporter, The Unique Sales
 - [x] `npx tsc --noEmit` ve `npx eslint .` temiz geçiyor
 - [ ] Gmail, Claude (RAG eşleştirme + analiz), Resend route'ları hâlâ placeholder (Gün 5-7, 10-11, 12'de sırası gelecek)
 - [ ] `.env.local`'daki OpenAI/Anthropic/Firecrawl anahtarları sohbette paylaşıldığı için **"yanmış" sayılmalı** — kullanıcıya rotate etmesi hatırlatıldı, henüz yapılmadı
@@ -46,8 +46,9 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - İlk denemede Firecrawl anahtarı geçersizdi → yeni anahtarla düzeldi; sonra OpenAI kotası doluydu → kullanıcı $5 kredi yükledi, düzeldi
 - İlk taranan site (`digitalexchange.com.tr`) kullanıcı tarafından "asıl ürün değil, ana holding sitesi" olarak düzeltildi; devre dışı bırakılıp chunk'ları silindi
 - Gerçek 7 ürün sitesi eklendi ve tarandı; ilk denemede chunk'ların önemli kısmının çerez izni bandı metni olduğu görüldü (`lib/chunk.ts` içeriği değil, kaynak veri sorunuydu)
-- `lib/clean.ts` eklendi: cookie-consent boilerplate'i paragraf bazlı filtreleyen sağlayıcıdan bağımsız bir temizleyici (spesifik ifadeler + genel "cookie" kelimesi + uzunluk sınırı). Üç iterasyonda geliştirildi, son halde 233 chunk'ın hiçbirinde "cookie" kelimesi kalmadı
-- Sonuç: `product_chunks` tablosunda 233 temiz chunk, 7 aktif kaynak
+- `lib/clean.ts` eklendi: cookie-consent boilerplate'i paragraf bazlı filtreleyen sağlayıcıdan bağımsız bir temizleyici (spesifik ifadeler + genel "cookie" kelimesi + uzunluk sınırı). Üç iterasyonda geliştirildi, son halde 221 chunk'ın hiçbirinde "cookie" kelimesi kalmadı
+- Sonuç: `product_chunks` tablosunda 221 temiz chunk, 7 aktif kaynak
+- `/admin` durum paneli oluşturuldu (kullanıcı isteği): kaynak listesi + chunk sayıları + lead tablosu, Playwright ile ekran görüntüsü alınarak doğrulandı
 
 ---
 
