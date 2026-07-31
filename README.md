@@ -15,14 +15,33 @@ Tam mimari, karar gerekçeleri, alternatif yaklaşımlar, riskler ve geliştirme
 
 ## Durum
 
-Faz 1 (prototip) — proje iskeleti kuruldu, entegrasyonlar henüz yazılmadı. Ayrıntılı checklist için `PROJECT_PLAN.md` §6.
+Faz 1 (prototip) — güncel ilerleme için **[PROGRESS.md](./PROGRESS.md)**'ye bakın.
 
 ## Başlarken
 
 ```bash
 npm install
 cp .env.example .env.local   # anahtarları doldurun
-npm run dev
 ```
 
-Veritabanı şeması: `supabase/migrations/0001_init.sql`
+Veritabanı şeması Supabase SQL Editor'de sırayla çalıştırılmalı: `supabase/migrations/0001_init.sql`, `0002_product_sources.sql`.
+
+### Ürün bilgi tabanını doldurma (RAG kaynağı)
+
+Ürün kataloğu kaynağı kodda sabit değil — `product_sources` tablosunda tutulur, istendiği zaman eklenir/çıkarılır:
+
+```bash
+# Taranacak bir kaynak ekle (birden fazla kez çağrılabilir)
+npm run sources:add -- "https://ornek.com/urunler" "Ürün Kataloğu"
+
+# Aktif tüm kaynakları tara, parçala, embed et, product_chunks'a yaz
+npm run ingest:products
+```
+
+`ingest:products` idempotenttir: her kaynağı yeniden taradığında o kaynağa ait eski chunk'ları silip yenileriyle değiştirir — script tekrar tekrar veya kaynak listesi değiştikçe güvenle çalıştırılabilir.
+
+### Geliştirme sunucusu
+
+```bash
+npm run dev
+```
