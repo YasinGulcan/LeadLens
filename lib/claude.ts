@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { MatchedChunk } from "./match";
 
 const AnalysisSchema = z.object({
+  site_bulgusu: z.string(),
   onerilen_urun: z.string(),
   eslesme_skoru: z.number().min(0).max(1),
   gerekce: z.string(),
@@ -50,11 +51,15 @@ export async function analyzeLead(params: {
       "listede olmayan bir ürün/hizmet uydurma. Türkçe yanıt ver. " +
       "Müşteri mesajı belirgin ve somut bir ihtiyaç içeriyorsa buna öncelik ver; mesaj boş, genel veya alakasızsa " +
       "(örn. sadece bir selamlama) site taramasındaki objektif bulgulara dayan — müşteri kendi sorununu her zaman " +
-      "doğru tanımlayamayabilir, senin işin bunu site verisinden çıkarmak.",
+      "doğru tanımlayamayabilir, senin işin bunu site verisinden çıkarmak. " +
+      "Önce siteyi bağımsız olarak değerlendir (site_bulgusu): sayfa hızı gibi ölçemediğin şeyleri uydurma, " +
+      "ama içerikten gözlemleyebildiğin somut eksiklikleri/güçlü yönleri belirt (örn. blog/içerik pazarlaması yok, " +
+      "net bir CTA yok, ürün açıklamaları zayıf, çok dilli değil, sosyal kanıt/referans eksik, güncel içerik yok). " +
+      "Bu, ürün önerisinden bağımsız bir teşhistir — sonra bu teşhise dayanarak ürün öner.",
     messages: [
       {
         role: "user",
-        content: `Müşteri sitesi özeti:\n${params.siteSummary}\n\nMüşteri mesajı:\n${params.message || "(yok)"}${hasRealMessage ? "" : "\n(Not: mesaj boş veya bilgi taşımıyor, karar için siteye ağırlık ver.)"}\n\nİlgili ürün bilgisi parçaları:\n${context}\n\nBu bilgilere dayanarak en uygun ürünü/hizmeti, eşleşme skorunu (0-1), gerekçeni, önceliği ve satış ekibi için bir açılış notu belirle.`,
+        content: `Müşteri sitesi özeti:\n${params.siteSummary}\n\nMüşteri mesajı:\n${params.message || "(yok)"}${hasRealMessage ? "" : "\n(Not: mesaj boş veya bilgi taşımıyor, karar için siteye ağırlık ver.)"}\n\nİlgili ürün bilgisi parçaları:\n${context}\n\nBu bilgilere dayanarak önce sitenin bağımsız teşhisini (site_bulgusu), sonra en uygun ürünü/hizmeti, eşleşme skorunu (0-1), gerekçeni, önceliği ve satış ekibi için bir açılış notu belirle.`,
       },
     ],
     tools: [
@@ -64,6 +69,14 @@ export async function analyzeLead(params: {
         input_schema: {
           type: "object",
           properties: {
+            site_bulgusu: {
+              type: "string",
+              description:
+                "Sitenin kendisiyle ilgili, ürün önerisinden BAĞIMSIZ, somut bir teşhis (1-2 cümle) — " +
+                'örn. "Sitede blog/içerik pazarlaması yok, ürün sayfalarında müşteri yorumu/referans bulunmuyor." ' +
+                "Ölçemediğin şeyleri (gerçek sayfa hızı, trafik verisi vb.) uydurma; sadece içerikten gözlemleyebildiklerini yaz. " +
+                'Gözlemlenecek belirgin bir eksiklik yoksa dürüstçe "Sitede belirgin bir eksiklik gözlenmedi." yaz.',
+            },
             onerilen_urun: {
               type: "string",
               description:
@@ -77,12 +90,12 @@ export async function analyzeLead(params: {
               type: "string",
               description:
                 "Satış temsilcisinin müşteriyi aramadan önce okuyacağı, TEK CÜMLElik somut bir açılış notu — " +
-                'örn. "Sitesinde mobil sayfa yükleme hızı düşük, blog altyapısı yok; SEO Paketi Pro öneriliyor." ' +
-                "Sitede gözlemlenen somut bir bulguyu önerilen ürünle bağla. Net bir eşleşme yoksa, dürüstçe " +
+                'örn. "Sitesinde blog/içerik pazarlaması yok; SEO Paketi Pro öneriliyor." ' +
+                "site_bulgusu'ndaki teşhisi önerilen ürünle bağla. Net bir eşleşme yoksa, dürüstçe " +
                 'bunu belirt (örn. "Site/mesajda net bir ihtiyaç sinyali yok, genel bir tanışma araması önerilir.").',
             },
           },
-          required: ["onerilen_urun", "eslesme_skoru", "gerekce", "oncelik", "satis_notu"],
+          required: ["site_bulgusu", "onerilen_urun", "eslesme_skoru", "gerekce", "oncelik", "satis_notu"],
         },
       },
     ],

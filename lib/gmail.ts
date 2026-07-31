@@ -93,6 +93,7 @@ export interface LeadAnalysisNotification {
   reasoning: string | null;
   priority: string | null;
   salesNote: string | null;
+  siteFinding: string | null;
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -128,6 +129,10 @@ export async function sendAnalysisNotificationEmail(lead: LeadAnalysisNotificati
       </div>
 
       <table style="width:100%; border-collapse:collapse; font-size:14px;">
+        <tr>
+          <td style="padding:6px 0; color:#6b7280; width:140px; vertical-align:top;">Site Bulgusu</td>
+          <td style="padding:6px 0;">${escapeHtml(lead.siteFinding ?? "—")}</td>
+        </tr>
         <tr>
           <td style="padding:6px 0; color:#6b7280; width:140px;">Önerilen Ürün</td>
           <td style="padding:6px 0; font-weight:600;">${escapeHtml(lead.recommendedProduct ?? "—")}</td>

@@ -53,7 +53,9 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
   - **KVKK rıza metni** (`app/form/KvkkNotice.tsx`): genişletilebilir aydınlatma metni taslağı (veri sorumlusu/işlenen veriler/amaçlar/yurt dışı aktarım/haklar — [Şirket unvanı] ve [e-posta] placeholder'ları doldurulmalı, hukuki inceleme önerilir) + formda zorunlu onay kutusu
   - `0006_leads_consent.sql`: `leads.consent_given_at` alanı; onay zamanı forma gönderilirken damgalanıp e-postaya eklenip (`Onay: <ISO tarih>`) geri ayrıştırılıyor ve kaydediliyor
   - Playwright ile doğrulandı: onaysız gönderim reddediliyor (net hata mesajı), onaylı gönderim başarılı, `consent_given_at` veritabanına doğru yazılıyor
-- [ ] `leads` tablosunda artık ~11 satır (test verisi) — gerçek kullanıma geçmeden temizlenebilir
+- [x] **"Site bulgusu" iyileştirmesi** — kullanıcı "web kısmı için rapor yetersiz geliyor" dedi (ham site içeriği taranıyor ama gerçek bir teşhis yoktu). `0007_leads_site_finding.sql` (`leads.site_finding`); `lib/claude.ts`'e ürün önerisinden bağımsız `site_bulgusu` alanı eklendi (ölçemediği şeyleri — sayfa hızı vb. — uydurmaması, sadece içerikten gözlemleyebildiğini yazması talimatı ile). Gmail raporuna ve admin panelin genişletilmiş satırına eklendi. Gerçek testte iyi bir örnek çıktı: "sitenin ana sayfası büyük ölçüde logo listesi, gerçek metin içerik sınırlı" gibi kullanışlı bir gözlem.
+- [ ] Gerçek kullanıcı denemesinde iki lead işlendi: "Yasin Gülcan" (kocaeli.bel.tr) — Firecrawl bu siteyi 3 denemede de tarayamadı (`ERR_TUNNEL_CONNECTION_FAILED`, muhtemelen belediye sitesinin bot koruması); site doğrudan erişilebilir olmasına rağmen kalıcı hata olarak bırakıldı, kullanıcı "bir şey yapmaya gerek yok" dedi. "Muhammet Yasin" (poki.com) sorunsuz işlendi, dürüstçe düşük skor (0.15) verdi.
+- [ ] `leads` tablosunda artık ~13 satır (test verisi) — gerçek kullanıma geçmeden temizlenebilir
 - [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
 - [ ] Cron şu an günde 1 kez (06:00 UTC) çalışıyor — daha sık/anlık işlem isteniyorsa Vercel Pro'ya geçmek gerekecek
 - [ ] **Vercel production env değişkenlerine `APP_URL=https://lead-lens-ten.vercel.app` eklenmedi** — eklenmezse Gmail raporundaki "Admin panelinde görüntüle" linki production'da görünmez (kullanıcı bilinçli olarak erteledi)
@@ -133,6 +135,10 @@ Faz 1'in tamamı (Gün 1-15) bitti. Kalanlar artık "temizlik ve karar" aşamas�
   - Bu migration da ilk denemede unutulmuştu (insert hatası ile yakalandı), kullanıcı çalıştırdı, ikinci denemede başarılı
   - Playwright ile tam doğrulama: onaysız gönderim reddediliyor, onaylı gönderim + consent_given_at kaydı başarılı
 - **Faz 1 (Gün 1-15) artık tamamen bitti** — kalan işler test verisi temizliği ve Faz 2 kararı
+- Kullanıcı "gönderdiğim formun raporu gelmedi" dedi — gerçek bir kullanıcı gönderimi (Yasin Gülcan, kocaeli.bel.tr) bulundu, pipeline elle ilerletildi. Site taraması Firecrawl'ın kendi tarafında kalıcı bir proxy hatasıyla (`ERR_TUNNEL_CONNECTION_FAILED`) 3 denemede de başarısız oldu — site kendisi erişilebilir (doğrudan curl ile doğrulandı), muhtemelen belediye sitesinin bot koruması Firecrawl'ı engelliyor. Kullanıcıya seçenek sunuldu (elle aransın / site taranamasa da ham veriyle bildirim gitsin), kullanıcı "bir şey yapmaya gerek yok" dedi.
+- Kullanıcı ikinci bir form daha gönderdi (poki.com/tr/koşu) — bu sorunsuz işlendi, dürüstçe düşük skor verdi (alakasız site).
+- "Şimdi proje üzerine konuşacağız" dedi, ardından: "mesaj kısmını yorumluyoruz güzel ama web kısmı yetersiz geliyor, bir şeyler eksik" — sebep açıklandı (ham site içeriği taranıyor ama gerçek bir teşhis/analiz yok, sadece RAG eşleştirmesi). Kullanıcı "site bulgusunu ekleyelim" dedi.
+- **Site bulgusu eklendi:** `0007_leads_site_finding.sql`, `lib/claude.ts`'e ürün önerisinden bağımsız `site_bulgusu` alanı (ölçemediği şeyleri uydurmama talimatıyla), Gmail raporuna ve admin panele eklendi. Gerçek testte kaliteli bir gözlem üretti ("ana sayfa büyük ölçüde logo listesi, metin içerik sınırlı").
 
 ---
 

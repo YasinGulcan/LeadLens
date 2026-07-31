@@ -15,6 +15,7 @@ export interface LeadRow {
   match_score: number | null;
   reasoning: string | null;
   sales_note: string | null;
+  site_finding: string | null;
   error_message: string | null;
   created_at: string;
 }
@@ -137,6 +138,20 @@ export function LeadsTable({
                         <p className="mb-2 text-xs text-red-600 dark:text-red-400">
                           <strong>Son hata:</strong> {l.error_message}
                         </p>
+                      )}
+                      {(l.site_finding || l.sales_note) && (
+                        <div className="mb-3 space-y-1 rounded-md bg-blue-50 p-2 text-xs dark:bg-blue-950">
+                          {l.site_finding && (
+                            <p>
+                              <strong>Site Bulgusu:</strong> {l.site_finding}
+                            </p>
+                          )}
+                          {l.sales_note && (
+                            <p>
+                              <strong>Arama Öncesi Not:</strong> {l.sales_note}
+                            </p>
+                          )}
+                        </div>
                       )}
                       {history.length === 0 ? (
                         <p className="text-xs text-neutral-500">Geçmiş kaydı yok.</p>
