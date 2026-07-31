@@ -161,8 +161,8 @@ Bunlar planı bloklamıyor (Faz 1'e başlanabilir) ama Gün 1-2 içinde netleşm
 - [x] Claude API çağrısı + Zod ile JSON şema doğrulama (`status='analyzed'`) *(`lib/claude.ts`, `tool_choice` ile zorunlu yapılandırılmış çıktı; 4 test lead ile doğrulandı, kaliteli/uydurmayan sonuçlar)*
 - [x] E-posta bildirimi + şablon (`status='sent_to_sales'`) *(kullanıcı isteğiyle Resend yerine Gmail: `lib/gmail.ts#sendAnalysisNotificationEmail`, `app/api/cron/notify-sales` — hem intake hem bildirim aynı Gmail hesabından gidiyor; 4 test lead ile doğrulandı)*
 - [ ] Uçtan uca test (gerçekçi test verisiyle)
-- [ ] Hata senaryoları test edilsin (bozuk mail formatı, scrape timeout, geçersiz LLM çıktısı)
-- [ ] KVKK rıza metni taslağı hazırlansın (devreye alınmasa da yazılsın)
+- [x] Hata senaryoları test edilsin (bozuk mail formatı, scrape timeout, geçersiz LLM çıktısı) *(`/admin` "Yeniden Dene" butonu 3 senaryoda da (scrape/analiz/website_url eksik) test edildi; bu süreçte website_url nullable migration'ının hiç çalıştırılmadığı ortaya çıkıp düzeltildi)*
+- [x] KVKK rıza metni taslağı hazırlansın (devreye alınmasa da yazılsın) *(devreye alındı — `app/form/KvkkNotice.tsx`, zorunlu onay kutusu + `consent_given_at` kaydı; [Şirket unvanı]/[e-posta] placeholder'ları doldurulmalı, hukuki inceleme önerilir)*
 - [x] Demo ortamı hazırlansın, ekibe/yönetime sunulsun *(Vercel'e deploy edildi: https://lead-lens-ten.vercel.app — Cron Job günde 1 kez otomatik çalışıyor (Hobby plan limiti), production'da uçtan uca doğrulandı)*
 
 ### Faz 1 içine ek olarak alınması önerilen (düşük maliyetli)

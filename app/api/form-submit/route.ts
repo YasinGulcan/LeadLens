@@ -8,13 +8,20 @@ export async function POST(req: NextRequest) {
   const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
   const websiteUrl = typeof body?.websiteUrl === "string" ? body.websiteUrl.trim() : "";
   const message = typeof body?.message === "string" ? body.message.trim() : "";
+  const consentGiven = body?.consentGiven === true;
 
   if (!websiteUrl) {
     return NextResponse.json({ error: "website_url zorunlu." }, { status: 400 });
   }
+  if (!consentGiven) {
+    return NextResponse.json(
+      { error: "Kişisel verilerin işlenmesine onay vermeden gönderim yapılamaz (KVKK)." },
+      { status: 400 }
+    );
+  }
 
   try {
-    await sendFormSubmissionEmail({ name, phone, websiteUrl, message });
+    await sendFormSubmissionEmail({ name, phone, websiteUrl, message, consentGivenAt: new Date().toISOString() });
     return NextResponse.json({ ok: true });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);

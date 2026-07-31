@@ -26,6 +26,7 @@ export interface FormSubmission {
   phone: string;
   websiteUrl: string;
   message: string;
+  consentGivenAt: string;
 }
 
 const SUBJECT_PREFIX = "Yeni Lead Formu";
@@ -77,6 +78,7 @@ export async function sendFormSubmissionEmail(submission: FormSubmission): Promi
     `Telefon: ${submission.phone}`,
     `Website: ${submission.websiteUrl}`,
     `Mesaj: ${submission.message}`,
+    `Onay: ${submission.consentGivenAt}`,
   ].join("\n");
 
   await sendSelfEmail(subject, body);
@@ -153,6 +155,7 @@ export interface ParsedLeadEmail {
   phone: string | null;
   websiteUrl: string | null;
   message: string | null;
+  consentGivenAt: string | null;
   rawBody: string;
 }
 
@@ -215,6 +218,7 @@ export async function fetchUnprocessedLeadEmails(): Promise<ParsedLeadEmail[]> {
       phone: extractField(body, "Telefon"),
       websiteUrl: extractField(body, "Website"),
       message: extractField(body, "Mesaj"),
+      consentGivenAt: extractField(body, "Onay"),
       rawBody: body,
     });
   }

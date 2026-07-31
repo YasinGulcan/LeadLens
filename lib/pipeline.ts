@@ -37,6 +37,7 @@ export async function runFetchLeads() {
         website_url: email.websiteUrl,
         message: email.message,
         status,
+        consent_given_at: email.consentGivenAt,
         error_message: email.websiteUrl ? null : "website_url alanı ayrıştırılamadı",
       })
       .select("id")

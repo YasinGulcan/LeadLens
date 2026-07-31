@@ -4,7 +4,7 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 
 ## Güncel Durum (son güncelleme: 2026-07-31)
 
-**Faz:** Faz 1 — Prototip → **Gün 1-12 ve Gün 15 (deploy) tamamlandı, canlıda çalışıyor.** Çekirdek pipeline baştan sona çalışıyor: form → Gmail → Supabase → site taraması → RAG eşleştirme → Claude analizi → Gmail bildirimi → `status='sent_to_sales'`. **Canlı URL: https://lead-lens-ten.vercel.app** — `/form`'dan gönderilen bir test lead, production'da uçtan uca doğrulandı (Playwright ile). Kalan: Gün 13-14 (daha kapsamlı hata senaryoları + KVKK metni).
+**Faz:** Faz 1 — Prototip → **Gün 1-15'in tamamı bitti** (Gün 1-12, Gün 13-14, Gün 15 — hepsi gerçek veriyle uçtan uca test edildi). Çekirdek pipeline baştan sona çalışıyor: form (KVKK onaylı) → Gmail → Supabase → site taraması → RAG eşleştirme → Claude analizi (satış notu dahil) → Gmail bildirimi (HTML) → `status='sent_to_sales'`. **Canlı URL: https://lead-lens-ten.vercel.app**. Kalan: test verisi temizliği + Faz 2 kararı.
 
 - [x] Next.js (App Router, TypeScript, Tailwind, ESLint) proje iskeleti oluşturuldu
 - [x] GitHub reposuna bağlandı ve push edildi: https://github.com/YasinGulcan/LeadLens
@@ -47,19 +47,26 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
   - **Admin panelinde "Yeniden Dene" butonu** (`app/api/admin/retry-lead`): hata alan bir lead'i, elindeki veriye bakarak (hangi alan doluysa) doğru önceki duruma geri alıyor — website_url→new (scrape hatası), site_summary→scraping (analiz hatası), recommended_product→analyzed (bildirim hatası)
   - Yol boyunca bir görsel bug bulundu ve düzeltildi: çok uzun bir URL (Google Ads tracking parametreli) tablo sütununu anormal genişletip diğer sütunları görünüm alanı dışına itiyordu — `truncate` + `max-width` ile düzeltildi
   - Hepsi Playwright ile uçtan uca test edildi: yeni prompt ile gerçek lead analiz edildi (satış notu kaliteliydi), Gmail'e giden HTML mail doğrulandı (mime type + içerik), admin panelde geçmiş genişletme ve retry butonu gerçek tıklamayla test edildi (hata→analiz edildi geçişi doğru çalıştı)
-- [ ] `leads` tablosunda artık 8 satır (test verisi) — gerçek kullanıma geçmeden temizlenebilir
+- [x] **Gün 13-14 tamamlandı:**
+  - **Hata senaryoları testi:** `/admin`'deki "Yeniden Dene" butonunun 3 farklı hata türünde de doğru çalıştığı ayrı ayrı doğrulandı — (1) site taraması başarısız (gerçek DNS hatası ile) → retry `new`'e döndürüyor, (2) analiz başarısız (simüle edildi) → retry `scraping`'e döndürüyor, (3) `website_url` hiç ayrıştırılamamış → retry doğru şekilde reddediyor, "manuel düzeltme gerekiyor" mesajı gösteriyor
+  - **Kritik bulgu:** Bu testler sırasında `0003_leads_website_url_nullable.sql` migration'ının hiç çalıştırılmamış olduğu ortaya çıktı — website_url'siz bir Gmail maili gelseydi INSERT sessizce başarısız olup lead hiç kayıt altına alınmadan kaybolacaktı. Kullanıcı migration'ı şimdi çalıştırdı, doğrulandı.
+  - **KVKK rıza metni** (`app/form/KvkkNotice.tsx`): genişletilebilir aydınlatma metni taslağı (veri sorumlusu/işlenen veriler/amaçlar/yurt dışı aktarım/haklar — [Şirket unvanı] ve [e-posta] placeholder'ları doldurulmalı, hukuki inceleme önerilir) + formda zorunlu onay kutusu
+  - `0006_leads_consent.sql`: `leads.consent_given_at` alanı; onay zamanı forma gönderilirken damgalanıp e-postaya eklenip (`Onay: <ISO tarih>`) geri ayrıştırılıyor ve kaydediliyor
+  - Playwright ile doğrulandı: onaysız gönderim reddediliyor (net hata mesajı), onaylı gönderim başarılı, `consent_given_at` veritabanına doğru yazılıyor
+- [ ] `leads` tablosunda artık ~11 satır (test verisi) — gerçek kullanıma geçmeden temizlenebilir
 - [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
 - [ ] Cron şu an günde 1 kez (06:00 UTC) çalışıyor — daha sık/anlık işlem isteniyorsa Vercel Pro'ya geçmek gerekecek
-- [ ] **Vercel production env değişkenlerine `APP_URL=https://lead-lens-ten.vercel.app` eklenmedi** — eklenmezse Gmail raporundaki "Admin panelinde görüntüle" linki production'da görünmez (yerelde `.env.local`'a eklendi, production dashboard'a henüz girilmedi)
+- [ ] **Vercel production env değişkenlerine `APP_URL=https://lead-lens-ten.vercel.app` eklenmedi** — eklenmezse Gmail raporundaki "Admin panelinde görüntüle" linki production'da görünmez (kullanıcı bilinçli olarak erteledi)
 - [ ] `/admin` ve `/api/admin/retry-lead` hâlâ kimlik doğrulamasız — retry butonu artık bir "mutasyon" (veri değiştirme) olduğu için bu, salt-okunur panelden daha yüksek bir risk taşıyor (herkes URL'i bilirse lead'leri manipüle edebilir)
+- [ ] **KVKK metni bir taslak** — [Şirket unvanı], [adres], [e-posta] placeholder'ları gerçek bilgilerle doldurulmalı ve ideal olarak bir hukukçu tarafından gözden geçirilmeli, canlıda gerçek kullanıcı verisiyle kullanılmadan önce
 
 ## Sıradaki Adım
 
-Çekirdek pipeline canlıda otomatik çalışıyor, Claude prompt/Gmail rapor/admin panel iyileştirmeleri de bitti. Kalanlar:
-1. **Vercel production'a `APP_URL` env değişkenini eklemek** (yerel test tamam, production'a henüz girilmedi)
-2. `PROJECT_PLAN.md` §2 Faz 1 — **Gün 13-14: Uçtan uca test** (daha fazla hata senaryosu: bozuk mail formatı, scrape timeout, geçersiz LLM çıktısı) + **KVKK rıza metni taslağı**
-3. Test verisini (8 satır) temizleyip gerçek kullanıma geçme kararı
-4. `/admin` paneline kimlik doğrulama eklenmesi değerlendirilebilir (retry butonu artık mutasyon içeriyor)
+Faz 1'in tamamı (Gün 1-15) bitti. Kalanlar artık "temizlik ve karar" aşamasında:
+1. KVKK metnindeki placeholder'ların doldurulması ([Şirket unvanı] vb.)
+2. Test verisinin temizlenmesi kararı
+3. `/admin` paneline kimlik doğrulama eklenmesi değerlendirilmesi
+4. **Vercel production'a `APP_URL` env değişkenini eklemek** (kullanıcı isteğiyle ertelendi)
 5. Kullanıcıyla birlikte karar: prototip yeterince olgun mu, Faz 2'ye mi geçilsin (Sentry, otomatik testler, günlük 1 cron yerine Pro plan)
 
 **Netleşmemiş açık sorular** (`PROJECT_PLAN.md` §5):
@@ -117,6 +124,15 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - **4 iyileştirme yapıldı ve test edildi:** `0005_leads_sales_note.sql`; `lib/claude.ts`'e `satis_notu` alanı + mesaj-boşsa-siteye-ağırlık-ver talimatı; `lib/gmail.ts` raporu HTML'e çevrildi (öncelik rozeti, satış notu kutusu, admin linki); `app/admin/LeadsTable.tsx` (client component) ile genişletilebilir geçmiş zaman çizelgesi; `app/api/admin/retry-lead` ile veri durumuna göre akıllı yeniden deneme
 - Test sırasında bir görsel bug bulundu: çok uzun bir tracking URL'i tablo sütununu bozup diğer sütunları görünüm dışına itiyordu — `truncate`/`max-width` ile düzeltildi, ekran görüntüsüyle doğrulandı
 - Retry butonu gerçek bir "error" lead üzerinde Playwright ile tıklanarak test edildi — doğru şekilde önceki duruma (`analyzed`) geri aldı
+- Arka planda başlatılan production deploy kontrolü tamamlandı, kullanıcıya bildirildi
+- Kullanıcı "neden hep kendi ürün sitelerimizi test URL'i olarak kullanıyorsun" diye sordu — test kolaylığı (garantili yüksek skor eşleşmesi) olduğu, gerçekçi olmadığı ama sidestarhotels.com gibi alakasız sitelerle de ayrıca test edildiği açıklandı (aksiyon alınmadı)
+- Kullanıcı "1.den devam edelim" dedi (Gün 13-14: hata senaryoları + KVKK) → **Gün 13-14 tamamlandı:**
+  - Retry butonunun 3 hata türünde de (scrape/analiz/website_url eksik) doğru çalıştığı ayrı ayrı test edildi
+  - Bu sırada kritik bir bulgu: `0003_leads_website_url_nullable.sql` migration'ı hiç çalıştırılmamış olduğu ortaya çıktı (website_url'siz bir lead insert edilirken sessizce kayboluyordu) — kullanıcı migration'ı şimdi çalıştırdı
+  - KVKK aydınlatma metni taslağı (`app/form/KvkkNotice.tsx`) + zorunlu onay kutusu eklendi; `0006_leads_consent.sql` (`consent_given_at`) — onay zamanı e-postaya damgalanıp geri ayrıştırılıyor
+  - Bu migration da ilk denemede unutulmuştu (insert hatası ile yakalandı), kullanıcı çalıştırdı, ikinci denemede başarılı
+  - Playwright ile tam doğrulama: onaysız gönderim reddediliyor, onaylı gönderim + consent_given_at kaydı başarılı
+- **Faz 1 (Gün 1-15) artık tamamen bitti** — kalan işler test verisi temizliği ve Faz 2 kararı
 
 ---
 
