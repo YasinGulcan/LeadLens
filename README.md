@@ -7,11 +7,10 @@ Tam mimari, karar gerekçeleri, alternatif yaklaşımlar, riskler ve geliştirme
 ## Yığın
 
 - **Next.js (App Router, TypeScript)** — Vercel üzerinde serverless
-- **Supabase (Postgres + pgvector)** — `leads`, `lead_status_history`, `product_chunks`
-- **Gmail API** — form yanıtlarının ayrıştırılması
+- **Supabase (Postgres + pgvector)** — `leads`, `lead_status_history`, `product_chunks`, `product_sources`
+- **Gmail API** — hem lead formunun alınması hem de analiz raporunun satış ekibine bildirilmesi (aynı hesap üzerinden)
 - **Firecrawl** — ürün kataloğu ve müşteri site taraması
 - **OpenAI embeddings + Claude (RAG)** — ürün eşleştirme ve rapor üretimi
-- **Resend** — satış ekibine e-posta bildirimi
 
 ## Durum
 
@@ -24,7 +23,9 @@ npm install
 cp .env.example .env.local   # anahtarları doldurun
 ```
 
-Veritabanı şeması Supabase SQL Editor'de sırayla çalıştırılmalı: `supabase/migrations/0001_init.sql`, `0002_product_sources.sql`.
+Veritabanı şeması Supabase SQL Editor'de `supabase/migrations/` klasöründeki dosya sırasına göre (0001 → 0004) çalıştırılmalı.
+
+Gmail entegrasyonu için (form alma + rapor bildirimi) `npm run gmail:auth` ile bir kerelik OAuth yetkilendirmesi gerekir — bkz. `scripts/gmail-auth.ts`.
 
 ### Ürün bilgi tabanını doldurma (RAG kaynağı)
 

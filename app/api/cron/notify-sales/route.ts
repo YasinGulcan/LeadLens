@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { sendLeadNotification } from "@/lib/resend";
+import { sendAnalysisNotificationEmail } from "@/lib/gmail";
 
 const BATCH_SIZE = 5;
 
 /**
- * Gün 12: status='analyzed' lead'ler için satış ekibine e-posta bildirimi
- * gönderir (Resend). Başarılı gönderimde status='sent_to_sales'e geçer.
+ * Gün 12: status='analyzed' lead'ler için aynı Gmail hesabına analiz raporu
+ * gönderir (intake ile aynı adres — kullanıcı isteğiyle Resend yerine Gmail
+ * kullanılıyor, bkz. PROGRESS.md). Başarılı gönderimde status='sent_to_sales'e geçer.
  */
 export async function GET() {
   const { data: leads, error } = await supabase
@@ -24,7 +25,7 @@ export async function GET() {
 
   for (const lead of leads ?? []) {
     try {
-      await sendLeadNotification({
+      await sendAnalysisNotificationEmail({
         name: lead.name,
         phone: lead.phone,
         websiteUrl: lead.website_url,

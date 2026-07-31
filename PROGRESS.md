@@ -4,12 +4,12 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 
 ## Güncel Durum (son güncelleme: 2026-07-31)
 
-**Faz:** Faz 1 — Prototip → **Gün 1-12 tamamlandı** (Gün 1-2, 3-4, 5-7, 8-9, 10-11, 12 — hepsi gerçek veriyle uçtan uca test edildi). Çekirdek pipeline baştan sona çalışıyor: form → Gmail → Supabase → site taraması → RAG eşleştirme → Claude analizi → Resend bildirimi → `status='sent_to_sales'`. Kalan: Gün 13-14 (daha kapsamlı hata senaryoları + KVKK metni), Gün 15 (demo/deploy).
+**Faz:** Faz 1 — Prototip → **Gün 1-12 tamamlandı** (hepsi gerçek veriyle uçtan uca test edildi). Çekirdek pipeline baştan sona çalışıyor: form → Gmail → Supabase → site taraması → RAG eşleştirme → Claude analizi → **Gmail bildirimi** (Resend değil — kullanıcı isteğiyle değiştirildi, aşağıya bakın) → `status='sent_to_sales'`. Kalan: Gün 13-14 (daha kapsamlı hata senaryoları + KVKK metni), Gün 15 (demo/deploy).
 
 - [x] Next.js (App Router, TypeScript, Tailwind, ESLint) proje iskeleti oluşturuldu
 - [x] GitHub reposuna bağlandı ve push edildi: https://github.com/YasinGulcan/LeadLens
 - [x] Veritabanı şeması Supabase'de çalıştırıldı ve doğrulandı: `leads` (website_url artık nullable — hatalı kayıtlar için), `lead_status_history`, `product_chunks`, `product_sources`
-- [x] `.env.local` dolduruldu: Supabase, OpenAI, Anthropic, Firecrawl, Gmail (client id/secret/refresh token) aktif — sadece Resend eksik (Gün 12'de gerekecek)
+- [x] `.env.local` dolduruldu: Supabase, OpenAI, Anthropic, Firecrawl, Gmail (client id/secret/refresh token) — Resend'e artık ihtiyaç yok (bkz. Gün 12 revizyonu)
 - [x] RAG ingestion pipeline: 7 gerçek ürün sitesi taranıp embed edildi (221 temiz chunk)
 - [x] **Gün 5-7 mimari kararı:** form sıfırdan bizim tarafımızdan kuruluyor olsa da, kullanıcı bilinçli olarak Gmail-parsing akışında kalmayı seçti (webhook alternatifini önerdim, reddedildi) — form gönderimi bir e-posta tetikliyor, sistem o e-postayı okuyup ayrıştırıyor
 - [x] `app/form/page.tsx`: public lead formu (isim, telefon, website_url*, mesaj)
@@ -26,13 +26,12 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - [x] `app/api/cron/analyze-leads/route.ts`: `status='scraping'` lead'leri işler, sonucu `recommended_product/match_score/reasoning/priority`'e yazar, `status='analyzed'`e geçirir
 - [x] Admin paneline "Önerilen Ürün" ve "Skor" kolonları eklendi
 - [x] 4 test lead ile doğrulandı — sonuçlar kaliteli ve context'e sadık: SEO talebi → "Arama Motoru Optimizasyonu" (skor 0.95); "pazarlama otomasyonu" gibi tam karşılığı olmayan bir talepte model uydurmadı, en yakın ürünü düşük skorla (0.62) ve dürüst gerekçeyle önerdi
-- [x] `lib/resend.ts`: `sendLeadNotification` — rapor özetini (önerilen ürün, skor, gerekçe, öncelik) HTML e-posta olarak `SALES_NOTIFICATION_EMAIL`'e gönderir
-- [x] `app/api/cron/notify-sales/route.ts`: `status='analyzed'` lead'leri işler, bildirim gönderir, `status='sent_to_sales'`e geçirir
-- [x] 4 test lead ile doğrulandı — hepsi başarıyla gönderildi, admin panelinde "Satışa Gönderildi" (yeşil) görünüyor
+- [x] **Gün 12 revizyonu — Resend kaldırıldı, bildirim Gmail'e taşındı:** Kullanıcı hem intake hem bildirimin aynı Gmail hesabından (`yasingulcan92@gmail.com`) gitmesini istedi (Resend'in sandbox kısıtı — sadece hesap sahibine gönderim — buna zaten engeldi). `lib/resend.ts` ve `resend` paketi silindi; `lib/gmail.ts#sendAnalysisNotificationEmail` eklendi (mevcut `sendSelfEmail` helper'ı ile aynı Gmail hesabına "Lead Analiz Raporu — ..." konulu mail gönderiyor). `app/api/cron/notify-sales` artık bunu çağırıyor.
+- [x] `.env.example`/`.env.local`'dan `RESEND_API_KEY`/`SALES_NOTIFICATION_EMAIL` kaldırıldı — artık gerekmiyor, her şey Gmail üzerinden
+- [x] 4 test lead ile yeni akış doğrulandı: `notify-sales` → 4/4 başarılı → Gmail'de gerçekten "Lead Analiz Raporu" konulu 4 mail bulundu → admin panelinde "Satışa Gönderildi"
 - [x] `npx tsc --noEmit` ve `npx eslint .` temiz geçiyor
 - [ ] `leads` tablosundaki 4 satır **test verisi**, tam pipeline'ı baştan sona geçti (new → scraping → analyzed → sent_to_sales) — gerçek kullanıma geçmeden temizlenebilir
-- [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail, Resend) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
-- [ ] Resend sandbox modunda (domain doğrulanmamış) — sadece hesap sahibinin e-postasına (`yasingulcan288@gmail.com`) gönderilebiliyor; gerçek satış ekibi adresine göndermek için resend.com/domains'te domain doğrulaması gerekecek
+- [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
 
 ## Sıradaki Adım
 
@@ -43,7 +42,7 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 
 **Netleşmemiş açık sorular** (`PROJECT_PLAN.md` §5):
 - Vercel hesabı/takımı belirlendi mi? (deploy zamanı gelince gerekecek)
-- Resend'de gerçek bir domain doğrulanacak mı, yoksa prototipte sandbox modu yeterli mi?
+- Kullanıcı kendi ayrı bir "form web sitesi" kuracağını belirtti ama henüz yok — ileride hazır olduğunda ya bizim `/api/form-submit`'e POST eder ya da bağımsız çalışır (mail formatı belgelenir). Şimdilik `/form` sayfamız gerçek form olarak kullanılıyor.
 
 **Hatırlatma:** Kullanıcı API anahtarlarını sohbete yapıştırmaya devam ediyor (Resend dahil). İşlevsel sorun yok ama güvenlik için iş bitince hepsinin rotate edilmesi öneriliyor.
 
@@ -78,6 +77,8 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - Gün 12: `lib/resend.ts`, `app/api/cron/notify-sales` yazıldı. İlk denemede Resend sandbox kısıtı çıktı (doğrulanmamış domain'de sadece hesap sahibinin e-postasına gönderilebiliyor) — `SALES_NOTIFICATION_EMAIL` düzeltilip düzeldi
 - 4 test lead tekrar bildirim gönderdi (önce status='error'den 'analyzed'e resetlendi) — hepsi `status='sent_to_sales'`e geçti
 - **Faz 1'in çekirdek pipeline'ı (Gün 1-12) tamamen bitti**: form → Gmail → Supabase → scrape → RAG eşleştirme → Claude analiz → Resend bildirimi, hepsi gerçek servislerle uçtan uca doğrulandı
+- Kullanıcı geri döndü: hem intake hem bildirim aynı Gmail hesabından (`yasingulcan92@gmail.com`) gitsin istedi; ayrıca ileride kendi ayrı bir form web sitesi kuracağını belirtti (henüz yok) — mimariyi netleştirmek için soru soruldu, kullanıcı "bizim /form sayfamızı kullanalım, rapor da Gmail'e gitsin" diye onayladı
+- **Gün 12 revize edildi:** `lib/resend.ts` silindi, `resend` paketi kaldırıldı; `lib/gmail.ts#sendAnalysisNotificationEmail` eklendi, `notify-sales` buna geçirildi. 4 test lead tekrar (sent_to_sales'ten analyzed'e resetlenip) denendi, 4/4 başarılı; Gmail'de "Lead Analiz Raporu" konulu 4 mailin gerçekten oluştuğu ayrıca doğrulandı
 
 ---
 

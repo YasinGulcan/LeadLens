@@ -35,19 +35,11 @@ function encodeSubject(subject: string): string {
   return `=?UTF-8?B?${Buffer.from(subject, "utf-8").toString("base64")}?=`;
 }
 
-/** Form gönderimini simüle eden e-postayı, ayrıştırıcının anlayacağı sabit şablonla gönderir. */
-export async function sendFormSubmissionEmail(submission: FormSubmission): Promise<void> {
+/** Aynı Gmail hesabına (kendine) düz metin e-posta gönderir. */
+async function sendSelfEmail(subject: string, body: string): Promise<void> {
   const gmail = getClient();
   const profile = await gmail.users.getProfile({ userId: "me" });
   const to = profile.data.emailAddress;
-
-  const subject = `${SUBJECT_PREFIX} — ${submission.name || "İsimsiz"}`;
-  const body = [
-    `İsim: ${submission.name}`,
-    `Telefon: ${submission.phone}`,
-    `Website: ${submission.websiteUrl}`,
-    `Mesaj: ${submission.message}`,
-  ].join("\n");
 
   const message = [
     `To: ${to}`,
@@ -64,6 +56,47 @@ export async function sendFormSubmissionEmail(submission: FormSubmission): Promi
     .replace(/=+$/, "");
 
   await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
+}
+
+/** Form gönderimini simüle eden e-postayı, ayrıştırıcının anlayacağı sabit şablonla gönderir. */
+export async function sendFormSubmissionEmail(submission: FormSubmission): Promise<void> {
+  const subject = `${SUBJECT_PREFIX} — ${submission.name || "İsimsiz"}`;
+  const body = [
+    `İsim: ${submission.name}`,
+    `Telefon: ${submission.phone}`,
+    `Website: ${submission.websiteUrl}`,
+    `Mesaj: ${submission.message}`,
+  ].join("\n");
+
+  await sendSelfEmail(subject, body);
+}
+
+export interface LeadAnalysisNotification {
+  name: string | null;
+  phone: string | null;
+  websiteUrl: string | null;
+  recommendedProduct: string | null;
+  matchScore: number | null;
+  reasoning: string | null;
+  priority: string | null;
+}
+
+/** Gün 12: analiz raporunu (Resend yerine) aynı Gmail hesabına gönderir. */
+export async function sendAnalysisNotificationEmail(lead: LeadAnalysisNotification): Promise<void> {
+  const name = lead.name || "İsimsiz";
+  const subject = `Lead Analiz Raporu — ${name} (Öncelik: ${lead.priority ?? "belirsiz"})`;
+  const body = [
+    `İsim: ${name}`,
+    `Telefon: ${lead.phone ?? "—"}`,
+    `Website: ${lead.websiteUrl ?? "—"}`,
+    "",
+    `Önerilen ürün: ${lead.recommendedProduct ?? "—"}`,
+    `Eşleşme skoru: ${lead.matchScore != null ? lead.matchScore.toFixed(2) : "—"}`,
+    `Öncelik: ${lead.priority ?? "—"}`,
+    `Gerekçe: ${lead.reasoning ?? "—"}`,
+  ].join("\n");
+
+  await sendSelfEmail(subject, body);
 }
 
 export interface ParsedLeadEmail {
