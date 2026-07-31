@@ -23,7 +23,10 @@ async function main() {
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    scope: ["https://www.googleapis.com/auth/gmail.readonly"],
+    scope: [
+      "https://www.googleapis.com/auth/gmail.modify", // okuma + etiketleme (işlenmiş mailleri işaretlemek için)
+      "https://www.googleapis.com/auth/gmail.send", // form gönderimini simüle eden test maili göndermek için
+    ],
   });
 
   console.log("\n=== Bu URL'i tarayıcıda açın ve test Gmail hesabınızla giriş yapın ===\n");

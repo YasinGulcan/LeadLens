@@ -154,8 +154,8 @@ Bunlar planı bloklamıyor (Faz 1'e başlanabilir) ama Gün 1-2 içinde netleşm
 - [x] Supabase projesi kur, `leads` ve `product_chunks` tablolarını + `pgvector` extension'ı oluştur *(gerçek projede çalıştırıldı ve doğrulandı)*
 - [x] `.env` / Vercel environment variables yapılandır (secrets asla commit edilmesin) *(`.env.local` dolduruldu — Vercel env değişkenleri deploy aşamasında ayrıca girilecek)*
 - [x] Firecrawl ile ürün sitesi taraması + chunking + embedding + `pgvector`'a yükleme scripti *(gerçek veriyle test edildi: 7 ürün sitesi, 221 chunk, cookie-boilerplate filtresi eklendi)*
-- [ ] Gmail OAuth2 entegrasyonu + Vercel Cron Job ile polling
-- [ ] Mail ayrıştırma (parser) + zorunlu alan doğrulama + `status='new'` yazma + hata durumunda `status='error'`
+- [x] Gmail OAuth2 entegrasyonu *(Vercel Cron Job henüz yok — endpoint elle/curl ile tetikleniyor, deploy aşamasında crona bağlanacak)*
+- [x] Mail ayrıştırma (parser) + zorunlu alan doğrulama + `status='new'` yazma + hata durumunda `status='error'` *(4 test lead ile uçtan uca doğrulandı — bkz. `app/api/cron/fetch-leads`, `lib/gmail.ts`)*
 - [ ] Firecrawl ile müşteri sitesi tarama entegrasyonu (`status='scraping'`)
 - [ ] Embedding + `pgvector` benzerlik araması ile ürün eşleştirme
 - [ ] Claude API çağrısı + Zod ile JSON şema doğrulama (`status='analyzed'`)
