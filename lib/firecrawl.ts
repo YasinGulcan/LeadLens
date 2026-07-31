@@ -15,7 +15,13 @@ function getClient(): Firecrawl {
 
 /** Verilen URL'i tarar, temiz markdown döner. */
 export async function scrapeMarkdown(url: string): Promise<string> {
-  const doc = await getClient().scrape(url, { formats: ["markdown"] });
+  const doc = await getClient().scrape(url, {
+    formats: ["markdown"],
+    // Çerez izni bandı, nav/footer gibi tekrarlayan gürültüyü dışarıda bırakır —
+    // aksi halde bu boilerplate RAG chunk'larının önemli bir kısmını kaplıyor.
+    onlyMainContent: true,
+    excludeTags: ["nav", "footer", "#cookie-law-info-bar", ".cookie", "[class*=cookie]"],
+  });
   if (!doc.markdown) {
     throw new Error(`Firecrawl "${url}" için markdown döndürmedi.`);
   }

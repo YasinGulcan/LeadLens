@@ -4,34 +4,31 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 
 ## Güncel Durum (son güncelleme: 2026-07-31)
 
-**Faz:** Faz 1 — Prototip → Gün 1-2 tamamlandı, Gün 3-4 (ürün bilgi tabanı) **kod tarafı tamamlandı, henüz test edilmedi** (hesap/API anahtarı yok).
+**Faz:** Faz 1 — Prototip → Gün 1-2 ✅, Gün 3-4 (ürün bilgi tabanı) ✅ **gerçek veriyle uçtan uca test edildi**.
 
 - [x] Next.js (App Router, TypeScript, Tailwind, ESLint) proje iskeleti oluşturuldu
 - [x] GitHub reposuna bağlandı ve push edildi: https://github.com/YasinGulcan/LeadLens
 - [x] Klasör yapısı kuruldu: `app/api/leads`, `app/api/cron/process-leads`, `lib/`, `scripts/`, `supabase/migrations/`
 - [x] Supabase client iskeleti (`lib/supabase.ts`)
-- [x] Veritabanı şeması: `0001_init.sql` (`leads`, `lead_status_history`, `product_chunks` + pgvector), `0002_product_sources.sql` (`product_sources` — taranacak ürün URL'lerinin dinamik listesi, kodda sabit değil)
-- [x] `.env.example` ile gerekli tüm API anahtarları dokümante edildi
-- [x] RAG ingestion pipeline yazıldı: `lib/chunk.ts` (markdown chunking), `lib/firecrawl.ts` (scrape), `lib/embeddings.ts` (OpenAI embedding), `scripts/ingest-products.ts` (orkestrasyon, idempotent — kaynak yeniden tarandığında eski chunk'ları silip yenler), `scripts/add-source.ts` (CLI ile kaynak ekleme: `npm run sources:add -- "<url>" "<etiket>"`)
+- [x] Veritabanı şeması Supabase'de gerçekten çalıştırıldı ve doğrulandı: `leads`, `lead_status_history`, `product_chunks`, `product_sources`
+- [x] `.env.local` dolduruldu: Supabase, OpenAI, Anthropic, Firecrawl anahtarları aktif (Gmail, Resend henüz yok — sırası gelince eklenecek)
+- [x] RAG ingestion pipeline yazıldı VE test edildi: `lib/chunk.ts` (chunking), `lib/clean.ts` (boilerplate filtresi), `lib/firecrawl.ts` (scrape), `lib/embeddings.ts` (OpenAI embedding), `scripts/ingest-products.ts`, `scripts/add-source.ts`, `scripts/check-setup.ts`
+- [x] **7 gerçek ürün sitesi taranıp embed edildi** (233 chunk, `product_chunks` tablosunda): 2gether Social, The Content Up, The SEO Up, The Accumulate, AI Vault, Digital Exporter, The Unique Sales
 - [x] `npx tsc --noEmit` ve `npx eslint .` temiz geçiyor
-- [ ] **Hiçbir hesap/API anahtarı henüz yok** — Supabase, Firecrawl, OpenAI, Anthropic, Resend hesapları açılmadı (kullanıcı: "hiçbiri yok, hesap açmaktan başlamamız lazım")
-- [ ] Bu yüzden ingestion script'i hiç çalıştırılmadı / gerçek veriyle test edilmedi
-- [ ] Taranacak gerçek ürün sitesi URL'si henüz verilmedi
-- [ ] Gmail, Claude, Resend route'ları hâlâ placeholder (Gün 5-7, 10-11, 12'de sırası gelecek)
+- [ ] Gmail, Claude (RAG eşleştirme + analiz), Resend route'ları hâlâ placeholder (Gün 5-7, 10-11, 12'de sırası gelecek)
+- [ ] `.env.local`'daki OpenAI/Anthropic/Firecrawl anahtarları sohbette paylaşıldığı için **"yanmış" sayılmalı** — kullanıcıya rotate etmesi hatırlatıldı, henüz yapılmadı
 
 ## Sıradaki Adım
 
-1. **Hesap açma** — kullanıcıya Supabase/Firecrawl/OpenAI kurulum rehberi verildi (bkz. sohbet geçmişi), kullanıcı hesapları açıp `.env.local`'ı dolduracak
-2. Supabase'de `0001_init.sql` ve `0002_product_sources.sql` migration'ları SQL Editor'de çalıştırılacak
-3. Gerçek ürün sitesi URL'si alınıp `npm run sources:add` ile eklenecek
-4. `npm run ingest:products` ile gerçek veriyle uçtan uca test edilecek
-5. Ardından `PROJECT_PLAN.md` §2 Gün 5-7: Gmail entegrasyonu
+`PROJECT_PLAN.md` §2 Faz 1 — **Gün 5-7: Veri toplama (Gmail ayrıştırma)**
 
 **Netleşmemiş açık sorular** (`PROJECT_PLAN.md` §5):
 - Gmail OAuth türü (kişisel OAuth mu, Workspace service account mı?)
 - Mevcut form zaten `website_url` alanını içeriyor mu?
-- Taranacak ürün sitesi URL(leri) ve ürün sayısı — **hâlâ bekleniyor**
 - Vercel hesabı/takımı belirlendi mi?
+- Resend hesabı henüz açılmadı (Gün 12'de gerekecek)
+
+**Hatırlatma:** Kullanıcı API anahtarlarını sohbete yapıştırdı (OpenAI, Anthropic, Firecrawl, Supabase service role). İşlevsel olarak sorun değil ama güvenlik için hepsinin iş bitince rotate edilmesi önerildi.
 
 ## Oturum Günlüğü
 
@@ -44,6 +41,13 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - Kullanıcı: hesap/API anahtarı yok, Supabase/Firecrawl/OpenAI/Anthropic/Resend/Gmail/Vercel için kurulum rehberi verildi
 - Kullanıcı sorusu üzerine netleşti: ürün kataloğu kaynağı kodda sabit **değil**, `product_sources` tablosunda tutulup istendiğinde eklenip çıkarılabilecek (dinamik)
 - `0002_product_sources.sql` migration'ı eklendi; `lib/chunk.ts`, `lib/firecrawl.ts`, `lib/embeddings.ts`, `scripts/ingest-products.ts`, `scripts/add-source.ts` yazıldı ve tip/lint kontrolünden geçti (henüz gerçek API'lerle test edilmedi)
+- Kullanıcı hesapları açtı, anahtarları sohbet üzerinden paylaştı (rotate önerisi verildi); `.env.local` dolduruldu
+- Migration'lar Supabase SQL Editor'de çalıştırıldı, `scripts/check-setup.ts` ile doğrulandı
+- İlk denemede Firecrawl anahtarı geçersizdi → yeni anahtarla düzeldi; sonra OpenAI kotası doluydu → kullanıcı $5 kredi yükledi, düzeldi
+- İlk taranan site (`digitalexchange.com.tr`) kullanıcı tarafından "asıl ürün değil, ana holding sitesi" olarak düzeltildi; devre dışı bırakılıp chunk'ları silindi
+- Gerçek 7 ürün sitesi eklendi ve tarandı; ilk denemede chunk'ların önemli kısmının çerez izni bandı metni olduğu görüldü (`lib/chunk.ts` içeriği değil, kaynak veri sorunuydu)
+- `lib/clean.ts` eklendi: cookie-consent boilerplate'i paragraf bazlı filtreleyen sağlayıcıdan bağımsız bir temizleyici (spesifik ifadeler + genel "cookie" kelimesi + uzunluk sınırı). Üç iterasyonda geliştirildi, son halde 233 chunk'ın hiçbirinde "cookie" kelimesi kalmadı
+- Sonuç: `product_chunks` tablosunda 233 temiz chunk, 7 aktif kaynak
 
 ---
 

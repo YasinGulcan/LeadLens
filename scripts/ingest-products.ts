@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase";
 import { scrapeMarkdown } from "../lib/firecrawl";
+import { stripBoilerplate } from "../lib/clean";
 import { chunkMarkdown } from "../lib/chunk";
 import { embedTexts } from "../lib/embeddings";
 
@@ -23,7 +24,7 @@ async function ingestSource(source: ProductSource) {
   console.log(`\n→ Taranıyor: ${source.url}`);
 
   const markdown = await scrapeMarkdown(source.url);
-  const chunks = chunkMarkdown(markdown);
+  const chunks = chunkMarkdown(stripBoilerplate(markdown));
   console.log(`  ${chunks.length} parçaya bölündü`);
 
   if (chunks.length === 0) {

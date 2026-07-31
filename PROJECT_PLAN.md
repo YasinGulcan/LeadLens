@@ -151,9 +151,9 @@ Bunlar planı bloklamıyor (Faz 1'e başlanabilir) ama Gün 1-2 içinde netleşm
 
 ### Faz 1 — Prototip
 - [x] Next.js + TypeScript proje iskeleti oluştur, Vercel'e bağla *(Vercel bağlantısı henüz yapılmadı, repo hazır)*
-- [ ] Supabase projesi kur, `leads` ve `product_chunks` tablolarını + `pgvector` extension'ı oluştur *(migration dosyaları hazır, henüz gerçek projede çalıştırılmadı)*
-- [ ] `.env` / Vercel environment variables yapılandır (secrets asla commit edilmesin) *(`.env.example` hazır, gerçek anahtarlar bekleniyor)*
-- [x] Firecrawl ile ürün sitesi taraması + chunking + embedding + `pgvector`'a yükleme scripti *(kod tamam: `scripts/ingest-products.ts`, henüz gerçek API'lerle test edilmedi)*
+- [x] Supabase projesi kur, `leads` ve `product_chunks` tablolarını + `pgvector` extension'ı oluştur *(gerçek projede çalıştırıldı ve doğrulandı)*
+- [x] `.env` / Vercel environment variables yapılandır (secrets asla commit edilmesin) *(`.env.local` dolduruldu — Vercel env değişkenleri deploy aşamasında ayrıca girilecek)*
+- [x] Firecrawl ile ürün sitesi taraması + chunking + embedding + `pgvector`'a yükleme scripti *(gerçek veriyle test edildi: 7 ürün sitesi, 233 chunk, cookie-boilerplate filtresi eklendi)*
 - [ ] Gmail OAuth2 entegrasyonu + Vercel Cron Job ile polling
 - [ ] Mail ayrıştırma (parser) + zorunlu alan doğrulama + `status='new'` yazma + hata durumunda `status='error'`
 - [ ] Firecrawl ile müşteri sitesi tarama entegrasyonu (`status='scraping'`)
