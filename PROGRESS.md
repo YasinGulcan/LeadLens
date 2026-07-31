@@ -4,7 +4,7 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 
 ## Güncel Durum (son güncelleme: 2026-07-31)
 
-**Faz:** Faz 1 — Prototip → **Gün 1-12 tamamlandı** (hepsi gerçek veriyle uçtan uca test edildi). Çekirdek pipeline baştan sona çalışıyor: form → Gmail → Supabase → site taraması → RAG eşleştirme → Claude analizi → **Gmail bildirimi** (Resend değil — kullanıcı isteğiyle değiştirildi, aşağıya bakın) → `status='sent_to_sales'`. Kalan: Gün 13-14 (daha kapsamlı hata senaryoları + KVKK metni), Gün 15 (demo/deploy).
+**Faz:** Faz 1 — Prototip → **Gün 1-12 ve Gün 15 (deploy) tamamlandı, canlıda çalışıyor.** Çekirdek pipeline baştan sona çalışıyor: form → Gmail → Supabase → site taraması → RAG eşleştirme → Claude analizi → Gmail bildirimi → `status='sent_to_sales'`. **Canlı URL: https://lead-lens-ten.vercel.app** — `/form`'dan gönderilen bir test lead, production'da uçtan uca doğrulandı (Playwright ile). Kalan: Gün 13-14 (daha kapsamlı hata senaryoları + KVKK metni).
 
 - [x] Next.js (App Router, TypeScript, Tailwind, ESLint) proje iskeleti oluşturuldu
 - [x] GitHub reposuna bağlandı ve push edildi: https://github.com/YasinGulcan/LeadLens
@@ -32,16 +32,23 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - [x] **Kullanıcı `/form`'u kendi tarayıcısından gerçek veriyle doldurdu** (isim: Yasin, site: sidestarhotels.com) — bu ilk gerçek (test dışı) uçtan uca kullanım
 - [x] Bulgu: pipeline hâlâ tamamen elle tetikleniyor (Vercel Cron yok) — kullanıcı formu doldurunca otomatik rapor gelmedi, çünkü `fetch-leads`/`scrape-leads`/`analyze-leads`/`notify-sales` sırayla elle çağrılması gerekiyordu. Bunlar çağrılınca çalıştı.
 - [x] Kalite bulgusu: müşteri mesajı anlamsızdı ("Merhaba Test") ve site alakasızdı (otel sitesi vs. pazarlama ajansı ürünleri) — Claude doğru şekilde uydurmadı, düşük skor (0.1) verdi, ama `onerilen_urun` alanına "<UNKNOWN>" (İngilizce placeholder) yazdı. Prompt'a Türkçe fallback talimatı eklendi ("Net bir eşleşme bulunamadı"), yeniden çalıştırılıp Gmail'deki güncel rapor içeriği doğrulandı.
+- [x] **Gün 15 — Deploy tamamlandı.** Vercel projesi kullanıcı tarafından GitHub reposundan import edildi, tüm env değişkenleri (Supabase/Gmail/Firecrawl/OpenAI/Anthropic) + yeni `CRON_SECRET` dashboard'a girildi. Canlı URL: **https://lead-lens-ten.vercel.app**
+- [x] `lib/pipeline.ts`: 4 adımın (fetch/scrape/analyze/notify) mantığı ortak fonksiyonlara taşındı, kod tekrarı kalmadı; her route hem elle hem cron'dan çağrılabiliyor
+- [x] `app/api/cron/run-pipeline`: Vercel Cron'un çağıracağı tek giriş noktası — Hobby planı cron'ları günde 1 kez çalıştırabildiği için 4 adım burada sıralı zincirleniyor (`vercel.json`, `0 6 * * *`)
+- [x] `lib/cron-auth.ts`: cron endpoint'leri Vercel'in otomatik `CRON_SECRET` bearer token'ıyla korunuyor (yerelde secret yoksa serbest) — production'da secret'sız istek 401 döndüğü doğrulandı
+- [x] **Production'da gerçek uçtan uca test yapıldı:** Playwright ile canlı `/form`'a girildi ("Prod Test", theaccumulate.com) → `run-pipeline` (doğru `CRON_SECRET` ile) tetiklendi → 4/4 aşama başarılı → `/admin`'de (production) 7. lead olarak göründü, Supabase de aynı (7 kaynak, 221 chunk doğrulandı)
+- [x] `app/layout.tsx`: sekme başlığı varsayılan "Create Next App"tan "LeadLens — Lead Analiz Otomasyonu"ya düzeltildi
 - [x] `npx tsc --noEmit` ve `npx eslint .` temiz geçiyor
-- [ ] `leads` tablosunda artık 5 satır: 4 test + 1 gerçek kullanıcı denemesi — gerçek kullanıma geçmeden temizlenebilir
-- [ ] **Vercel Cron Job henüz bağlı değil** — bu prototipte en somut eksik: kullanıcı formu doldurduğunda pipeline kendiliğinden ilerlemiyor, her adımı elle tetiklemek gerekiyor. Gün 15'te (deploy) çözülecek.
+- [ ] `leads` tablosunda artık 7 satır (test verisi) — gerçek kullanıma geçmeden temizlenebilir
 - [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
+- [ ] Cron şu an günde 1 kez (06:00 UTC) çalışıyor — daha sık/anlık işlem isteniyorsa Vercel Pro'ya geçmek gerekecek
 
 ## Sıradaki Adım
 
-Kullanıcının kendi denemesi net bir ihtiyaç ortaya çıkardı: **pipeline otomatik ilerlemiyor**, her adımı elle/curl ile tetiklemek gerekiyor. Bu Gün 15'in (deploy) konusu — Vercel'e bağlanıp Cron Job'lar kurulunca çözülecek. Öncelik sırası:
-1. **Vercel'e deploy + Cron Job'lar** — `fetch-leads`/`scrape-leads`/`analyze-leads`/`notify-sales` periyodik otomatik çalışsın (Vercel hesabı gerekiyor, henüz yok)
-2. `PROJECT_PLAN.md` §2 Faz 1 — **Gün 13-14: Uçtan uca test** (daha fazla hata senaryosu) + **KVKK rıza metni taslağı**
+Çekirdek pipeline canlıda otomatik çalışıyor. Kalanlar:
+1. `PROJECT_PLAN.md` §2 Faz 1 — **Gün 13-14: Uçtan uca test** (daha fazla hata senaryosu: bozuk mail formatı, scrape timeout, geçersiz LLM çıktısı) + **KVKK rıza metni taslağı**
+2. Test verisini (7 satır) temizleyip gerçek kullanıma geçme kararı
+3. Kullanıcıyla birlikte karar: prototip yeterince olgun mu, Faz 2'ye mi geçilsin (Sentry, otomatik testler, günlük 1 cron yerine Pro plan)
 3. Kullanıcıyla birlikte karar: prototip yeterince olgun mu, yoksa Faz 2 iyileştirmelerine mi geçilsin (Sentry, otomatik testler, webhook'a geçiş değerlendirmesi)
 
 **Netleşmemiş açık sorular** (`PROJECT_PLAN.md` §5):
@@ -86,6 +93,13 @@ Kullanıcının kendi denemesi net bir ihtiyaç ortaya çıkardı: **pipeline ot
 - Kullanıcı `/form`'u kendi tarayıcısından gerçek veriyle doldurdu (ilk gerçek/test-dışı kullanım) ama rapor gelmedi — sebep: pipeline hâlâ elle tetikleniyor, Vercel Cron yok. Dört endpoint sırayla elle çağrılıp lead işlendi.
 - Kalite bulgusu: anlamsız mesaj + alakasız site kombinasyonunda Claude `onerilen_urun` alanına İngilizce "<UNKNOWN>" yazmış — doğru davranış (uydurmadı) ama kötü UX. Prompt'a Türkçe fallback eklendi ("Net bir eşleşme bulunamadı"), aynı lead yeniden analiz edilip Gmail'deki güncel mailin doğru metni içerdiği doğrulandı.
 - Not: Vercel Cron eksikliği artık en somut açık iş — kullanıcı bunu bizzat deneyimledi, bir sonraki oturumda öncelik bu olmalı.
+- Kullanıcı "onu kur ve bekle" dedi → Vercel Cron kurulumuna geçildi. Vercel Hobby planının cron'ları günde 1 kez çalıştırabildiği (dakikalık değil) doğrulandı (WebFetch ile güncel dokümantasyon kontrol edildi) — bu yüzden 4 adım `lib/pipeline.ts#runFullPipeline`'da tek sıralı çağrıya birleştirildi, ayrıca route'lar `lib/pipeline.ts`'deki ortak fonksiyonları kullanacak şekilde refactor edildi (kod tekrarı kalmadı)
+- `lib/cron-auth.ts` eklendi: deploy sonrası herkese açık olacak (maliyetli API çağrıları tetikleyen) cron endpoint'leri Vercel'in otomatik `CRON_SECRET` bearer token'ıyla korunuyor
+- Kullanıcıya Vercel dashboard üzerinden GitHub reposunu import etme adımları verildi (CLI login interaktif olduğu için dashboard tercih edildi); env değişkenleri + üretilen `CRON_SECRET` kullanıcı tarafından girildi
+- Deploy sonrası yanlış URL tahmin edildi (`leadlens.vercel.app` — tamamen alakasız, Polonyaca bir "GitHub Fork Scanner" projesiymiş, isim çakışması) → kullanıcıdan doğru dashboard URL'i istendi, doğru canlı adres bulundu: `https://lead-lens-ten.vercel.app`
+- Production'da doğrulama: `/admin` gerçek Supabase verisini gösteriyor (7 kaynak, 221 chunk); cron endpoint secret'sız 401, doğru secret'la 200 dönüyor; Playwright ile canlı `/form`'a gerçek bir test lead'i girilip `run-pipeline` tetiklendi, 4/4 aşama başarılı, `/admin`'de göründü
+- `app/layout.tsx`'teki unutulmuş varsayılan "Create Next App" başlığı düzeltildi
+- **Gün 15 (deploy) tamamlandı — prototip artık canlı ve otomatik çalışıyor**
 
 ---
 

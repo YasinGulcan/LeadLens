@@ -163,7 +163,7 @@ Bunlar planı bloklamıyor (Faz 1'e başlanabilir) ama Gün 1-2 içinde netleşm
 - [ ] Uçtan uca test (gerçekçi test verisiyle)
 - [ ] Hata senaryoları test edilsin (bozuk mail formatı, scrape timeout, geçersiz LLM çıktısı)
 - [ ] KVKK rıza metni taslağı hazırlansın (devreye alınmasa da yazılsın)
-- [ ] Demo ortamı hazırlansın, ekibe/yönetime sunulsun
+- [x] Demo ortamı hazırlansın, ekibe/yönetime sunulsun *(Vercel'e deploy edildi: https://lead-lens-ten.vercel.app — Cron Job günde 1 kez otomatik çalışıyor (Hobby plan limiti), production'da uçtan uca doğrulandı)*
 
 ### Faz 1 içine ek olarak alınması önerilen (düşük maliyetli)
 - [ ] `lead_status_history` tablosu eklensin
