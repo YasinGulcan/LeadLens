@@ -157,8 +157,8 @@ Bunlar planı bloklamıyor (Faz 1'e başlanabilir) ama Gün 1-2 içinde netleşm
 - [x] Gmail OAuth2 entegrasyonu *(Vercel Cron Job henüz yok — endpoint elle/curl ile tetikleniyor, deploy aşamasında crona bağlanacak)*
 - [x] Mail ayrıştırma (parser) + zorunlu alan doğrulama + `status='new'` yazma + hata durumunda `status='error'` *(4 test lead ile uçtan uca doğrulandı — bkz. `app/api/cron/fetch-leads`, `lib/gmail.ts`)*
 - [x] Firecrawl ile müşteri sitesi tarama entegrasyonu (`status='scraping'`) *(`app/api/cron/scrape-leads`, 4 test lead ile doğrulandı, 2 deneme + `status='error'` fallback dahil)*
-- [ ] Embedding + `pgvector` benzerlik araması ile ürün eşleştirme
-- [ ] Claude API çağrısı + Zod ile JSON şema doğrulama (`status='analyzed'`)
+- [x] Embedding + `pgvector` benzerlik araması ile ürün eşleştirme *(`match_product_chunks` RPC + `lib/match.ts`)*
+- [x] Claude API çağrısı + Zod ile JSON şema doğrulama (`status='analyzed'`) *(`lib/claude.ts`, `tool_choice` ile zorunlu yapılandırılmış çıktı; 4 test lead ile doğrulandı, kaliteli/uydurmayan sonuçlar)*
 - [ ] Resend e-posta bildirimi + şablon (`status='sent_to_sales'`)
 - [ ] Uçtan uca test (gerçekçi test verisiyle)
 - [ ] Hata senaryoları test edilsin (bozuk mail formatı, scrape timeout, geçersiz LLM çıktısı)

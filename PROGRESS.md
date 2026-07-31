@@ -4,7 +4,7 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 
 ## Güncel Durum (son güncelleme: 2026-07-31)
 
-**Faz:** Faz 1 — Prototip → Gün 1-2 ✅, Gün 3-4 ✅, Gün 5-7 ✅, Gün 8-9 ✅ (hepsi gerçek veriyle uçtan uca test edildi).
+**Faz:** Faz 1 — Prototip → Gün 1-2 ✅, Gün 3-4 ✅, Gün 5-7 ✅, Gün 8-9 ✅, Gün 10-11 ✅ (hepsi gerçek veriyle uçtan uca test edildi).
 
 - [x] Next.js (App Router, TypeScript, Tailwind, ESLint) proje iskeleti oluşturuldu
 - [x] GitHub reposuna bağlandı ve push edildi: https://github.com/YasinGulcan/LeadLens
@@ -20,18 +20,24 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - [x] Yol boyunca bir React bug'ı bulunup düzeltildi: `e.currentTarget`, `await` sonrası `null` oluyor — form referansı önceden yakalanacak şekilde düzeltildi
 - [x] `app/api/cron/scrape-leads/route.ts`: `status='new'` lead'lerin `website_url`'ini Firecrawl ile tarar (2 deneme hakkı), `lib/clean.ts#stripBoilerplate` ile temizler, `leads.site_summary`'e yazar, `status='scraping'`e geçirir; kalıcı hatada `status='error'`
 - [x] 4 test lead ile doğrulandı: hepsi başarıyla tarandı, temiz özet (cookie gürültüsü yok), admin panelde "Taranıyor" durumu görünüyor
+- [x] `supabase/migrations/0004_match_product_chunks.sql`: pgvector benzerlik araması için Postgres RPC fonksiyonu (`match_product_chunks`) — supabase-js REST katmanı ham `<=>` operatörünü desteklemediği için gerekli
+- [x] `lib/match.ts`: site özetini embed edip RPC ile en yakın 5 ürün chunk'ını bulur
+- [x] `lib/claude.ts`: Claude'a yalnızca eşleşen chunk'ları context olarak verir, `tool_choice` ile yapılandırılmış JSON çıktı zorunlu kılınır, Zod ile doğrulanır (model: `claude-sonnet-5`)
+- [x] `app/api/cron/analyze-leads/route.ts`: `status='scraping'` lead'leri işler, sonucu `recommended_product/match_score/reasoning/priority`'e yazar, `status='analyzed'`e geçirir
+- [x] Admin paneline "Önerilen Ürün" ve "Skor" kolonları eklendi
+- [x] 4 test lead ile doğrulandı — sonuçlar kaliteli ve context'e sadık: SEO talebi → "Arama Motoru Optimizasyonu" (skor 0.95); "pazarlama otomasyonu" gibi tam karşılığı olmayan bir talepte model uydurmadı, en yakın ürünü düşük skorla (0.62) ve dürüst gerekçeyle önerdi
 - [x] `npx tsc --noEmit` ve `npx eslint .` temiz geçiyor
-- [ ] Claude (RAG eşleştirme + analiz), Resend route'ları hâlâ placeholder (Gün 10-11, 12'de sırası gelecek)
+- [ ] Resend route'u hâlâ placeholder (Gün 12'de sırası gelecek)
 - [ ] `leads` tablosundaki 4 satır **test verisi** — gerçek kullanıma geçmeden temizlenebilir
 - [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail client secret) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
 
 ## Sıradaki Adım
 
-`PROJECT_PLAN.md` §2 Faz 1 — **Gün 10-11: LLM analiz (RAG eşleştirme + Claude)** — `leads.site_summary` embed edilip `pgvector` ile en yakın ürün chunk'ları bulunacak, Claude'a bu bağlamla yapılandırılmış JSON rapor ürettirilecek (`status='analyzed'`).
+`PROJECT_PLAN.md` §2 Faz 1 — **Gün 12: Bildirim** — `status='analyzed'` lead'ler için Resend ile satış ekibine e-posta bildirimi (rapor özeti + öncelik), `status='sent_to_sales'`e geçiş. Resend hesabı henüz açılmadı.
 
 **Netleşmemiş açık sorular** (`PROJECT_PLAN.md` §5):
 - Vercel hesabı/takımı belirlendi mi? (deploy zamanı gelince gerekecek)
-- Resend hesabı henüz açılmadı (Gün 12'de gerekecek)
+- Satış ekibinin bildirim e-postası hangi adrese gidecek? (Gün 12 için gerekli)
 
 **Hatırlatma:** Kullanıcı API anahtarlarını sohbete yapıştırmaya devam ediyor (Gmail client secret dahil). İşlevsel sorun yok ama güvenlik için iş bitince hepsinin rotate edilmesi öneriliyor.
 
@@ -60,6 +66,9 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - Playwright ile uçtan uca test edilirken bir React bug'ı (`e.currentTarget` await sonrası null) bulunup düzeltildi
 - 4 test lead ile tam pipeline doğrulandı: form → Gmail → parse → Supabase → `/admin` paneli
 - Gün 8-9: `app/api/cron/scrape-leads` yazıldı — mevcut `lib/firecrawl.ts` + `lib/clean.ts` yeniden kullanıldı, aynı 4 test lead üzerinde çalıştırılıp doğrulandı (hepsi `status='scraping'`, temiz `site_summary`)
+- Gün 10-11: `match_product_chunks` pgvector RPC'si, `lib/match.ts`, `lib/claude.ts` (tool_choice + Zod), `app/api/cron/analyze-leads` yazıldı; admin paneline "Önerilen Ürün"/"Skor" kolonları eklendi
+- İlk denemede Anthropic hesabında kredi yoktu (aynı OpenAI'daki gibi) → kullanıcı kredi yükledi, düzeldi
+- 4 test lead tekrar analiz edildi (önce status='error'den 'scraping'e resetlendi) — sonuçlar kaliteli: gerçek eşleşmede yüksek skor (0.95), zayıf eşleşmede dürüst düşük skor (0.62) ve uydurmadan gerekçe
 
 ---
 

@@ -56,7 +56,7 @@ export default async function AdminPage() {
     supabase.from("product_chunks").select("source_id"),
     supabase
       .from("leads")
-      .select("id, name, phone, website_url, status, priority, created_at")
+      .select("id, name, phone, website_url, status, priority, recommended_product, match_score, reasoning, error_message, created_at")
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
@@ -147,6 +147,8 @@ export default async function AdminPage() {
                 <th className="px-4 py-2 font-medium">İsim</th>
                 <th className="px-4 py-2 font-medium">Telefon</th>
                 <th className="px-4 py-2 font-medium">Site</th>
+                <th className="px-4 py-2 font-medium">Önerilen Ürün</th>
+                <th className="px-4 py-2 font-medium">Skor</th>
                 <th className="px-4 py-2 font-medium">Öncelik</th>
                 <th className="px-4 py-2 font-medium">Durum</th>
                 <th className="px-4 py-2 font-medium">Oluşturulma</th>
@@ -158,6 +160,10 @@ export default async function AdminPage() {
                   <td className="px-4 py-2">{l.name ?? "—"}</td>
                   <td className="px-4 py-2">{l.phone ?? "—"}</td>
                   <td className="px-4 py-2">{l.website_url}</td>
+                  <td className="px-4 py-2" title={l.reasoning ?? l.error_message ?? undefined}>
+                    {l.recommended_product ?? "—"}
+                  </td>
+                  <td className="px-4 py-2">{l.match_score != null ? l.match_score.toFixed(2) : "—"}</td>
                   <td className="px-4 py-2">{l.priority ?? "—"}</td>
                   <td className="px-4 py-2">
                     <StatusBadge status={l.status} />
@@ -169,7 +175,7 @@ export default async function AdminPage() {
               ))}
               {(leads ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-neutral-500">
+                  <td colSpan={8} className="px-4 py-6 text-center text-neutral-500">
                     Henüz lead yok — Gün 5-7 (Gmail entegrasyonu) tamamlanınca burada görünecek.
                   </td>
                 </tr>
