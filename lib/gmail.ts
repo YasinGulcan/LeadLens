@@ -35,8 +35,12 @@ function encodeSubject(subject: string): string {
   return `=?UTF-8?B?${Buffer.from(subject, "utf-8").toString("base64")}?=`;
 }
 
-/** Aynı Gmail hesabına (kendine) düz metin e-posta gönderir. */
-async function sendSelfEmail(subject: string, body: string): Promise<void> {
+/** Aynı Gmail hesabına (kendine) e-posta gönderir (düz metin ya da HTML). */
+async function sendSelfEmail(
+  subject: string,
+  body: string,
+  contentType: "text/plain" | "text/html" = "text/plain"
+): Promise<void> {
   const gmail = getClient();
   const profile = await gmail.users.getProfile({ userId: "me" });
   const to = profile.data.emailAddress;
@@ -44,7 +48,7 @@ async function sendSelfEmail(subject: string, body: string): Promise<void> {
   const message = [
     `To: ${to}`,
     `Subject: ${encodeSubject(subject)}`,
-    "Content-Type: text/plain; charset=utf-8",
+    `Content-Type: ${contentType}; charset=utf-8`,
     "",
     body,
   ].join("\r\n");
@@ -56,6 +60,13 @@ async function sendSelfEmail(subject: string, body: string): Promise<void> {
     .replace(/=+$/, "");
 
   await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
+  );
 }
 
 /** Form gönderimini simüle eden e-postayı, ayrıştırıcının anlayacağı sabit şablonla gönderir. */
@@ -79,24 +90,61 @@ export interface LeadAnalysisNotification {
   matchScore: number | null;
   reasoning: string | null;
   priority: string | null;
+  salesNote: string | null;
 }
 
-/** Gün 12: analiz raporunu (Resend yerine) aynı Gmail hesabına gönderir. */
+const PRIORITY_COLOR: Record<string, string> = {
+  yüksek: "#dc2626",
+  orta: "#d97706",
+  düşük: "#6b7280",
+};
+
+/** Gün 12 (Claude prompt + rapor iyileştirmesi): analiz raporunu HTML olarak aynı Gmail hesabına gönderir. */
 export async function sendAnalysisNotificationEmail(lead: LeadAnalysisNotification): Promise<void> {
   const name = lead.name || "İsimsiz";
-  const subject = `Lead Analiz Raporu — ${name} (Öncelik: ${lead.priority ?? "belirsiz"})`;
-  const body = [
-    `İsim: ${name}`,
-    `Telefon: ${lead.phone ?? "—"}`,
-    `Website: ${lead.websiteUrl ?? "—"}`,
-    "",
-    `Önerilen ürün: ${lead.recommendedProduct ?? "—"}`,
-    `Eşleşme skoru: ${lead.matchScore != null ? lead.matchScore.toFixed(2) : "—"}`,
-    `Öncelik: ${lead.priority ?? "—"}`,
-    `Gerekçe: ${lead.reasoning ?? "—"}`,
-  ].join("\n");
+  const priority = lead.priority ?? "belirsiz";
+  const priorityColor = PRIORITY_COLOR[priority] ?? "#6b7280";
+  const adminUrl = process.env.APP_URL ? `${process.env.APP_URL.replace(/\/$/, "")}/admin` : null;
 
-  await sendSelfEmail(subject, body);
+  const subject = `Lead Analiz Raporu — ${name} (Öncelik: ${priority})`;
+
+  const html = `
+    <div style="font-family: -apple-system, Arial, sans-serif; max-width: 600px; color: #1f2937;">
+      <h2 style="margin-bottom: 4px;">${escapeHtml(name)}
+        <span style="display:inline-block; margin-left:8px; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:600; color:#fff; background:${priorityColor};">
+          ${escapeHtml(priority.toUpperCase())}
+        </span>
+      </h2>
+      <p style="color:#6b7280; margin-top:0;">
+        ${lead.websiteUrl ? `<a href="${escapeHtml(lead.websiteUrl)}" style="color:#2563eb;">${escapeHtml(lead.websiteUrl)}</a>` : "—"}
+        ${lead.phone ? ` · ${escapeHtml(lead.phone)}` : ""}
+      </p>
+
+      <div style="background:#f3f4f6; border-left:4px solid #2563eb; padding:12px 16px; border-radius:6px; margin:16px 0;">
+        <strong>💡 Arama Öncesi Not:</strong><br/>
+        ${escapeHtml(lead.salesNote ?? lead.reasoning ?? "—")}
+      </div>
+
+      <table style="width:100%; border-collapse:collapse; font-size:14px;">
+        <tr>
+          <td style="padding:6px 0; color:#6b7280; width:140px;">Önerilen Ürün</td>
+          <td style="padding:6px 0; font-weight:600;">${escapeHtml(lead.recommendedProduct ?? "—")}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0; color:#6b7280;">Eşleşme Skoru</td>
+          <td style="padding:6px 0;">${lead.matchScore != null ? lead.matchScore.toFixed(2) : "—"}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0; color:#6b7280; vertical-align:top;">Gerekçe</td>
+          <td style="padding:6px 0;">${escapeHtml(lead.reasoning ?? "—")}</td>
+        </tr>
+      </table>
+
+      ${adminUrl ? `<p style="margin-top:20px;"><a href="${escapeHtml(adminUrl)}" style="color:#2563eb;">Admin panelinde görüntüle →</a></p>` : ""}
+    </div>
+  `.trim();
+
+  await sendSelfEmail(subject, html, "text/html");
 }
 
 export interface ParsedLeadEmail {

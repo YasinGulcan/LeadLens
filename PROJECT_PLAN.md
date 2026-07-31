@@ -173,7 +173,7 @@ Bunlar planı bloklamıyor (Faz 1'e başlanabilir) ama Gün 1-2 içinde netleşm
 
 ### Faz 2 — Prototip onaylanırsa
 - [ ] Sentry entegrasyonu
-- [x] Basit `/admin` durum paneli *(plandan öne alındı — kullanıcı isteğiyle Faz 1'de yapıldı: `app/admin/page.tsx`, kaynak + lead listesi)*
+- [x] Basit `/admin` durum paneli *(plandan öne alındı — kullanıcı isteğiyle Faz 1'de yapıldı: kaynak + lead listesi, genişletilebilir durum geçmişi, hatalı lead'ler için "Yeniden Dene" butonu)*
 - [ ] Otomatik test paketi (birim + entegrasyon)
 - [ ] CI pipeline (lint, type-check, test)
 - [ ] Webhook tabanlı veri toplamaya geçiş değerlendirmesi

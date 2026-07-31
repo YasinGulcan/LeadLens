@@ -39,17 +39,28 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - [x] **Production'da gerçek uçtan uca test yapıldı:** Playwright ile canlı `/form`'a girildi ("Prod Test", theaccumulate.com) → `run-pipeline` (doğru `CRON_SECRET` ile) tetiklendi → 4/4 aşama başarılı → `/admin`'de (production) 7. lead olarak göründü, Supabase de aynı (7 kaynak, 221 chunk doğrulandı)
 - [x] `app/layout.tsx`: sekme başlığı varsayılan "Create Next App"tan "LeadLens — Lead Analiz Otomasyonu"ya düzeltildi
 - [x] `npx tsc --noEmit` ve `npx eslint .` temiz geçiyor
-- [ ] `leads` tablosunda artık 7 satır (test verisi) — gerçek kullanıma geçmeden temizlenebilir
+- [x] **Kullanıcı isteğiyle 4 iyileştirme yapıldı (bkz. aşağıdaki oturum notları):**
+  - `0005_leads_sales_note.sql`: `leads.sales_note` alanı eklendi
+  - **Claude prompt geliştirildi** (`lib/claude.ts`): sistem prompt'u artık mesaj boş/genel olduğunda site bulgularına ağırlık vermesi gerektiğini belirtiyor; yeni `satis_notu` alanı — satış temsilcisinin aramadan önce okuyacağı tek cümlelik somut açılış notu (orijinal sunumdaki "Ali Bey" örneğine uygun)
+  - **Gmail raporu HTML'e çevrildi** (`lib/gmail.ts`): öncelik rengine göre rozet, "Arama Öncesi Not" kutusu (satış notu), tıklanabilir site linki, admin paneline link (`APP_URL` env değişkeni)
+  - **Admin panelinde lead geçmişi** (`app/admin/LeadsTable.tsx`, client component): her lead satırı genişletilip `lead_status_history` zaman çizelgesi görülebiliyor
+  - **Admin panelinde "Yeniden Dene" butonu** (`app/api/admin/retry-lead`): hata alan bir lead'i, elindeki veriye bakarak (hangi alan doluysa) doğru önceki duruma geri alıyor — website_url→new (scrape hatası), site_summary→scraping (analiz hatası), recommended_product→analyzed (bildirim hatası)
+  - Yol boyunca bir görsel bug bulundu ve düzeltildi: çok uzun bir URL (Google Ads tracking parametreli) tablo sütununu anormal genişletip diğer sütunları görünüm alanı dışına itiyordu — `truncate` + `max-width` ile düzeltildi
+  - Hepsi Playwright ile uçtan uca test edildi: yeni prompt ile gerçek lead analiz edildi (satış notu kaliteliydi), Gmail'e giden HTML mail doğrulandı (mime type + içerik), admin panelde geçmiş genişletme ve retry butonu gerçek tıklamayla test edildi (hata→analiz edildi geçişi doğru çalıştı)
+- [ ] `leads` tablosunda artık 8 satır (test verisi) — gerçek kullanıma geçmeden temizlenebilir
 - [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
 - [ ] Cron şu an günde 1 kez (06:00 UTC) çalışıyor — daha sık/anlık işlem isteniyorsa Vercel Pro'ya geçmek gerekecek
+- [ ] **Vercel production env değişkenlerine `APP_URL=https://lead-lens-ten.vercel.app` eklenmedi** — eklenmezse Gmail raporundaki "Admin panelinde görüntüle" linki production'da görünmez (yerelde `.env.local`'a eklendi, production dashboard'a henüz girilmedi)
+- [ ] `/admin` ve `/api/admin/retry-lead` hâlâ kimlik doğrulamasız — retry butonu artık bir "mutasyon" (veri değiştirme) olduğu için bu, salt-okunur panelden daha yüksek bir risk taşıyor (herkes URL'i bilirse lead'leri manipüle edebilir)
 
 ## Sıradaki Adım
 
-Çekirdek pipeline canlıda otomatik çalışıyor. Kalanlar:
-1. `PROJECT_PLAN.md` §2 Faz 1 — **Gün 13-14: Uçtan uca test** (daha fazla hata senaryosu: bozuk mail formatı, scrape timeout, geçersiz LLM çıktısı) + **KVKK rıza metni taslağı**
-2. Test verisini (7 satır) temizleyip gerçek kullanıma geçme kararı
-3. Kullanıcıyla birlikte karar: prototip yeterince olgun mu, Faz 2'ye mi geçilsin (Sentry, otomatik testler, günlük 1 cron yerine Pro plan)
-3. Kullanıcıyla birlikte karar: prototip yeterince olgun mu, yoksa Faz 2 iyileştirmelerine mi geçilsin (Sentry, otomatik testler, webhook'a geçiş değerlendirmesi)
+Çekirdek pipeline canlıda otomatik çalışıyor, Claude prompt/Gmail rapor/admin panel iyileştirmeleri de bitti. Kalanlar:
+1. **Vercel production'a `APP_URL` env değişkenini eklemek** (yerel test tamam, production'a henüz girilmedi)
+2. `PROJECT_PLAN.md` §2 Faz 1 — **Gün 13-14: Uçtan uca test** (daha fazla hata senaryosu: bozuk mail formatı, scrape timeout, geçersiz LLM çıktısı) + **KVKK rıza metni taslağı**
+3. Test verisini (8 satır) temizleyip gerçek kullanıma geçme kararı
+4. `/admin` paneline kimlik doğrulama eklenmesi değerlendirilebilir (retry butonu artık mutasyon içeriyor)
+5. Kullanıcıyla birlikte karar: prototip yeterince olgun mu, Faz 2'ye mi geçilsin (Sentry, otomatik testler, günlük 1 cron yerine Pro plan)
 
 **Netleşmemiş açık sorular** (`PROJECT_PLAN.md` §5):
 - Vercel hesabı/takımı belirlendi mi? (deploy zamanı gelince gerekecek)
@@ -100,6 +111,12 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - Production'da doğrulama: `/admin` gerçek Supabase verisini gösteriyor (7 kaynak, 221 chunk); cron endpoint secret'sız 401, doğru secret'la 200 dönüyor; Playwright ile canlı `/form`'a gerçek bir test lead'i girilip `run-pipeline` tetiklendi, 4/4 aşama başarılı, `/admin`'de göründü
 - `app/layout.tsx`'teki unutulmuş varsayılan "Create Next App" başlığı düzeltildi
 - **Gün 15 (deploy) tamamlandı — prototip artık canlı ve otomatik çalışıyor**
+- Kullanıcı "bize şu an maliyet yaratan neler" diye sordu — Claude (en büyük kalem), Firecrawl (her lead'de tekrarlanan), OpenAI embedding (en ucuz) olarak açıklandı; Supabase/Vercel/Gmail şu an ücretsiz katmanda
+- Kullanıcı "website neden scrapliyoruz, ben mesajda açıklıyorum zaten" diye sordu — mesajın opsiyonel/zayıf olabileceği, asıl değerin müşterinin fark etmediği sorunları objektif olarak bulmak olduğu açıklandı (aksiyon alınmadı, sadece tartışıldı)
+- Kullanıcı "biraz proje üstünde konuş" dedi, çeşitli fikirler sunuldu (lead_status_history gösterimi, retry butonu, CRM entegrasyonu, düşük skorlu lead'leri ayrı kuyruğa alma, webhook'a geçiş vb.) — kullanıcı 4 tanesini seçti: lead geçmişi gösterimi, retry butonu, Claude prompt, Gmail raporu
+- **4 iyileştirme yapıldı ve test edildi:** `0005_leads_sales_note.sql`; `lib/claude.ts`'e `satis_notu` alanı + mesaj-boşsa-siteye-ağırlık-ver talimatı; `lib/gmail.ts` raporu HTML'e çevrildi (öncelik rozeti, satış notu kutusu, admin linki); `app/admin/LeadsTable.tsx` (client component) ile genişletilebilir geçmiş zaman çizelgesi; `app/api/admin/retry-lead` ile veri durumuna göre akıllı yeniden deneme
+- Test sırasında bir görsel bug bulundu: çok uzun bir tracking URL'i tablo sütununu bozup diğer sütunları görünüm dışına itiyordu — `truncate`/`max-width` ile düzeltildi, ekran görüntüsüyle doğrulandı
+- Retry butonu gerçek bir "error" lead üzerinde Playwright ile tıklanarak test edildi — doğru şekilde önceki duruma (`analyzed`) geri aldı
 
 ---
 

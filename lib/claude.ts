@@ -7,6 +7,7 @@ const AnalysisSchema = z.object({
   eslesme_skoru: z.number().min(0).max(1),
   gerekce: z.string(),
   oncelik: z.enum(["düşük", "orta", "yüksek"]),
+  satis_notu: z.string(),
 });
 
 export type LeadAnalysis = z.infer<typeof AnalysisSchema>;
@@ -39,15 +40,21 @@ export async function analyzeLead(params: {
     .map((c, i) => `[Parça ${i + 1} — ${c.sourceUrl} — benzerlik: ${c.similarity.toFixed(2)}]\n${c.content}`)
     .join("\n\n");
 
+  const hasRealMessage = (params.message ?? "").trim().length > 15;
+
   const response = await getClient().messages.create({
     model: "claude-sonnet-5",
     max_tokens: 1024,
     system:
-      "Sen bir satış öncesi analiz asistanısın. Yalnızca sana verilen ürün bilgisi parçalarına dayanarak öneri yap; listede olmayan bir ürün/hizmet uydurma. Türkçe yanıt ver.",
+      "Sen bir satış öncesi analiz asistanısın. Yalnızca sana verilen ürün bilgisi parçalarına dayanarak öneri yap; " +
+      "listede olmayan bir ürün/hizmet uydurma. Türkçe yanıt ver. " +
+      "Müşteri mesajı belirgin ve somut bir ihtiyaç içeriyorsa buna öncelik ver; mesaj boş, genel veya alakasızsa " +
+      "(örn. sadece bir selamlama) site taramasındaki objektif bulgulara dayan — müşteri kendi sorununu her zaman " +
+      "doğru tanımlayamayabilir, senin işin bunu site verisinden çıkarmak.",
     messages: [
       {
         role: "user",
-        content: `Müşteri sitesi özeti:\n${params.siteSummary}\n\nMüşteri mesajı:\n${params.message ?? "(yok)"}\n\nİlgili ürün bilgisi parçaları:\n${context}\n\nBu bilgilere dayanarak en uygun ürünü/hizmeti, eşleşme skorunu (0-1), gerekçeni ve önceliği belirle.`,
+        content: `Müşteri sitesi özeti:\n${params.siteSummary}\n\nMüşteri mesajı:\n${params.message || "(yok)"}${hasRealMessage ? "" : "\n(Not: mesaj boş veya bilgi taşımıyor, karar için siteye ağırlık ver.)"}\n\nİlgili ürün bilgisi parçaları:\n${context}\n\nBu bilgilere dayanarak en uygun ürünü/hizmeti, eşleşme skorunu (0-1), gerekçeni, önceliği ve satış ekibi için bir açılış notu belirle.`,
       },
     ],
     tools: [
@@ -66,8 +73,16 @@ export async function analyzeLead(params: {
             eslesme_skoru: { type: "number", description: "0 ile 1 arasında eşleşme skoru" },
             gerekce: { type: "string", description: "Önerinin kısa gerekçesi (1-3 cümle)" },
             oncelik: { type: "string", enum: ["düşük", "orta", "yüksek"] },
+            satis_notu: {
+              type: "string",
+              description:
+                "Satış temsilcisinin müşteriyi aramadan önce okuyacağı, TEK CÜMLElik somut bir açılış notu — " +
+                'örn. "Sitesinde mobil sayfa yükleme hızı düşük, blog altyapısı yok; SEO Paketi Pro öneriliyor." ' +
+                "Sitede gözlemlenen somut bir bulguyu önerilen ürünle bağla. Net bir eşleşme yoksa, dürüstçe " +
+                'bunu belirt (örn. "Site/mesajda net bir ihtiyaç sinyali yok, genel bir tanışma araması önerilir.").',
+            },
           },
-          required: ["onerilen_urun", "eslesme_skoru", "gerekce", "oncelik"],
+          required: ["onerilen_urun", "eslesme_skoru", "gerekce", "oncelik", "satis_notu"],
         },
       },
     ],

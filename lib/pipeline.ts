@@ -140,6 +140,7 @@ export async function runAnalyzeLeads() {
           match_score: analysis.eslesme_skoru,
           reasoning: analysis.gerekce,
           priority: analysis.oncelik,
+          sales_note: analysis.satis_notu,
           status: "analyzed",
         })
         .eq("id", lead.id);
@@ -173,7 +174,7 @@ export async function runAnalyzeLeads() {
 export async function runNotifySales() {
   const { data: leads, error } = await supabase
     .from("leads")
-    .select("id, name, phone, website_url, recommended_product, match_score, reasoning, priority")
+    .select("id, name, phone, website_url, recommended_product, match_score, reasoning, priority, sales_note")
     .eq("status", "analyzed")
     .limit(BATCH_SIZE);
 
@@ -192,6 +193,7 @@ export async function runNotifySales() {
         matchScore: lead.match_score,
         reasoning: lead.reasoning,
         priority: lead.priority,
+        salesNote: lead.sales_note,
       });
 
       await supabase.from("leads").update({ status: "sent_to_sales" }).eq("id", lead.id);
