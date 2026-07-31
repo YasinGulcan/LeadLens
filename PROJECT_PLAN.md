@@ -156,7 +156,7 @@ Bunlar planı bloklamıyor (Faz 1'e başlanabilir) ama Gün 1-2 içinde netleşm
 - [x] Firecrawl ile ürün sitesi taraması + chunking + embedding + `pgvector`'a yükleme scripti *(gerçek veriyle test edildi: 7 ürün sitesi, 221 chunk, cookie-boilerplate filtresi eklendi)*
 - [x] Gmail OAuth2 entegrasyonu *(Vercel Cron Job henüz yok — endpoint elle/curl ile tetikleniyor, deploy aşamasında crona bağlanacak)*
 - [x] Mail ayrıştırma (parser) + zorunlu alan doğrulama + `status='new'` yazma + hata durumunda `status='error'` *(4 test lead ile uçtan uca doğrulandı — bkz. `app/api/cron/fetch-leads`, `lib/gmail.ts`)*
-- [ ] Firecrawl ile müşteri sitesi tarama entegrasyonu (`status='scraping'`)
+- [x] Firecrawl ile müşteri sitesi tarama entegrasyonu (`status='scraping'`) *(`app/api/cron/scrape-leads`, 4 test lead ile doğrulandı, 2 deneme + `status='error'` fallback dahil)*
 - [ ] Embedding + `pgvector` benzerlik araması ile ürün eşleştirme
 - [ ] Claude API çağrısı + Zod ile JSON şema doğrulama (`status='analyzed'`)
 - [ ] Resend e-posta bildirimi + şablon (`status='sent_to_sales'`)

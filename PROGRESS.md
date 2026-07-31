@@ -4,7 +4,7 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 
 ## Güncel Durum (son güncelleme: 2026-07-31)
 
-**Faz:** Faz 1 — Prototip → Gün 1-2 ✅, Gün 3-4 ✅, Gün 5-7 ✅ (hepsi gerçek veriyle uçtan uca test edildi).
+**Faz:** Faz 1 — Prototip → Gün 1-2 ✅, Gün 3-4 ✅, Gün 5-7 ✅, Gün 8-9 ✅ (hepsi gerçek veriyle uçtan uca test edildi).
 
 - [x] Next.js (App Router, TypeScript, Tailwind, ESLint) proje iskeleti oluşturuldu
 - [x] GitHub reposuna bağlandı ve push edildi: https://github.com/YasinGulcan/LeadLens
@@ -18,14 +18,16 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - [x] `app/api/cron/fetch-leads/route.ts`: Gmail'den okur, doğrular (website_url yoksa `status='error'`), `leads` + `lead_status_history`'e yazar, maili etiketler
 - [x] Uçtan uca doğrulandı (Playwright): form doldur → Gmail'e mail düşüyor → `/api/cron/fetch-leads` tetiklenince Supabase'e yazılıyor → `/admin` panelinde görünüyor (4 test lead, hepsi `status=new`)
 - [x] Yol boyunca bir React bug'ı bulunup düzeltildi: `e.currentTarget`, `await` sonrası `null` oluyor — form referansı önceden yakalanacak şekilde düzeltildi
+- [x] `app/api/cron/scrape-leads/route.ts`: `status='new'` lead'lerin `website_url`'ini Firecrawl ile tarar (2 deneme hakkı), `lib/clean.ts#stripBoilerplate` ile temizler, `leads.site_summary`'e yazar, `status='scraping'`e geçirir; kalıcı hatada `status='error'`
+- [x] 4 test lead ile doğrulandı: hepsi başarıyla tarandı, temiz özet (cookie gürültüsü yok), admin panelde "Taranıyor" durumu görünüyor
 - [x] `npx tsc --noEmit` ve `npx eslint .` temiz geçiyor
-- [ ] Claude (RAG eşleştirme + analiz), Resend route'ları hâlâ placeholder (Gün 8-9, 10-11, 12'de sırası gelecek)
+- [ ] Claude (RAG eşleştirme + analiz), Resend route'ları hâlâ placeholder (Gün 10-11, 12'de sırası gelecek)
 - [ ] `leads` tablosundaki 4 satır **test verisi** — gerçek kullanıma geçmeden temizlenebilir
 - [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail client secret) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
 
 ## Sıradaki Adım
 
-`PROJECT_PLAN.md` §2 Faz 1 — **Gün 8-9: Web scraping (müşteri site taraması)** — lead geldiğinde `website_url`'i Firecrawl ile tarayıp `status='scraping'` → özet çıkarma. (`lib/firecrawl.ts` zaten var, ürün taramasında kullanılan aynı fonksiyon müşteri sitesi için de kullanılabilir.)
+`PROJECT_PLAN.md` §2 Faz 1 — **Gün 10-11: LLM analiz (RAG eşleştirme + Claude)** — `leads.site_summary` embed edilip `pgvector` ile en yakın ürün chunk'ları bulunacak, Claude'a bu bağlamla yapılandırılmış JSON rapor ürettirilecek (`status='analyzed'`).
 
 **Netleşmemiş açık sorular** (`PROJECT_PLAN.md` §5):
 - Vercel hesabı/takımı belirlendi mi? (deploy zamanı gelince gerekecek)
@@ -57,6 +59,7 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - `lib/gmail.ts`, `app/form/page.tsx`, `app/api/form-submit`, `app/api/cron/fetch-leads` yazıldı; `0003_leads_website_url_nullable.sql` migration'ı eklendi
 - Playwright ile uçtan uca test edilirken bir React bug'ı (`e.currentTarget` await sonrası null) bulunup düzeltildi
 - 4 test lead ile tam pipeline doğrulandı: form → Gmail → parse → Supabase → `/admin` paneli
+- Gün 8-9: `app/api/cron/scrape-leads` yazıldı — mevcut `lib/firecrawl.ts` + `lib/clean.ts` yeniden kullanıldı, aynı 4 test lead üzerinde çalıştırılıp doğrulandı (hepsi `status='scraping'`, temiz `site_summary`)
 
 ---
 
