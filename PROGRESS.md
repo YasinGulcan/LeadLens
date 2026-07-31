@@ -4,7 +4,7 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 
 ## Güncel Durum (son güncelleme: 2026-07-31)
 
-**Faz:** Faz 1 — Prototip → Gün 1-2 ✅, Gün 3-4 ✅, Gün 5-7 ✅, Gün 8-9 ✅, Gün 10-11 ✅ (hepsi gerçek veriyle uçtan uca test edildi).
+**Faz:** Faz 1 — Prototip → **Gün 1-12 tamamlandı** (Gün 1-2, 3-4, 5-7, 8-9, 10-11, 12 — hepsi gerçek veriyle uçtan uca test edildi). Çekirdek pipeline baştan sona çalışıyor: form → Gmail → Supabase → site taraması → RAG eşleştirme → Claude analizi → Resend bildirimi → `status='sent_to_sales'`. Kalan: Gün 13-14 (daha kapsamlı hata senaryoları + KVKK metni), Gün 15 (demo/deploy).
 
 - [x] Next.js (App Router, TypeScript, Tailwind, ESLint) proje iskeleti oluşturuldu
 - [x] GitHub reposuna bağlandı ve push edildi: https://github.com/YasinGulcan/LeadLens
@@ -26,20 +26,26 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - [x] `app/api/cron/analyze-leads/route.ts`: `status='scraping'` lead'leri işler, sonucu `recommended_product/match_score/reasoning/priority`'e yazar, `status='analyzed'`e geçirir
 - [x] Admin paneline "Önerilen Ürün" ve "Skor" kolonları eklendi
 - [x] 4 test lead ile doğrulandı — sonuçlar kaliteli ve context'e sadık: SEO talebi → "Arama Motoru Optimizasyonu" (skor 0.95); "pazarlama otomasyonu" gibi tam karşılığı olmayan bir talepte model uydurmadı, en yakın ürünü düşük skorla (0.62) ve dürüst gerekçeyle önerdi
+- [x] `lib/resend.ts`: `sendLeadNotification` — rapor özetini (önerilen ürün, skor, gerekçe, öncelik) HTML e-posta olarak `SALES_NOTIFICATION_EMAIL`'e gönderir
+- [x] `app/api/cron/notify-sales/route.ts`: `status='analyzed'` lead'leri işler, bildirim gönderir, `status='sent_to_sales'`e geçirir
+- [x] 4 test lead ile doğrulandı — hepsi başarıyla gönderildi, admin panelinde "Satışa Gönderildi" (yeşil) görünüyor
 - [x] `npx tsc --noEmit` ve `npx eslint .` temiz geçiyor
-- [ ] Resend route'u hâlâ placeholder (Gün 12'de sırası gelecek)
-- [ ] `leads` tablosundaki 4 satır **test verisi** — gerçek kullanıma geçmeden temizlenebilir
-- [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail client secret) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
+- [ ] `leads` tablosundaki 4 satır **test verisi**, tam pipeline'ı baştan sona geçti (new → scraping → analyzed → sent_to_sales) — gerçek kullanıma geçmeden temizlenebilir
+- [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail, Resend) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
+- [ ] Resend sandbox modunda (domain doğrulanmamış) — sadece hesap sahibinin e-postasına (`yasingulcan288@gmail.com`) gönderilebiliyor; gerçek satış ekibi adresine göndermek için resend.com/domains'te domain doğrulaması gerekecek
 
 ## Sıradaki Adım
 
-`PROJECT_PLAN.md` §2 Faz 1 — **Gün 12: Bildirim** — `status='analyzed'` lead'ler için Resend ile satış ekibine e-posta bildirimi (rapor özeti + öncelik), `status='sent_to_sales'`e geçiş. Resend hesabı henüz açılmadı.
+Çekirdek pipeline (Gün 1-12) tamamlandı. Sıradaki seçenekler:
+1. `PROJECT_PLAN.md` §2 Faz 1 — **Gün 13-14: Uçtan uca test** (daha fazla hata senaryosu: bozuk mail formatı, scrape timeout, geçersiz LLM çıktısı) + **KVKK rıza metni taslağı**
+2. **Gün 15: Demo/deploy** — Vercel'e bağlama, Cron Job'ları gerçek zamanlayıcıya bağlama (şu an tüm endpoint'ler elle/curl ile tetikleniyor)
+3. Kullanıcıyla birlikte karar: prototip yeterince olgun mu, yoksa Faz 2 iyileştirmelerine mi geçilsin (Sentry, otomatik testler, webhook'a geçiş değerlendirmesi)
 
 **Netleşmemiş açık sorular** (`PROJECT_PLAN.md` §5):
 - Vercel hesabı/takımı belirlendi mi? (deploy zamanı gelince gerekecek)
-- Satış ekibinin bildirim e-postası hangi adrese gidecek? (Gün 12 için gerekli)
+- Resend'de gerçek bir domain doğrulanacak mı, yoksa prototipte sandbox modu yeterli mi?
 
-**Hatırlatma:** Kullanıcı API anahtarlarını sohbete yapıştırmaya devam ediyor (Gmail client secret dahil). İşlevsel sorun yok ama güvenlik için iş bitince hepsinin rotate edilmesi öneriliyor.
+**Hatırlatma:** Kullanıcı API anahtarlarını sohbete yapıştırmaya devam ediyor (Resend dahil). İşlevsel sorun yok ama güvenlik için iş bitince hepsinin rotate edilmesi öneriliyor.
 
 ## Oturum Günlüğü
 
@@ -69,6 +75,9 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - Gün 10-11: `match_product_chunks` pgvector RPC'si, `lib/match.ts`, `lib/claude.ts` (tool_choice + Zod), `app/api/cron/analyze-leads` yazıldı; admin paneline "Önerilen Ürün"/"Skor" kolonları eklendi
 - İlk denemede Anthropic hesabında kredi yoktu (aynı OpenAI'daki gibi) → kullanıcı kredi yükledi, düzeldi
 - 4 test lead tekrar analiz edildi (önce status='error'den 'scraping'e resetlendi) — sonuçlar kaliteli: gerçek eşleşmede yüksek skor (0.95), zayıf eşleşmede dürüst düşük skor (0.62) ve uydurmadan gerekçe
+- Gün 12: `lib/resend.ts`, `app/api/cron/notify-sales` yazıldı. İlk denemede Resend sandbox kısıtı çıktı (doğrulanmamış domain'de sadece hesap sahibinin e-postasına gönderilebiliyor) — `SALES_NOTIFICATION_EMAIL` düzeltilip düzeldi
+- 4 test lead tekrar bildirim gönderdi (önce status='error'den 'analyzed'e resetlendi) — hepsi `status='sent_to_sales'`e geçti
+- **Faz 1'in çekirdek pipeline'ı (Gün 1-12) tamamen bitti**: form → Gmail → Supabase → scrape → RAG eşleştirme → Claude analiz → Resend bildirimi, hepsi gerçek servislerle uçtan uca doğrulandı
 
 ---
 

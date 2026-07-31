@@ -159,7 +159,7 @@ Bunlar planı bloklamıyor (Faz 1'e başlanabilir) ama Gün 1-2 içinde netleşm
 - [x] Firecrawl ile müşteri sitesi tarama entegrasyonu (`status='scraping'`) *(`app/api/cron/scrape-leads`, 4 test lead ile doğrulandı, 2 deneme + `status='error'` fallback dahil)*
 - [x] Embedding + `pgvector` benzerlik araması ile ürün eşleştirme *(`match_product_chunks` RPC + `lib/match.ts`)*
 - [x] Claude API çağrısı + Zod ile JSON şema doğrulama (`status='analyzed'`) *(`lib/claude.ts`, `tool_choice` ile zorunlu yapılandırılmış çıktı; 4 test lead ile doğrulandı, kaliteli/uydurmayan sonuçlar)*
-- [ ] Resend e-posta bildirimi + şablon (`status='sent_to_sales'`)
+- [x] Resend e-posta bildirimi + şablon (`status='sent_to_sales'`) *(`lib/resend.ts`, `app/api/cron/notify-sales`; 4 test lead ile doğrulandı — sandbox modu kısıtı yüzünden alıcı Resend hesap sahibinin adresiyle sınırlı, gerçek kullanım için domain doğrulaması gerekecek)*
 - [ ] Uçtan uca test (gerçekçi test verisiyle)
 - [ ] Hata senaryoları test edilsin (bozuk mail formatı, scrape timeout, geçersiz LLM çıktısı)
 - [ ] KVKK rıza metni taslağı hazırlansın (devreye alınmasa da yazılsın)
