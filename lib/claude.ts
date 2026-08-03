@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { MatchedChunk } from "./match";
 
-const AnalysisSchema = z.object({
+export const AnalysisSchema = z.object({
   sektor: z.string(),
   site_bulgusu: z.string(),
   onerilen_urun: z.string(),

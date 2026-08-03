@@ -30,7 +30,7 @@ async function scrapeWithRetry(url: string): Promise<string> {
  * boşa gider ve son yazan rastgele kazanır. false dönerse başka bir
  * çalıştırma bu lead'i zaten almış demektir, atlanmalı.
  */
-async function claimLead(id: string, fromStatus: string, toStatus: string): Promise<boolean> {
+export async function claimLead(id: string, fromStatus: string, toStatus: string): Promise<boolean> {
   const { data, error } = await supabase
     .from("leads")
     .update({ status: toStatus })
@@ -48,7 +48,7 @@ async function claimLead(id: string, fromStatus: string, toStatus: string): Prom
  * (Firecrawl/OpenAI/Claude) tekrar tetiklenmez, satış ekibi de aynı lead için
  * art arda mail almaz.
  */
-async function findRecentDuplicateLead(
+export async function findRecentDuplicateLead(
   websiteUrl: string | null,
   phone: string | null
 ): Promise<{ id: string; status: string } | null> {

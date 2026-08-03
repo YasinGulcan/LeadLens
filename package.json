@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "check:setup": "tsx --env-file=.env.local scripts/check-setup.ts",
     "sources:add": "tsx --env-file=.env.local scripts/add-source.ts",
     "ingest:products": "tsx --env-file=.env.local scripts/ingest-products.ts",
@@ -33,6 +34,7 @@
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }
