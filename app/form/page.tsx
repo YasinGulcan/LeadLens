@@ -7,6 +7,8 @@ export default function LeadFormPage() {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [consentGiven, setConsentGiven] = useState(false);
+  // Form ne zaman render edildi — spam koruması için (çok hızlı gönderim = bot şüphesi).
+  const [formRenderedAt] = useState(() => Date.now());
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -29,6 +31,9 @@ export default function LeadFormPage() {
       websiteUrl: formData.get("websiteUrl"),
       message: formData.get("message"),
       consentGiven: true,
+      // Honeypot: gerçek kullanıcılar bu alanı görmez/doldurmaz, botlar genelde doldurur.
+      companyWebsiteConfirm: formData.get("companyWebsiteConfirm"),
+      formRenderedAt,
     };
 
     try {
@@ -63,6 +68,14 @@ export default function LeadFormPage() {
         </p>
       ) : (
         <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+          {/* Honeypot: ekran okuyuculardan ve gerçek kullanıcılardan gizli, botlar genelde doldurur. */}
+          <div className="absolute -left-[9999px] top-auto h-0 w-0 overflow-hidden" aria-hidden="true">
+            <label>
+              Şirket web sitesi (doldurmayın)
+              <input type="text" name="companyWebsiteConfirm" tabIndex={-1} autoComplete="off" />
+            </label>
+          </div>
+
           <label className="flex flex-col gap-1 text-sm">
             İsim
             <input

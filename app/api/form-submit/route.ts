@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { sendFormSubmissionEmail } from "@/lib/gmail";
 import { runFullPipeline } from "@/lib/pipeline";
+import { checkRateLimit, getClientIp, isSuspiciouslyFast } from "@/lib/spam-protection";
 
 export const maxDuration = 60; // after() ile arka planda çalışan pipeline için (scrape+analiz+bildirim)
 
@@ -12,6 +13,20 @@ export async function POST(req: NextRequest) {
   const websiteUrl = typeof body?.websiteUrl === "string" ? body.websiteUrl.trim() : "";
   const message = typeof body?.message === "string" ? body.message.trim() : "";
   const consentGiven = body?.consentGiven === true;
+  const honeypot = typeof body?.companyWebsiteConfirm === "string" ? body.companyWebsiteConfirm.trim() : "";
+
+  // Honeypot doluysa ya da form şüpheli derecede hızlı gönderildiyse: bota
+  // fark ettirmeden "başarılı" gibi görünen bir yanıt dön, hiçbir şey işleme.
+  if (honeypot || isSuspiciouslyFast(body?.formRenderedAt)) {
+    console.error("Spam şüphesi: form işlenmedi (honeypot ya da çok hızlı gönderim).");
+    return NextResponse.json({ ok: true });
+  }
+
+  const ip = getClientIp(req);
+  const withinLimit = await checkRateLimit(ip);
+  if (!withinLimit) {
+    return NextResponse.json({ error: "Çok fazla deneme yapıldı, lütfen daha sonra tekrar deneyin." }, { status: 429 });
+  }
 
   if (!websiteUrl) {
     return NextResponse.json({ error: "website_url zorunlu." }, { status: 400 });
