@@ -94,6 +94,8 @@ export interface LeadAnalysisNotification {
   priority: string | null;
   salesNote: string | null;
   siteFinding: string | null;
+  sector: string | null;
+  clarifyingQuestion: string | null;
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -121,12 +123,22 @@ export async function sendAnalysisNotificationEmail(lead: LeadAnalysisNotificati
       <p style="color:#6b7280; margin-top:0;">
         ${lead.websiteUrl ? `<a href="${escapeHtml(lead.websiteUrl)}" style="color:#2563eb;">${escapeHtml(lead.websiteUrl)}</a>` : "—"}
         ${lead.phone ? ` · ${escapeHtml(lead.phone)}` : ""}
+        ${lead.sector ? ` · ${escapeHtml(lead.sector)}` : ""}
       </p>
 
       <div style="background:#f3f4f6; border-left:4px solid #2563eb; padding:12px 16px; border-radius:6px; margin:16px 0;">
         <strong>💡 Arama Öncesi Not:</strong><br/>
         ${escapeHtml(lead.salesNote ?? lead.reasoning ?? "—")}
       </div>
+
+      ${
+        lead.clarifyingQuestion
+          ? `<div style="background:#fffbeb; border-left:4px solid #d97706; padding:12px 16px; border-radius:6px; margin:16px 0;">
+        <strong>❓ Netleştirici Soru:</strong><br/>
+        ${escapeHtml(lead.clarifyingQuestion)}
+      </div>`
+          : ""
+      }
 
       <table style="width:100%; border-collapse:collapse; font-size:14px;">
         <tr>

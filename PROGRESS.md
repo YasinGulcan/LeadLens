@@ -2,9 +2,9 @@
 
 Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu bu projede çalışmaya başladığında önce bu dosyayı ve `PROJECT_PLAN.md`'yi okuyup kaldığı yerden devam etmeli.
 
-## Güncel Durum (son güncelleme: 2026-07-31)
+## Güncel Durum (son güncelleme: 2026-08-03)
 
-**Faz:** Faz 1 — Prototip → **Gün 1-15'in tamamı bitti, prototip artık canlı ve tertemiz.** Çekirdek pipeline: form (KVKK onaylı) → Gmail → Supabase → site taraması → RAG eşleştirme → Claude analizi (site bulgusu + satış notu dahil) → Gmail bildirimi (HTML) → `status='sent_to_sales'`. **Canlı URL: https://lead-lens-ten.vercel.app**. `leads` tablosu artık boş (tüm test verisi temizlendi) — gerçek kullanıma hazır. Kalan: KVKK metnindeki placeholder'lar, admin panel kimlik doğrulama, `APP_URL` production env, Faz 2 kararı.
+**Faz:** Faz 1 — Prototip → **Gün 1-15'in tamamı bitti, prototip canlı çalışıyor.** Çekirdek pipeline: form (KVKK onaylı) → Gmail → Supabase → site taraması → RAG eşleştirme → Claude analizi (sektör + site bulgusu + satış notu + netleştirici soru) → Gmail bildirimi (HTML) → `status='sent_to_sales'`. **Canlı URL: https://lead-lens-ten.vercel.app**. Kalan: KVKK metnindeki placeholder'lar, admin panel kimlik doğrulama, `APP_URL` production env, Faz 2 kararı.
 
 - [x] Next.js (App Router, TypeScript, Tailwind, ESLint) proje iskeleti oluşturuldu
 - [x] GitHub reposuna bağlandı ve push edildi: https://github.com/YasinGulcan/LeadLens
@@ -57,6 +57,9 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 - Gerçek kullanıcı denemesinde bir lead'de ilginç bir bulgu çıktı: "Yasin Gülcan" (kocaeli.bel.tr) — Firecrawl bu siteyi 3 denemede de tarayamadı (`ERR_TUNNEL_CONNECTION_FAILED`, muhtemelen belediye sitesinin bot koruması); site doğrudan erişilebilir olmasına rağmen kalıcı hata olarak bırakıldı (kullanıcı onayıyla). Bu tür kalıcı Firecrawl hataları için `/admin`'deki "Yeniden Dene" hâlâ elde mevcut.
 - [x] **Test verisi temizlendi** — kullanıcı onayıyla `leads` tablosundaki 12 kayıt (9 script testi + 3 kullanıcının kendi denemesi) tamamen silindi; `lead_status_history` cascade ile otomatik temizlendi. Production'da doğrulandı: 0 lead, 0 hatalı lead, ürün kaynakları/chunk'lar (7/221) etkilenmedi. `leads` tablosu artık gerçek kullanıma hazır.
 - [x] Admin panelindeki eski/yanlış "Gün 5-7 tamamlanınca..." boş durum mesajı güncellendi
+- [x] **Sektör + netleştirici soru iyileştirmesi** — kullanıcı prompt'a eklenecek fikirlerden (sektör tespiti, netleştirici soru, aciliyet sinyali, veri güvenilirliği notu) ilk ikisini seçti. `0008_leads_sector_question.sql` (`leads.sector`, `leads.clarifying_question`); `lib/claude.ts`'e iki yeni alan eklendi — `sektor` (site içeriğinden çıkarılan sektör) ve `netlestirici_soru` (satış temsilcisinin sorması gereken tek soru, özellikle net eşleşme yokken kritik). Gmail raporuna sarı vurgulu ayrı bir kutu, admin panele ayrı bir blok olarak eklendi.
+  - **Bu sırada gerçek bir kod hatası bulundu:** `lib/pipeline.ts`'deki `update()` çağrıları sonucunu hiç kontrol etmiyordu — migration eksik olduğunda (kullanıcı ilk denemede çalıştırmamış) veritabanı güncellemesi sessizce başarısız oluyor ama `{"analyzed":1}` gibi yanlış bir "başarı" dönüyordu. Tüm `update()` çağrılarına `if (updateError) throw` eklendi, artık gerçek hatalar `status='error'`e düşüyor, sessizce kaybolmuyor.
+  - Gerçek testte kaliteli bir sonuç: müşteri "sosyal medya yönetimi" istedi ama site influencer/UGC odaklıydı — model bu uyumsuzluğu yakalayıp doğru netleştirici soruyu üretti ("organik içerik yönetimi mi, influencer kampanyası mı?").
 - [ ] `.env.local`'daki tüm anahtarlar (Supabase, OpenAI, Anthropic, Firecrawl, Gmail) sohbette paylaşıldığı için **"yanmış" sayılmalı** — rotate edilmesi hâlâ öneriliyor
 - [ ] Cron şu an günde 1 kez (06:00 UTC) çalışıyor — daha sık/anlık işlem isteniyorsa Vercel Pro'ya geçmek gerekecek
 - [ ] **Vercel production env değişkenlerine `APP_URL=https://lead-lens-ten.vercel.app` eklenmedi** — eklenmezse Gmail raporundaki "Admin panelinde görüntüle" linki production'da görünmez (kullanıcı bilinçli olarak erteledi)

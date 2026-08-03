@@ -84,7 +84,12 @@ export async function runScrapeLeads() {
       const markdown = await scrapeWithRetry(websiteUrl);
       const summary = stripBoilerplate(markdown).slice(0, MAX_SUMMARY_LENGTH);
 
-      await supabase.from("leads").update({ site_summary: summary, status: "scraping" }).eq("id", lead.id);
+      const { error: updateError } = await supabase
+        .from("leads")
+        .update({ site_summary: summary, status: "scraping" })
+        .eq("id", lead.id);
+      if (updateError) throw new Error(`Supabase güncelleme hatası: ${updateError.message}`);
+
       await supabase.from("lead_status_history").insert({
         lead_id: lead.id,
         status: "scraping",
@@ -134,18 +139,21 @@ export async function runAnalyzeLeads() {
         matchedChunks: matches,
       });
 
-      await supabase
+      const { error: updateError } = await supabase
         .from("leads")
         .update({
+          sector: analysis.sektor,
           site_finding: analysis.site_bulgusu,
           recommended_product: analysis.onerilen_urun,
           match_score: analysis.eslesme_skoru,
           reasoning: analysis.gerekce,
           priority: analysis.oncelik,
           sales_note: analysis.satis_notu,
+          clarifying_question: analysis.netlestirici_soru,
           status: "analyzed",
         })
         .eq("id", lead.id);
+      if (updateError) throw new Error(`Supabase güncelleme hatası: ${updateError.message}`);
 
       await supabase.from("lead_status_history").insert({
         lead_id: lead.id,
@@ -176,7 +184,9 @@ export async function runAnalyzeLeads() {
 export async function runNotifySales() {
   const { data: leads, error } = await supabase
     .from("leads")
-    .select("id, name, phone, website_url, recommended_product, match_score, reasoning, priority, sales_note, site_finding")
+    .select(
+      "id, name, phone, website_url, recommended_product, match_score, reasoning, priority, sales_note, site_finding, sector, clarifying_question"
+    )
     .eq("status", "analyzed")
     .limit(BATCH_SIZE);
 
@@ -197,9 +207,16 @@ export async function runNotifySales() {
         priority: lead.priority,
         salesNote: lead.sales_note,
         siteFinding: lead.site_finding,
+        sector: lead.sector,
+        clarifyingQuestion: lead.clarifying_question,
       });
 
-      await supabase.from("leads").update({ status: "sent_to_sales" }).eq("id", lead.id);
+      const { error: updateError } = await supabase
+        .from("leads")
+        .update({ status: "sent_to_sales" })
+        .eq("id", lead.id);
+      if (updateError) throw new Error(`Supabase güncelleme hatası: ${updateError.message}`);
+
       await supabase.from("lead_status_history").insert({
         lead_id: lead.id,
         status: "sent_to_sales",

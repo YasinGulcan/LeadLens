@@ -16,6 +16,8 @@ export interface LeadRow {
   reasoning: string | null;
   sales_note: string | null;
   site_finding: string | null;
+  sector: string | null;
+  clarifying_question: string | null;
   error_message: string | null;
   created_at: string;
 }
@@ -139,8 +141,13 @@ export function LeadsTable({
                           <strong>Son hata:</strong> {l.error_message}
                         </p>
                       )}
-                      {(l.site_finding || l.sales_note) && (
-                        <div className="mb-3 space-y-1 rounded-md bg-blue-50 p-2 text-xs dark:bg-blue-950">
+                      {(l.sector || l.site_finding || l.sales_note) && (
+                        <div className="mb-2 space-y-1 rounded-md bg-blue-50 p-2 text-xs dark:bg-blue-950">
+                          {l.sector && (
+                            <p>
+                              <strong>Sektör:</strong> {l.sector}
+                            </p>
+                          )}
                           {l.site_finding && (
                             <p>
                               <strong>Site Bulgusu:</strong> {l.site_finding}
@@ -151,6 +158,11 @@ export function LeadsTable({
                               <strong>Arama Öncesi Not:</strong> {l.sales_note}
                             </p>
                           )}
+                        </div>
+                      )}
+                      {l.clarifying_question && (
+                        <div className="mb-3 rounded-md bg-amber-50 p-2 text-xs dark:bg-amber-950">
+                          <strong>Netleştirici Soru:</strong> {l.clarifying_question}
                         </div>
                       )}
                       {history.length === 0 ? (

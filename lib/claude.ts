@@ -3,12 +3,14 @@ import { z } from "zod";
 import type { MatchedChunk } from "./match";
 
 const AnalysisSchema = z.object({
+  sektor: z.string(),
   site_bulgusu: z.string(),
   onerilen_urun: z.string(),
   eslesme_skoru: z.number().min(0).max(1),
   gerekce: z.string(),
   oncelik: z.enum(["düşük", "orta", "yüksek"]),
   satis_notu: z.string(),
+  netlestirici_soru: z.string(),
 });
 
 export type LeadAnalysis = z.infer<typeof AnalysisSchema>;
@@ -55,11 +57,13 @@ export async function analyzeLead(params: {
       "Önce siteyi bağımsız olarak değerlendir (site_bulgusu): sayfa hızı gibi ölçemediğin şeyleri uydurma, " +
       "ama içerikten gözlemleyebildiğin somut eksiklikleri/güçlü yönleri belirt (örn. blog/içerik pazarlaması yok, " +
       "net bir CTA yok, ürün açıklamaları zayıf, çok dilli değil, sosyal kanıt/referans eksik, güncel içerik yok). " +
-      "Bu, ürün önerisinden bağımsız bir teşhistir — sonra bu teşhise dayanarak ürün öner.",
+      "Bu, ürün önerisinden bağımsız bir teşhistir — sonra bu teşhise dayanarak ürün öner. " +
+      "Ayrıca müşterinin sektörünü site içeriğinden çıkar ve satış temsilcisinin aramada sorması gereken, " +
+      "en belirsiz/eksik noktayı netleştirecek TEK bir soru öner — özellikle net bir ürün eşleşmesi yoksa bu soru kritik.",
     messages: [
       {
         role: "user",
-        content: `Müşteri sitesi özeti:\n${params.siteSummary}\n\nMüşteri mesajı:\n${params.message || "(yok)"}${hasRealMessage ? "" : "\n(Not: mesaj boş veya bilgi taşımıyor, karar için siteye ağırlık ver.)"}\n\nİlgili ürün bilgisi parçaları:\n${context}\n\nBu bilgilere dayanarak önce sitenin bağımsız teşhisini (site_bulgusu), sonra en uygun ürünü/hizmeti, eşleşme skorunu (0-1), gerekçeni, önceliği ve satış ekibi için bir açılış notu belirle.`,
+        content: `Müşteri sitesi özeti:\n${params.siteSummary}\n\nMüşteri mesajı:\n${params.message || "(yok)"}${hasRealMessage ? "" : "\n(Not: mesaj boş veya bilgi taşımıyor, karar için siteye ağırlık ver.)"}\n\nİlgili ürün bilgisi parçaları:\n${context}\n\nBu bilgilere dayanarak sektörü, sitenin bağımsız teşhisini (site_bulgusu), en uygun ürünü/hizmeti, eşleşme skorunu (0-1), gerekçeni, önceliği, satış ekibi için bir açılış notu ve bir netleştirici soru belirle.`,
       },
     ],
     tools: [
@@ -69,6 +73,13 @@ export async function analyzeLead(params: {
         input_schema: {
           type: "object",
           properties: {
+            sektor: {
+              type: "string",
+              description:
+                "Müşterinin faaliyet gösterdiği sektör, site içeriğinden çıkarılan kısa bir ifade — " +
+                'örn. "Otelcilik", "E-ticaret (moda)", "Kamu/belediye", "B2B yazılım". Site içeriğinden ' +
+                'net anlaşılamıyorsa "Belirsiz" yaz, uydurma.',
+            },
             site_bulgusu: {
               type: "string",
               description:
@@ -94,8 +105,25 @@ export async function analyzeLead(params: {
                 "site_bulgusu'ndaki teşhisi önerilen ürünle bağla. Net bir eşleşme yoksa, dürüstçe " +
                 'bunu belirt (örn. "Site/mesajda net bir ihtiyaç sinyali yok, genel bir tanışma araması önerilir.").',
             },
+            netlestirici_soru: {
+              type: "string",
+              description:
+                "Satış temsilcisinin aramada sorması gereken, en belirsiz/eksik noktayı netleştirecek TEK bir " +
+                'soru — örn. "Şu an sosyal medya reklamlarını kendiniz mi yönetiyorsunuz, yoksa bir ajansla mı ' +
+                'çalışıyorsunuz?" Özellikle net bir ürün eşleşmesi yoksa bu soru, görüşmeyi doğru yöne çekmek ' +
+                "için kritik. Eşleşme zaten çok netse (skor yüksekse) bile makul bir keşif sorusu öner.",
+            },
           },
-          required: ["site_bulgusu", "onerilen_urun", "eslesme_skoru", "gerekce", "oncelik", "satis_notu"],
+          required: [
+            "sektor",
+            "site_bulgusu",
+            "onerilen_urun",
+            "eslesme_skoru",
+            "gerekce",
+            "oncelik",
+            "satis_notu",
+            "netlestirici_soru",
+          ],
         },
       },
     ],
