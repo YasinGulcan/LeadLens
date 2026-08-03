@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { fetchUnprocessedLeadEmails, markEmailProcessed, sendAnalysisNotificationEmail } from "./gmail";
+import { sendLeadNotification } from "./resend";
 import { scrapeMarkdown } from "./firecrawl";
 import { stripBoilerplate } from "./clean";
 import { matchProductChunks } from "./match";
@@ -210,6 +211,27 @@ export async function runNotifySales() {
         sector: lead.sector,
         clarifyingQuestion: lead.clarifying_question,
       });
+
+      // İkinci kanal (Resend) — kullanıcı isteğiyle geri eklendi, ana akışı bloklamasın:
+      // Gmail (birincil, güvenilir) gönderildiği sürece lead başarılı sayılır.
+      try {
+        await sendLeadNotification({
+          name: lead.name,
+          phone: lead.phone,
+          websiteUrl: lead.website_url,
+          sector: lead.sector,
+          siteFinding: lead.site_finding,
+          recommendedProduct: lead.recommended_product,
+          matchScore: lead.match_score,
+          reasoning: lead.reasoning,
+          priority: lead.priority,
+          salesNote: lead.sales_note,
+          clarifyingQuestion: lead.clarifying_question,
+        });
+      } catch (resendErr) {
+        const resendMessage = resendErr instanceof Error ? resendErr.message : String(resendErr);
+        console.error(`Resend bildirimi başarısız (lead ${lead.id}):`, resendMessage);
+      }
 
       const { error: updateError } = await supabase
         .from("leads")
