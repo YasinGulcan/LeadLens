@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { RANK_TIER_LABEL, rankTier } from "./rank-tier";
 
 let client: Resend | null = null;
 
@@ -104,9 +105,8 @@ export async function sendLeadNotification(lead: LeadNotification): Promise<void
       ${
         lead.searchKeyword
           ? `<p style="font-size:12px; color:#6b7280; margin-top:12px;">
-        🔎 "${escapeHtml(lead.searchKeyword)}" araması: ${
-          lead.searchRankPosition != null ? `${lead.searchRankPosition}. sırada` : "ilk sonuçlarda yok"
-        } · AI görünürlüğü: ${lead.aiVisibilityMentioned ? "geçti ✓" : "geçmedi"}
+        🔎 "${escapeHtml(lead.searchKeyword)}" araması: ${escapeHtml(RANK_TIER_LABEL[rankTier(lead.searchRankPosition)])}
+        · AI görünürlüğü: ${lead.aiVisibilityMentioned ? "geçti ✓" : "geçmedi"}
       </p>`
           : ""
       }

@@ -1,4 +1,5 @@
 import { google, gmail_v1 } from "googleapis";
+import { RANK_TIER_LABEL, rankTier } from "./rank-tier";
 
 const PROCESSED_LABEL = "LeadLens-Islendi";
 
@@ -98,7 +99,6 @@ export interface LeadAnalysisNotification {
   clarifyingQuestion: string | null;
   searchKeyword: string | null;
   searchRankPosition: number | null;
-  searchCheckedCount: number | null;
   aiVisibilityMentioned: boolean | null;
   aiVisibilityNote: string | null;
 }
@@ -168,11 +168,7 @@ export async function sendAnalysisNotificationEmail(lead: LeadAnalysisNotificati
         lead.searchKeyword
           ? `<div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; padding:12px 16px; margin:16px 0; font-size:13px;">
         <strong>🔎 Arama Görünürlüğü</strong> <span style="color:#9ca3af;">(tek seferlik örnekleme, "${escapeHtml(lead.searchKeyword)}" için)</span><br/>
-        Google araması: ${
-          lead.searchRankPosition != null
-            ? `${lead.searchRankPosition}. sırada çıktı`
-            : `ilk ${lead.searchCheckedCount ?? "?"} sonuçta bulunamadı`
-        }<br/>
+        Web araması görünürlüğü: ${escapeHtml(RANK_TIER_LABEL[rankTier(lead.searchRankPosition)])}<br/>
         AI görünürlüğü (Claude, gerçek web araması ile): ${
           lead.aiVisibilityMentioned == null ? "kontrol edilemedi" : lead.aiVisibilityMentioned ? "marka geçti ✓" : "marka geçmedi"
         }

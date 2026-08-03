@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "./badges";
+import { RANK_TIER_LABEL, rankTier } from "@/lib/rank-tier";
 
 export interface LeadRow {
   id: string;
@@ -22,7 +23,6 @@ export interface LeadRow {
   sales_feedback: string | null;
   search_keyword: string | null;
   search_rank_position: number | null;
-  search_checked_count: number | null;
   ai_visibility_mentioned: boolean | null;
   ai_visibility_note: string | null;
   created_at: string;
@@ -194,12 +194,7 @@ export function LeadsTable({
                         <div className="mb-3 rounded-md border border-neutral-200 p-2 text-xs dark:border-neutral-700">
                           <strong>🔎 Arama Görünürlüğü</strong>{" "}
                           <span className="text-neutral-400">(&quot;{l.search_keyword}&quot; için tek seferlik örnekleme)</span>
-                          <p className="mt-1">
-                            Google araması:{" "}
-                            {l.search_rank_position != null
-                              ? `${l.search_rank_position}. sırada çıktı`
-                              : `ilk ${l.search_checked_count ?? "?"} sonuçta bulunamadı`}
-                          </p>
+                          <p className="mt-1">Web araması görünürlüğü: {RANK_TIER_LABEL[rankTier(l.search_rank_position)]}</p>
                           <p>
                             AI görünürlüğü (Claude, gerçek web araması):{" "}
                             {l.ai_visibility_mentioned == null

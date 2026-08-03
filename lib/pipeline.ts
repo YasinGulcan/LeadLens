@@ -6,6 +6,7 @@ import { stripBoilerplate } from "./clean";
 import { matchProductChunks } from "./match";
 import { analyzeLead } from "./claude";
 import { checkSearchRanking, checkAiVisibility, generateSearchKeyword } from "./visibility";
+import { rankTier } from "./rank-tier";
 
 // PROJECT_PLAN.md riskler tablosu: "Lead hacmi aniden artarsa" → her adım
 // tek çalıştırmada sınırlı sayıda lead işler, kalanlar bir sonraki çalıştırmada işlenir.
@@ -245,8 +246,7 @@ export async function runAnalyzeLeads() {
         visibility: visibility
           ? {
               keyword: visibility.keyword,
-              rankPosition: visibility.ranking.position,
-              checkedCount: visibility.ranking.checkedCount,
+              rankTier: rankTier(visibility.ranking.position),
               aiMentioned: visibility.aiVisibility.mentioned,
             }
           : null,
@@ -335,7 +335,6 @@ export async function runNotifySales() {
         clarifyingQuestion: lead.clarifying_question,
         searchKeyword: lead.search_keyword,
         searchRankPosition: lead.search_rank_position,
-        searchCheckedCount: lead.search_checked_count,
         aiVisibilityMentioned: lead.ai_visibility_mentioned,
         aiVisibilityNote: lead.ai_visibility_note,
       });

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { MatchedChunk } from "./match";
+import { RANK_TIER_LABEL, type RankTier } from "./rank-tier";
 
 export const AnalysisSchema = z.object({
   sektor: z.string(),
@@ -36,8 +37,7 @@ const TOOL_NAME = "report_lead_analysis";
  */
 export interface VisibilityContext {
   keyword: string;
-  rankPosition: number | null;
-  checkedCount: number | null;
+  rankTier: RankTier;
   aiMentioned: boolean | null;
 }
 
@@ -54,12 +54,8 @@ export async function analyzeLead(params: {
   const hasRealMessage = (params.message ?? "").trim().length > 15;
 
   const visibilityBlock = params.visibility
-    ? `\n\nGörünürlük kontrolü ("${params.visibility.keyword}" araması için, gerçek bir web araması yapılarak elde edildi):\n` +
-      `- Google araması: ${
-        params.visibility.rankPosition != null
-          ? `${params.visibility.rankPosition}. sırada çıktı`
-          : `ilk ${params.visibility.checkedCount ?? "?"} sonuçta bulunamadı`
-      }\n` +
+    ? `\n\nGörünürlük kontrolü ("${params.visibility.keyword}" araması için, gerçek bir web araması yapılarak elde edildi — kesin sıra numarası değil, kaba bir sinyal):\n` +
+      `- Web araması görünürlüğü: ${RANK_TIER_LABEL[params.visibility.rankTier]}\n` +
       `- Yapay zekaya (Claude) aynı soru sorulduğunda: ${
         params.visibility.aiMentioned == null ? "kontrol edilemedi" : params.visibility.aiMentioned ? "marka geçti" : "marka geçmedi"
       }`
