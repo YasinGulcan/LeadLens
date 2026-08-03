@@ -48,7 +48,7 @@ export async function analyzeLead(params: {
 
   const response = await getClient().messages.create({
     model: "claude-sonnet-5",
-    max_tokens: 1024,
+    max_tokens: 1536,
     system:
       "Sen bir satış öncesi analiz asistanısın. Yalnızca sana verilen ürün bilgisi parçalarına dayanarak öneri yap; " +
       "listede olmayan bir ürün/hizmet uydurma. Türkçe yanıt ver. " +
