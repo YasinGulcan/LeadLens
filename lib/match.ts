@@ -17,21 +17,38 @@ interface MatchProductChunksRow {
   similarity: number;
 }
 
-/** Verilen metni embed edip pgvector ile en yakın ürün chunk'larını döner. */
-export async function matchProductChunks(queryText: string, matchCount = 5): Promise<MatchedChunk[]> {
-  const [embedding] = await embedTexts([queryText]);
+/**
+ * Birden fazla sorgu metnini (örn. hem site içeriği hem müşteri mesajı) ayrı
+ * ayrı embed edip her biri için en yakın chunk'ları bulur, sonucu birleştirir.
+ * Tek sorgu (sadece site içeriği) kullanmak, müşterinin mesajında belirttiği
+ * ama sitenin kendi içeriğinde geçmeyen bir ihtiyacı (örn. "SEO istiyoruz"
+ * diyen ama sitesinde hiç "SEO" geçmeyen bir otel) kaçırıyordu — çünkü site
+ * içeriğinin embedding'i mesajdaki ihtiyaçtan anlamsal olarak uzak kalabiliyor.
+ */
+export async function matchProductChunks(queryTexts: string[], matchCount = 5): Promise<MatchedChunk[]> {
+  const embeddings = await embedTexts(queryTexts);
 
-  const { data, error } = await supabase.rpc("match_product_chunks", {
-    query_embedding: embedding,
-    match_count: matchCount,
-  });
-  if (error) throw new Error(`Ürün eşleştirme başarısız: ${error.message}`);
+  const bestById = new Map<string, MatchedChunk>();
+  for (const embedding of embeddings) {
+    const { data, error } = await supabase.rpc("match_product_chunks", {
+      query_embedding: embedding,
+      match_count: matchCount,
+    });
+    if (error) throw new Error(`Ürün eşleştirme başarısız: ${error.message}`);
 
-  return ((data ?? []) as MatchProductChunksRow[]).map((row) => ({
-    id: row.id,
-    sourceId: row.source_id,
-    sourceUrl: row.source_url,
-    content: row.content,
-    similarity: row.similarity,
-  }));
+    for (const row of (data ?? []) as MatchProductChunksRow[]) {
+      const existing = bestById.get(row.id);
+      if (!existing || row.similarity > existing.similarity) {
+        bestById.set(row.id, {
+          id: row.id,
+          sourceId: row.source_id,
+          sourceUrl: row.source_url,
+          content: row.content,
+          similarity: row.similarity,
+        });
+      }
+    }
+  }
+
+  return [...bestById.values()].sort((a, b) => b.similarity - a.similarity);
 }

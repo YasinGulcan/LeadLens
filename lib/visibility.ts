@@ -1,5 +1,54 @@
+import { z } from "zod";
 import { searchWeb, type WebSearchResult } from "./firecrawl";
 import { getClient } from "./claude";
+
+const KeywordSchema = z.object({ arama_anahtar_kelimesi: z.string() });
+const KEYWORD_TOOL_NAME = "report_search_keyword";
+
+/**
+ * Site içeriğinden (müşteri MESAJINDAN DEĞİL) bu işletmenin gerçek bir
+ * müşterisinin, işletmenin kendi sunduğu ürün/hizmeti bulmak için yazacağı
+ * gerçekçi bir arama ifadesi üretir — görünürlük kontrolünün ilk adımı.
+ * Mesajı bilerek kullanmıyoruz: mesaj işletmenin İHTİYACINI (örn. "SEO
+ * istiyoruz") yansıtır, işletmenin KENDİ müşterisinin ne arayacağını değil —
+ * ikisini karıştırmak "otel SEO hizmeti" gibi anlamsız bir sorguya yol açardı.
+ */
+export async function generateSearchKeyword(siteSummary: string): Promise<string> {
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-5",
+    max_tokens: 200,
+    system:
+      "Sana bir işletmenin web sitesinden alınmış içerik verilecek. Bu işletmenin GERÇEK bir potansiyel " +
+      "müşterisinin, işletmenin kendi sunduğu ürün/hizmeti bulmak için Google'a veya bir yapay zekaya yazacağı " +
+      'gerçekçi, kısa bir arama ifadesi üret — örn. bir otel için "Antalya deniz manzaralı otel tatili" gibi. ' +
+      "İşletmenin KENDİ sunduğu şeyi arayan biri gibi düşün (işletmenin ihtiyacı olabilecek bir hizmeti değil). " +
+      "Marka/site adı kullanma.",
+    messages: [{ role: "user", content: `Site içeriği:\n${siteSummary.slice(0, 3000)}` }],
+    tools: [
+      {
+        name: KEYWORD_TOOL_NAME,
+        description: "Arama ifadesini yapılandırılmış olarak döndürür.",
+        input_schema: {
+          type: "object",
+          properties: {
+            arama_anahtar_kelimesi: {
+              type: "string",
+              description: "Gerçekçi, marka/site adı içermeyen, işletmenin kendi ürün/hizmetini arayan bir ifade.",
+            },
+          },
+          required: ["arama_anahtar_kelimesi"],
+        },
+      },
+    ],
+    tool_choice: { type: "tool", name: KEYWORD_TOOL_NAME },
+  });
+
+  const toolUse = response.content.find((block) => block.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Claude arama ifadesi üretmedi.");
+  }
+  return KeywordSchema.parse(toolUse.input).arama_anahtar_kelimesi;
+}
 
 /** URL'den karşılaştırılabilir bir domain çıkarır (www./protokol/yol farklarını yok sayar). */
 export function extractDomain(url: string): string | null {

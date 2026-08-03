@@ -5,7 +5,7 @@ import { scrapeMarkdown } from "./firecrawl";
 import { stripBoilerplate } from "./clean";
 import { matchProductChunks } from "./match";
 import { analyzeLead } from "./claude";
-import { checkSearchRanking, checkAiVisibility } from "./visibility";
+import { checkSearchRanking, checkAiVisibility, generateSearchKeyword } from "./visibility";
 
 // PROJECT_PLAN.md riskler tablosu: "Lead hacmi aniden artarsa" → her adım
 // tek çalıştırmada sınırlı sayıda lead işler, kalanlar bir sonraki çalıştırmada işlenir.
@@ -198,30 +198,59 @@ export async function runAnalyzeLeads() {
     }
 
     try {
-      const matches = await matchProductChunks(lead.site_summary!, MATCH_COUNT);
-      if (matches.length === 0) throw new Error("Eşleşen ürün chunk'ı bulunamadı.");
+      const siteSummary = lead.site_summary!;
+      const hasRealMessage = (lead.message ?? "").trim().length > 15;
+      // Site içeriği + (varsa) mesaj ayrı ayrı sorgulanıp birleştirilir — sadece
+      // site içeriğine bakmak, mesajda belirtilen ama sitenin kendi içeriğinde
+      // hiç geçmeyen bir ihtiyacı (örn. "SEO istiyoruz" diyen ama sitesinde hiç
+      // "SEO" geçmeyen bir otel) anlamsal olarak kaçırıyordu.
+      const retrievalQueries = hasRealMessage ? [siteSummary, lead.message!] : [siteSummary];
 
-      const analysis = await analyzeLead({
-        siteSummary: lead.site_summary!,
-        message: lead.message,
-        matchedChunks: matches,
-      });
-
-      // AI görünürlüğü + arama sıralaması — best-effort: ana öneriyi bloklamasın,
-      // başarısız olursa (rate limit, arama hatası vb.) bu alanlar sadece null kalır.
-      let ranking: Awaited<ReturnType<typeof checkSearchRanking>> | null = null;
-      let aiVisibility: Awaited<ReturnType<typeof checkAiVisibility>> | null = null;
-      if (lead.website_url) {
+      // Görünürlük kontrolü — best-effort, ürün eşleştirmeyle paralel çalışır:
+      // önce SADECE site içeriğinden (mesajdan değil, bkz. generateSearchKeyword
+      // yorumu) bir arama ifadesi üretilir, sonra o ifadeyle gerçek arama +
+      // AI görünürlüğü kontrol edilir. Başarısız olursa (rate limit vb.) null
+      // döner, ana öneri akışını etkilemez.
+      const checkVisibility = async (): Promise<{
+        keyword: string;
+        ranking: Awaited<ReturnType<typeof checkSearchRanking>>;
+        aiVisibility: Awaited<ReturnType<typeof checkAiVisibility>>;
+      } | null> => {
+        if (!lead.website_url) return null;
         try {
-          [ranking, aiVisibility] = await Promise.all([
-            checkSearchRanking(analysis.arama_anahtar_kelimesi, lead.website_url),
-            checkAiVisibility(analysis.arama_anahtar_kelimesi, lead.website_url),
+          const keyword = await generateSearchKeyword(siteSummary);
+          const [ranking, aiVisibility] = await Promise.all([
+            checkSearchRanking(keyword, lead.website_url),
+            checkAiVisibility(keyword, lead.website_url),
           ]);
+          return { keyword, ranking, aiVisibility };
         } catch (visibilityErr) {
           const visibilityMessage = visibilityErr instanceof Error ? visibilityErr.message : String(visibilityErr);
           console.error(`Görünürlük kontrolü başarısız (lead ${lead.id}):`, visibilityMessage);
+          return null;
         }
-      }
+      };
+
+      const [matches, visibility] = await Promise.all([
+        matchProductChunks(retrievalQueries, MATCH_COUNT),
+        checkVisibility(),
+      ]);
+
+      if (matches.length === 0) throw new Error("Eşleşen ürün chunk'ı bulunamadı.");
+
+      const analysis = await analyzeLead({
+        siteSummary,
+        message: lead.message,
+        matchedChunks: matches,
+        visibility: visibility
+          ? {
+              keyword: visibility.keyword,
+              rankPosition: visibility.ranking.position,
+              checkedCount: visibility.ranking.checkedCount,
+              aiMentioned: visibility.aiVisibility.mentioned,
+            }
+          : null,
+      });
 
       const { error: updateError } = await supabase
         .from("leads")
@@ -234,11 +263,11 @@ export async function runAnalyzeLeads() {
           priority: analysis.oncelik,
           sales_note: analysis.satis_notu,
           clarifying_question: analysis.netlestirici_soru,
-          search_keyword: analysis.arama_anahtar_kelimesi,
-          search_rank_position: ranking?.position ?? null,
-          search_checked_count: ranking?.checkedCount ?? null,
-          ai_visibility_mentioned: aiVisibility?.mentioned ?? null,
-          ai_visibility_note: aiVisibility?.note ?? null,
+          search_keyword: visibility?.keyword ?? null,
+          search_rank_position: visibility?.ranking.position ?? null,
+          search_checked_count: visibility?.ranking.checkedCount ?? null,
+          ai_visibility_mentioned: visibility?.aiVisibility.mentioned ?? null,
+          ai_visibility_note: visibility?.aiVisibility.note ?? null,
           status: "analyzed",
         })
         .eq("id", lead.id);

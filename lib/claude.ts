@@ -11,7 +11,6 @@ export const AnalysisSchema = z.object({
   oncelik: z.enum(["düşük", "orta", "yüksek"]),
   satis_notu: z.string(),
   netlestirici_soru: z.string(),
-  arama_anahtar_kelimesi: z.string(),
 });
 
 export type LeadAnalysis = z.infer<typeof AnalysisSchema>;
@@ -35,16 +34,36 @@ const TOOL_NAME = "report_lead_analysis";
  * ürün uydurmaz; tool_choice ile JSON çıktısı zorunlu kılınır, Zod ile
  * doğrulanır (PROJECT_PLAN.md §2 Gün 10-11).
  */
+export interface VisibilityContext {
+  keyword: string;
+  rankPosition: number | null;
+  checkedCount: number | null;
+  aiMentioned: boolean | null;
+}
+
 export async function analyzeLead(params: {
   siteSummary: string;
   message: string | null;
   matchedChunks: MatchedChunk[];
+  visibility: VisibilityContext | null;
 }): Promise<LeadAnalysis> {
   const context = params.matchedChunks
     .map((c, i) => `[Parça ${i + 1} — ${c.sourceUrl} — benzerlik: ${c.similarity.toFixed(2)}]\n${c.content}`)
     .join("\n\n");
 
   const hasRealMessage = (params.message ?? "").trim().length > 15;
+
+  const visibilityBlock = params.visibility
+    ? `\n\nGörünürlük kontrolü ("${params.visibility.keyword}" araması için, gerçek bir web araması yapılarak elde edildi):\n` +
+      `- Google araması: ${
+        params.visibility.rankPosition != null
+          ? `${params.visibility.rankPosition}. sırada çıktı`
+          : `ilk ${params.visibility.checkedCount ?? "?"} sonuçta bulunamadı`
+      }\n` +
+      `- Yapay zekaya (Claude) aynı soru sorulduğunda: ${
+        params.visibility.aiMentioned == null ? "kontrol edilemedi" : params.visibility.aiMentioned ? "marka geçti" : "marka geçmedi"
+      }`
+    : "";
 
   const response = await getClient().messages.create({
     model: "claude-sonnet-5",
@@ -59,15 +78,15 @@ export async function analyzeLead(params: {
       "ama içerikten gözlemleyebildiğin somut eksiklikleri/güçlü yönleri belirt (örn. blog/içerik pazarlaması yok, " +
       "net bir CTA yok, ürün açıklamaları zayıf, çok dilli değil, sosyal kanıt/referans eksik, güncel içerik yok). " +
       "Bu, ürün önerisinden bağımsız bir teşhistir — sonra bu teşhise dayanarak ürün öner. " +
+      "Sana verilirse, gerçek bir arama motoru/yapay zeka görünürlüğü kontrolünün sonucunu da somut bir kanıt olarak " +
+      "kullan — örn. site aranan bir ifadede çıkmıyorsa veya AI'da markadan bahsedilmiyorsa, bu görünürlük/SEO " +
+      "odaklı bir ürünü gerekçelendirmek için güçlü bir sinyaldir; ama verilmeyen hiçbir görünürlük bilgisini uydurma. " +
       "Ayrıca müşterinin sektörünü site içeriğinden çıkar ve satış temsilcisinin aramada sorması gereken, " +
-      "en belirsiz/eksik noktayı netleştirecek TEK bir soru öner — özellikle net bir ürün eşleşmesi yoksa bu soru kritik. " +
-      "Son olarak, bu işletmeyi arayan gerçek bir potansiyel müşterinin Google'a veya bir yapay zekaya yazacağı gerçekçi " +
-      "bir arama ifadesi öner (örn. sektör + hizmet + varsa şehir) — bu ifade daha sonra gerçek bir arama motoru ve " +
-      "yapay zeka görünürlüğü kontrolünde kullanılacak, bu yüzden gerçekçi ve spesifik olmalı, site adını içermemeli.",
+      "en belirsiz/eksik noktayı netleştirecek TEK bir soru öner — özellikle net bir ürün eşleşmesi yoksa bu soru kritik.",
     messages: [
       {
         role: "user",
-        content: `Müşteri sitesi özeti:\n${params.siteSummary}\n\nMüşteri mesajı:\n${params.message || "(yok)"}${hasRealMessage ? "" : "\n(Not: mesaj boş veya bilgi taşımıyor, karar için siteye ağırlık ver.)"}\n\nİlgili ürün bilgisi parçaları:\n${context}\n\nBu bilgilere dayanarak sektörü, sitenin bağımsız teşhisini (site_bulgusu), en uygun ürünü/hizmeti, eşleşme skorunu (0-1), gerekçeni, önceliği, satış ekibi için bir açılış notu ve bir netleştirici soru belirle.`,
+        content: `Müşteri sitesi özeti:\n${params.siteSummary}\n\nMüşteri mesajı:\n${params.message || "(yok)"}${hasRealMessage ? "" : "\n(Not: mesaj boş veya bilgi taşımıyor, karar için siteye ağırlık ver.)"}${visibilityBlock}\n\nİlgili ürün bilgisi parçaları:\n${context}\n\nBu bilgilere dayanarak sektörü, sitenin bağımsız teşhisini (site_bulgusu), en uygun ürünü/hizmeti, eşleşme skorunu (0-1), gerekçeni, önceliği, satış ekibi için bir açılış notu ve bir netleştirici soru belirle.`,
       },
     ],
     tools: [
@@ -117,13 +136,6 @@ export async function analyzeLead(params: {
                 'çalışıyorsunuz?" Özellikle net bir ürün eşleşmesi yoksa bu soru, görüşmeyi doğru yöne çekmek ' +
                 "için kritik. Eşleşme zaten çok netse (skor yüksekse) bile makul bir keşif sorusu öner.",
             },
-            arama_anahtar_kelimesi: {
-              type: "string",
-              description:
-                'Bu işletmeyi bulmak için gerçek bir müşterinin Google/AI\'a yazacağı gerçekçi arama ifadesi — ' +
-                'örn. "İstanbul otel yönetim yazılımı", "kurumsal SEO ajansı". Site/marka adını İÇERMEMELİ, ' +
-                "genel bir alıcı sorgusu olmalı (arama sıralaması ve AI görünürlüğü kontrolünde kullanılacak).",
-            },
           },
           required: [
             "sektor",
@@ -134,7 +146,6 @@ export async function analyzeLead(params: {
             "oncelik",
             "satis_notu",
             "netlestirici_soru",
-            "arama_anahtar_kelimesi",
           ],
         },
       },
