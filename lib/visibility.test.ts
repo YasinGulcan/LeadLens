@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("./firecrawl", () => ({ searchWeb: vi.fn() }));
 vi.mock("./claude", () => ({ getClient: vi.fn() }));
 
-const { extractDomain, findRankPosition, domainMentioned } = await import("./visibility");
+const { extractDomain, findRankPosition, domainMentioned, guessRootDomain, isSameSite } = await import("./visibility");
 
 describe("extractDomain", () => {
   it("protokol, www ve yol farklarını yok sayarak aynı domain'i döner", () => {
@@ -22,6 +22,35 @@ describe("extractDomain", () => {
 
   it("geçersiz bir URL için null döner", () => {
     expect(extractDomain("::: geçersiz :::")).toBeNull();
+  });
+});
+
+describe("guessRootDomain", () => {
+  it(".com.tr gibi bileşik TLD'lerde alt alan adını atıp 3 etiketli kökü döner", () => {
+    expect(guessRootDomain("landing.logo.com.tr")).toBe("logo.com.tr");
+  });
+
+  it("zaten kök domain olan bir .com.tr'yi değiştirmez", () => {
+    expect(guessRootDomain("logo.com.tr")).toBe("logo.com.tr");
+  });
+
+  it("düz .com domain'lerde alt alan adını atıp son iki etiketi döner", () => {
+    expect(guessRootDomain("landing.ornek.com")).toBe("ornek.com");
+  });
+
+  it("zaten kök domain olan bir .com'u değiştirmez", () => {
+    expect(guessRootDomain("ornek.com")).toBe("ornek.com");
+  });
+});
+
+describe("isSameSite", () => {
+  it("bir Google Ads iniş sayfası alt alan adını ana kurumsal domain ile aynı sayar", () => {
+    expect(isSameSite("landing.logo.com.tr", "logo.com.tr")).toBe(true);
+    expect(isSameSite("logo.com.tr", "landing.logo.com.tr")).toBe(true);
+  });
+
+  it("gerçekten farklı domain'leri aynı saymaz", () => {
+    expect(isSameSite("rakip.com.tr", "logo.com.tr")).toBe(false);
   });
 });
 
@@ -44,6 +73,14 @@ describe("findRankPosition", () => {
   it("geçersiz websiteUrl için null döner", () => {
     expect(findRankPosition(results, "::: geçersiz :::")).toBeNull();
   });
+
+  it("lead'in URL'i bir kampanya iniş sayfası (alt alan adı) olsa bile ana domain'i sonuçlarda bulur (gerçek bug: landing.logo.com.tr)", () => {
+    const campaignResults = [
+      { url: "https://rakip1.com" },
+      { url: "https://www.logo.com.tr/urunler" },
+    ];
+    expect(findRankPosition(campaignResults, "https://landing.logo.com.tr/?gclid=abc&campaignid=1")).toBe(2);
+  });
 });
 
 describe("domainMentioned", () => {
@@ -58,6 +95,18 @@ describe("domainMentioned", () => {
   it("ne alıntılarda ne metinde geçmiyorsa false döner", () => {
     expect(domainMentioned("https://ornek.com", "Bu konuda başka bir firma önerilir.", ["https://rakip.com"])).toBe(
       false
+    );
+  });
+
+  it("lead'in URL'i bir kampanya iniş sayfası olsa bile metinde ana domain geçiyorsa true döner", () => {
+    expect(
+      domainMentioned("https://landing.logo.com.tr/?gclid=abc", "Bu alanda logo.com.tr iyi bir seçenek.", [])
+    ).toBe(true);
+  });
+
+  it("lead'in URL'i bir kampanya iniş sayfası olsa bile alıntılarda ana domain geçiyorsa true döner", () => {
+    expect(domainMentioned("https://landing.logo.com.tr/?gclid=abc", "alakasız metin", ["https://www.logo.com.tr/"])).toBe(
+      true
     );
   });
 });
