@@ -2,7 +2,7 @@ import { supabase } from "./supabase";
 import { fetchUnprocessedLeadEmails, markEmailProcessed, sendAnalysisNotificationEmail } from "./gmail";
 import { sendLeadNotification } from "./resend";
 import { scrapeMarkdown } from "./firecrawl";
-import { stripBoilerplate } from "./clean";
+import { stripBoilerplate, safeTruncate } from "./clean";
 import { matchProductChunks } from "./match";
 import { analyzeLead } from "./claude";
 import { checkSearchRanking, checkAiVisibility, generateSearchKeyword } from "./visibility";
@@ -148,7 +148,7 @@ export async function runScrapeLeads() {
 
     try {
       const markdown = await scrapeWithRetry(websiteUrl);
-      const summary = stripBoilerplate(markdown).slice(0, MAX_SUMMARY_LENGTH);
+      const summary = safeTruncate(stripBoilerplate(markdown), MAX_SUMMARY_LENGTH);
 
       const { error: updateError } = await supabase.from("leads").update({ site_summary: summary }).eq("id", lead.id);
       if (updateError) throw new Error(`Supabase güncelleme hatası: ${updateError.message}`);

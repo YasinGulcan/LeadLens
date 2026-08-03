@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stripBoilerplate } from "./clean";
+import { stripBoilerplate, safeTruncate } from "./clean";
 
 describe("stripBoilerplate", () => {
   it("bilinen çerez izni ifadelerini içeren paragrafları kaldırır", () => {
@@ -47,5 +47,26 @@ describe("stripBoilerplate", () => {
     const input = ["Birinci paragraf.", "İkinci paragraf."].join("\n\n");
 
     expect(stripBoilerplate(input)).toBe(input);
+  });
+});
+
+describe("safeTruncate", () => {
+  it("kesim tam bir emoji'nin (surrogate çifti) ortasına denk gelirse yarım kalanı atar", () => {
+    // "a" x9 (index 0-8) + 🎄 (index 9-10, iki kod birimi) + "b" x5
+    const text = "a".repeat(9) + "🎄" + "b".repeat(5);
+
+    const result = safeTruncate(text, 10);
+
+    expect(result).toBe("a".repeat(9));
+    const lastCode = result.charCodeAt(result.length - 1);
+    expect(lastCode >= 0xd800 && lastCode <= 0xdbff).toBe(false); // yarım surrogate kalmamalı
+  });
+
+  it("kesim noktası bir karakterin ortasına denk gelmiyorsa normal şekilde keser", () => {
+    expect(safeTruncate("abcdefghij", 5)).toBe("abcde");
+  });
+
+  it("metin maxLength'ten kısaysa değiştirmeden döner", () => {
+    expect(safeTruncate("kısa metin", 100)).toBe("kısa metin");
   });
 });

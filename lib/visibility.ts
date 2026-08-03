@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { searchWeb, type WebSearchResult } from "./firecrawl";
 import { getClient } from "./claude";
+import { safeTruncate } from "./clean";
 
 const KeywordSchema = z.object({ arama_anahtar_kelimesi: z.string() });
 const KEYWORD_TOOL_NAME = "report_search_keyword";
@@ -23,7 +24,7 @@ export async function generateSearchKeyword(siteSummary: string): Promise<string
       'gerçekçi, kısa bir arama ifadesi üret — örn. bir otel için "Antalya deniz manzaralı otel tatili" gibi. ' +
       "İşletmenin KENDİ sunduğu şeyi arayan biri gibi düşün (işletmenin ihtiyacı olabilecek bir hizmeti değil). " +
       "Marka/site adı kullanma.",
-    messages: [{ role: "user", content: `Site içeriği:\n${siteSummary.slice(0, 3000)}` }],
+    messages: [{ role: "user", content: `Site içeriği:\n${safeTruncate(siteSummary, 3000)}` }],
     tools: [
       {
         name: KEYWORD_TOOL_NAME,

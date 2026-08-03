@@ -47,3 +47,19 @@ export function stripBoilerplate(markdown: string): string {
     })
     .join("\n\n");
 }
+
+/**
+ * `String.slice` UTF-16 kod birimi sayarak keser — emoji gibi surrogate
+ * çiftiyle temsil edilen karakterlerin ortasından kesebilir, bu da string'in
+ * sonunda yarım kalmış (eşleşmeyen) bir surrogate bırakır. Bu geçersiz string
+ * daha sonra JSON'a çevrilip Supabase'e gönderilince "Empty or invalid json"
+ * hatasıyla reddediliyordu (gerçek bir sitede — emoji'yle biten bir paragrafın
+ * tam sınırda kesilmesiyle — yakalandı). Kesimden sonra yarım kalan yüksek
+ * surrogate'i atarak düzeltir.
+ */
+export function safeTruncate(text: string, maxLength: number): string {
+  const sliced = text.slice(0, maxLength);
+  const lastCode = sliced.charCodeAt(sliced.length - 1);
+  const isUnpairedHighSurrogate = lastCode >= 0xd800 && lastCode <= 0xdbff;
+  return isUnpairedHighSurrogate ? sliced.slice(0, -1) : sliced;
+}
