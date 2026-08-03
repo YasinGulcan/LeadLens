@@ -165,7 +165,16 @@ export async function checkAiVisibility(keyword: string, websiteUrl: string): Pr
       "Gerçek bir alıcı gibi davran. Aşağıdaki soruyu yanıtlamak için web_search aracıyla gerçekten arama yap, " +
       "kendi hafızandan uydurma. 2-4 somut işletme/hizmet öner, isimlerini ve varsa sitelerini kısaca belirt.",
     messages: [{ role: "user", content: keyword }],
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
+    // user_location olmadan sonuçlar lokasyonsuz/küresel ağırlıklı geliyordu —
+    // yerel bir işletmeyi haksız yere geride bırakabiliyordu.
+    tools: [
+      {
+        type: "web_search_20250305",
+        name: "web_search",
+        max_uses: 3,
+        user_location: { type: "approximate", country: "TR" },
+      },
+    ],
   });
 
   const textParts: string[] = [];

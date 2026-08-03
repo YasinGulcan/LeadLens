@@ -33,9 +33,14 @@ export interface WebSearchResult {
   title?: string;
 }
 
-/** Verilen sorgu için gerçek bir web araması yapar, sıralı sonuç listesi döner (anahtar kelime sıralaması için). */
+/**
+ * Verilen sorgu için gerçek bir web araması yapar, sıralı sonuç listesi döner
+ * (anahtar kelime sıralaması için). `location: "Turkey"` verilmezse sonuçlar
+ * lokasyonsuz/küresel ağırlıklı geliyordu — bu da yerel bir işletmeyi haksız
+ * yere geride bırakabiliyordu (gerçek bir kullanıcı raporunda fark edildi).
+ */
 export async function searchWeb(query: string, limit = 15): Promise<WebSearchResult[]> {
-  const result = await getClient().search(query, { sources: ["web"], limit });
+  const result = await getClient().search(query, { sources: ["web"], limit, location: "Turkey" });
   return (result.web ?? [])
     .filter((r): r is { url: string; title?: string } => "url" in r && typeof r.url === "string")
     .map((r) => ({ url: r.url, title: r.title }));
