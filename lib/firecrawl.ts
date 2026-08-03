@@ -27,3 +27,16 @@ export async function scrapeMarkdown(url: string): Promise<string> {
   }
   return doc.markdown;
 }
+
+export interface WebSearchResult {
+  url: string;
+  title?: string;
+}
+
+/** Verilen sorgu için gerçek bir web araması yapar, sıralı sonuç listesi döner (anahtar kelime sıralaması için). */
+export async function searchWeb(query: string, limit = 15): Promise<WebSearchResult[]> {
+  const result = await getClient().search(query, { sources: ["web"], limit });
+  return (result.web ?? [])
+    .filter((r): r is { url: string; title?: string } => "url" in r && typeof r.url === "string")
+    .map((r) => ({ url: r.url, title: r.title }));
+}

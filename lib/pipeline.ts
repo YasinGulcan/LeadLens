@@ -5,6 +5,7 @@ import { scrapeMarkdown } from "./firecrawl";
 import { stripBoilerplate } from "./clean";
 import { matchProductChunks } from "./match";
 import { analyzeLead } from "./claude";
+import { checkSearchRanking, checkAiVisibility } from "./visibility";
 
 // PROJECT_PLAN.md riskler tablosu: "Lead hacmi aniden artarsa" → her adım
 // tek çalıştırmada sınırlı sayıda lead işler, kalanlar bir sonraki çalıştırmada işlenir.
@@ -179,7 +180,7 @@ export async function runScrapeLeads() {
 export async function runAnalyzeLeads() {
   const { data: leads, error } = await supabase
     .from("leads")
-    .select("id, site_summary, message")
+    .select("id, site_summary, message, website_url")
     .eq("status", "scraping")
     .not("site_summary", "is", null)
     .limit(BATCH_SIZE);
@@ -206,6 +207,22 @@ export async function runAnalyzeLeads() {
         matchedChunks: matches,
       });
 
+      // AI görünürlüğü + arama sıralaması — best-effort: ana öneriyi bloklamasın,
+      // başarısız olursa (rate limit, arama hatası vb.) bu alanlar sadece null kalır.
+      let ranking: Awaited<ReturnType<typeof checkSearchRanking>> | null = null;
+      let aiVisibility: Awaited<ReturnType<typeof checkAiVisibility>> | null = null;
+      if (lead.website_url) {
+        try {
+          [ranking, aiVisibility] = await Promise.all([
+            checkSearchRanking(analysis.arama_anahtar_kelimesi, lead.website_url),
+            checkAiVisibility(analysis.arama_anahtar_kelimesi, lead.website_url),
+          ]);
+        } catch (visibilityErr) {
+          const visibilityMessage = visibilityErr instanceof Error ? visibilityErr.message : String(visibilityErr);
+          console.error(`Görünürlük kontrolü başarısız (lead ${lead.id}):`, visibilityMessage);
+        }
+      }
+
       const { error: updateError } = await supabase
         .from("leads")
         .update({
@@ -217,6 +234,11 @@ export async function runAnalyzeLeads() {
           priority: analysis.oncelik,
           sales_note: analysis.satis_notu,
           clarifying_question: analysis.netlestirici_soru,
+          search_keyword: analysis.arama_anahtar_kelimesi,
+          search_rank_position: ranking?.position ?? null,
+          search_checked_count: ranking?.checkedCount ?? null,
+          ai_visibility_mentioned: aiVisibility?.mentioned ?? null,
+          ai_visibility_note: aiVisibility?.note ?? null,
           status: "analyzed",
         })
         .eq("id", lead.id);
@@ -252,7 +274,7 @@ export async function runNotifySales() {
   const { data: leads, error } = await supabase
     .from("leads")
     .select(
-      "id, name, phone, website_url, recommended_product, match_score, reasoning, priority, sales_note, site_finding, sector, clarifying_question"
+      "id, name, phone, website_url, recommended_product, match_score, reasoning, priority, sales_note, site_finding, sector, clarifying_question, search_keyword, search_rank_position, search_checked_count, ai_visibility_mentioned, ai_visibility_note"
     )
     .eq("status", "analyzed")
     .limit(BATCH_SIZE);
@@ -282,6 +304,11 @@ export async function runNotifySales() {
         siteFinding: lead.site_finding,
         sector: lead.sector,
         clarifyingQuestion: lead.clarifying_question,
+        searchKeyword: lead.search_keyword,
+        searchRankPosition: lead.search_rank_position,
+        searchCheckedCount: lead.search_checked_count,
+        aiVisibilityMentioned: lead.ai_visibility_mentioned,
+        aiVisibilityNote: lead.ai_visibility_note,
       });
 
       // İkinci kanal (Resend) — kullanıcı isteğiyle geri eklendi, ana akışı bloklamasın:
@@ -299,6 +326,9 @@ export async function runNotifySales() {
           priority: lead.priority,
           salesNote: lead.sales_note,
           clarifyingQuestion: lead.clarifying_question,
+          searchKeyword: lead.search_keyword,
+          searchRankPosition: lead.search_rank_position,
+          aiVisibilityMentioned: lead.ai_visibility_mentioned,
         });
       } catch (resendErr) {
         const resendMessage = resendErr instanceof Error ? resendErr.message : String(resendErr);

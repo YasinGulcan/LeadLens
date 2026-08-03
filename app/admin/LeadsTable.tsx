@@ -20,6 +20,11 @@ export interface LeadRow {
   clarifying_question: string | null;
   error_message: string | null;
   sales_feedback: string | null;
+  search_keyword: string | null;
+  search_rank_position: number | null;
+  search_checked_count: number | null;
+  ai_visibility_mentioned: boolean | null;
+  ai_visibility_note: string | null;
   created_at: string;
 }
 
@@ -183,6 +188,26 @@ export function LeadsTable({
                       {l.clarifying_question && (
                         <div className="mb-3 rounded-md bg-amber-50 p-2 text-xs dark:bg-amber-950">
                           <strong>Netleştirici Soru:</strong> {l.clarifying_question}
+                        </div>
+                      )}
+                      {l.search_keyword && (
+                        <div className="mb-3 rounded-md border border-neutral-200 p-2 text-xs dark:border-neutral-700">
+                          <strong>🔎 Arama Görünürlüğü</strong>{" "}
+                          <span className="text-neutral-400">(&quot;{l.search_keyword}&quot; için tek seferlik örnekleme)</span>
+                          <p className="mt-1">
+                            Google araması:{" "}
+                            {l.search_rank_position != null
+                              ? `${l.search_rank_position}. sırada çıktı`
+                              : `ilk ${l.search_checked_count ?? "?"} sonuçta bulunamadı`}
+                          </p>
+                          <p>
+                            AI görünürlüğü (Claude, gerçek web araması):{" "}
+                            {l.ai_visibility_mentioned == null
+                              ? "kontrol edilemedi"
+                              : l.ai_visibility_mentioned
+                                ? "marka geçti ✓"
+                                : "marka geçmedi"}
+                          </p>
                         </div>
                       )}
                       {l.recommended_product && (

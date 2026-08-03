@@ -10,6 +10,7 @@ const VALID_ANALYSIS = {
   oncelik: "yüksek",
   satis_notu: "Sitesinde blog yok; SEO Paketi Pro öneriliyor.",
   netlestirici_soru: "Şu an SEO çalışmalarını kendiniz mi yürütüyorsunuz?",
+  arama_anahtar_kelimesi: "İstanbul e-ticaret SEO ajansı",
 };
 
 describe("AnalysisSchema (Claude yapılandırılmış çıktı sözleşmesi)", () => {

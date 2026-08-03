@@ -23,6 +23,9 @@ export interface LeadNotification {
   priority: string | null;
   salesNote: string | null;
   clarifyingQuestion: string | null;
+  searchKeyword: string | null;
+  searchRankPosition: number | null;
+  aiVisibilityMentioned: boolean | null;
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -97,6 +100,16 @@ export async function sendLeadNotification(lead: LeadNotification): Promise<void
           <td style="padding:6px 0;">${escapeHtml(lead.reasoning ?? "—")}</td>
         </tr>
       </table>
+
+      ${
+        lead.searchKeyword
+          ? `<p style="font-size:12px; color:#6b7280; margin-top:12px;">
+        🔎 "${escapeHtml(lead.searchKeyword)}" araması: ${
+          lead.searchRankPosition != null ? `${lead.searchRankPosition}. sırada` : "ilk sonuçlarda yok"
+        } · AI görünürlüğü: ${lead.aiVisibilityMentioned ? "geçti ✓" : "geçmedi"}
+      </p>`
+          : ""
+      }
     </div>
   `.trim();
 

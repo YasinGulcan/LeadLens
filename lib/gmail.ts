@@ -96,6 +96,11 @@ export interface LeadAnalysisNotification {
   siteFinding: string | null;
   sector: string | null;
   clarifyingQuestion: string | null;
+  searchKeyword: string | null;
+  searchRankPosition: number | null;
+  searchCheckedCount: number | null;
+  aiVisibilityMentioned: boolean | null;
+  aiVisibilityNote: string | null;
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -158,6 +163,22 @@ export async function sendAnalysisNotificationEmail(lead: LeadAnalysisNotificati
           <td style="padding:6px 0;">${escapeHtml(lead.reasoning ?? "—")}</td>
         </tr>
       </table>
+
+      ${
+        lead.searchKeyword
+          ? `<div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; padding:12px 16px; margin:16px 0; font-size:13px;">
+        <strong>🔎 Arama Görünürlüğü</strong> <span style="color:#9ca3af;">(tek seferlik örnekleme, "${escapeHtml(lead.searchKeyword)}" için)</span><br/>
+        Google araması: ${
+          lead.searchRankPosition != null
+            ? `${lead.searchRankPosition}. sırada çıktı`
+            : `ilk ${lead.searchCheckedCount ?? "?"} sonuçta bulunamadı`
+        }<br/>
+        AI görünürlüğü (Claude, gerçek web araması ile): ${
+          lead.aiVisibilityMentioned == null ? "kontrol edilemedi" : lead.aiVisibilityMentioned ? "marka geçti ✓" : "marka geçmedi"
+        }
+      </div>`
+          : ""
+      }
 
       ${adminUrl ? `<p style="margin-top:20px;"><a href="${escapeHtml(adminUrl)}" style="color:#2563eb;">Admin panelinde görüntüle →</a></p>` : ""}
     </div>

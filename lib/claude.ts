@@ -11,13 +11,14 @@ export const AnalysisSchema = z.object({
   oncelik: z.enum(["düşük", "orta", "yüksek"]),
   satis_notu: z.string(),
   netlestirici_soru: z.string(),
+  arama_anahtar_kelimesi: z.string(),
 });
 
 export type LeadAnalysis = z.infer<typeof AnalysisSchema>;
 
 let client: Anthropic | null = null;
 
-function getClient(): Anthropic {
+export function getClient(): Anthropic {
   if (!client) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY ortam değişkeni tanımlı olmalı.");
@@ -59,7 +60,10 @@ export async function analyzeLead(params: {
       "net bir CTA yok, ürün açıklamaları zayıf, çok dilli değil, sosyal kanıt/referans eksik, güncel içerik yok). " +
       "Bu, ürün önerisinden bağımsız bir teşhistir — sonra bu teşhise dayanarak ürün öner. " +
       "Ayrıca müşterinin sektörünü site içeriğinden çıkar ve satış temsilcisinin aramada sorması gereken, " +
-      "en belirsiz/eksik noktayı netleştirecek TEK bir soru öner — özellikle net bir ürün eşleşmesi yoksa bu soru kritik.",
+      "en belirsiz/eksik noktayı netleştirecek TEK bir soru öner — özellikle net bir ürün eşleşmesi yoksa bu soru kritik. " +
+      "Son olarak, bu işletmeyi arayan gerçek bir potansiyel müşterinin Google'a veya bir yapay zekaya yazacağı gerçekçi " +
+      "bir arama ifadesi öner (örn. sektör + hizmet + varsa şehir) — bu ifade daha sonra gerçek bir arama motoru ve " +
+      "yapay zeka görünürlüğü kontrolünde kullanılacak, bu yüzden gerçekçi ve spesifik olmalı, site adını içermemeli.",
     messages: [
       {
         role: "user",
@@ -113,6 +117,13 @@ export async function analyzeLead(params: {
                 'çalışıyorsunuz?" Özellikle net bir ürün eşleşmesi yoksa bu soru, görüşmeyi doğru yöne çekmek ' +
                 "için kritik. Eşleşme zaten çok netse (skor yüksekse) bile makul bir keşif sorusu öner.",
             },
+            arama_anahtar_kelimesi: {
+              type: "string",
+              description:
+                'Bu işletmeyi bulmak için gerçek bir müşterinin Google/AI\'a yazacağı gerçekçi arama ifadesi — ' +
+                'örn. "İstanbul otel yönetim yazılımı", "kurumsal SEO ajansı". Site/marka adını İÇERMEMELİ, ' +
+                "genel bir alıcı sorgusu olmalı (arama sıralaması ve AI görünürlüğü kontrolünde kullanılacak).",
+            },
           },
           required: [
             "sektor",
@@ -123,6 +134,7 @@ export async function analyzeLead(params: {
             "oncelik",
             "satis_notu",
             "netlestirici_soru",
+            "arama_anahtar_kelimesi",
           ],
         },
       },
