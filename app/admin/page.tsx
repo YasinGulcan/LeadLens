@@ -14,7 +14,7 @@ export default async function AdminPage() {
     supabase
       .from("leads")
       .select(
-        "id, name, phone, website_url, status, priority, recommended_product, match_score, reasoning, sales_note, site_finding, sector, clarifying_question, error_message, created_at"
+        "id, name, phone, website_url, status, priority, recommended_product, match_score, reasoning, sales_note, site_finding, sector, clarifying_question, error_message, sales_feedback, created_at"
       )
       .order("created_at", { ascending: false })
       .limit(50),

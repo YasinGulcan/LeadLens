@@ -19,6 +19,7 @@ export interface LeadRow {
   sector: string | null;
   clarifying_question: string | null;
   error_message: string | null;
+  sales_feedback: string | null;
   created_at: string;
 }
 
@@ -40,6 +41,7 @@ export function LeadsTable({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [retrying, setRetrying] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<Record<string, string>>({});
+  const [feedbackPending, setFeedbackPending] = useState<string | null>(null);
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -66,6 +68,24 @@ export function LeadsTable({
       setRetryError((prev) => ({ ...prev, [id]: err instanceof Error ? err.message : "Hata" }));
     } finally {
       setRetrying(null);
+    }
+  }
+
+  async function sendFeedback(id: string, current: string | null, value: "helpful" | "not_helpful") {
+    const next = current === value ? null : value; // aynı değere tekrar tıklamak seçimi kaldırır
+    setFeedbackPending(id);
+    try {
+      const res = await fetch("/api/admin/lead-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId: id, feedback: next }),
+      });
+      if (!res.ok) throw new Error();
+      router.refresh();
+    } catch {
+      // sessizce yut — geri bildirim ikincil bir özellik, kullanıcı akışını bozmasın
+    } finally {
+      setFeedbackPending(null);
     }
   }
 
@@ -163,6 +183,35 @@ export function LeadsTable({
                       {l.clarifying_question && (
                         <div className="mb-3 rounded-md bg-amber-50 p-2 text-xs dark:bg-amber-950">
                           <strong>Netleştirici Soru:</strong> {l.clarifying_question}
+                        </div>
+                      )}
+                      {l.recommended_product && (
+                        <div className="mb-3 flex items-center gap-2 text-xs">
+                          <span className="text-neutral-500">Bu öneri isabetli miydi?</span>
+                          <button
+                            onClick={() => sendFeedback(l.id, l.sales_feedback, "helpful")}
+                            disabled={feedbackPending === l.id}
+                            aria-label="İsabetli"
+                            className={`rounded-md border px-2 py-1 disabled:opacity-50 ${
+                              l.sales_feedback === "helpful"
+                                ? "border-green-400 bg-green-100 dark:border-green-800 dark:bg-green-950"
+                                : "border-neutral-300 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                            }`}
+                          >
+                            👍
+                          </button>
+                          <button
+                            onClick={() => sendFeedback(l.id, l.sales_feedback, "not_helpful")}
+                            disabled={feedbackPending === l.id}
+                            aria-label="İsabetsiz"
+                            className={`rounded-md border px-2 py-1 disabled:opacity-50 ${
+                              l.sales_feedback === "not_helpful"
+                                ? "border-red-400 bg-red-100 dark:border-red-800 dark:bg-red-950"
+                                : "border-neutral-300 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                            }`}
+                          >
+                            👎
+                          </button>
                         </div>
                       )}
                       {history.length === 0 ? (
