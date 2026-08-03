@@ -1,7 +1,9 @@
 const STATUS_LABEL: Record<string, string> = {
   new: "Yeni",
   scraping: "Taranıyor",
+  analyzing: "Analiz Ediliyor",
   analyzed: "Analiz Edildi",
+  notifying: "Bildiriliyor",
   sent_to_sales: "Satışa Gönderildi",
   error: "Hata",
 };

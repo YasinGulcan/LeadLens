@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+// 'analyzing'/'notifying' claim edilip fonksiyon zaman aşımına uğrarsa
+// (Vercel timeout, crash vb.) sonsuza kadar takılı kalabilir — bunlar da
+// "error" gibi elle kurtarılabilir sayılır.
+const RECOVERABLE_STATUSES = ["error", "analyzing", "notifying"];
+
 /**
- * Admin panelinden manuel "yeniden dene" — status='error' bir lead'i, hangi
- * aşamada takıldığına göre (elindeki veriye bakarak) doğru önceki duruma
- * geri alır ki bir sonraki pipeline çalıştırmasında o adımdan devam etsin.
+ * Admin panelinden manuel "yeniden dene" — status='error' ya da takılı
+ * kalmış ('analyzing'/'notifying') bir lead'i, hangi aşamada olduğuna göre
+ * doğru önceki duruma geri alır ki bir sonraki pipeline çalıştırmasında o
+ * adımdan devam etsin.
  */
 export async function POST(req: NextRequest) {
   const { leadId } = await req.json().catch(() => ({}));
@@ -21,17 +27,27 @@ export async function POST(req: NextRequest) {
   if (fetchError || !lead) {
     return NextResponse.json({ error: "Lead bulunamadı." }, { status: 404 });
   }
-  if (lead.status !== "error") {
-    return NextResponse.json({ error: "Sadece 'error' durumundaki lead'ler yeniden denenebilir." }, { status: 400 });
+  if (!RECOVERABLE_STATUSES.includes(lead.status)) {
+    return NextResponse.json(
+      { error: "Sadece 'error' ya da takılı kalmış (analyzing/notifying) lead'ler yeniden denenebilir." },
+      { status: 400 }
+    );
   }
 
-  const retryStatus = lead.recommended_product
-    ? "analyzed" // bildirim gönderimi başarısız olmuş
-    : lead.site_summary
-      ? "scraping" // analiz başarısız olmuş
-      : lead.website_url
-        ? "new" // site taraması başarısız olmuş
-        : null; // website_url hiç ayrıştırılamamış — otomatik düzeltilemez
+  let retryStatus: string | null;
+  if (lead.status === "analyzing") {
+    retryStatus = "scraping"; // claim edilmiş ama analiz bitmemiş — taramaya geri dön
+  } else if (lead.status === "notifying") {
+    retryStatus = "analyzed"; // claim edilmiş ama bildirim bitmemiş — analiz sonucuna geri dön
+  } else {
+    retryStatus = lead.recommended_product
+      ? "analyzed" // bildirim gönderimi başarısız olmuş
+      : lead.site_summary
+        ? "scraping" // analiz başarısız olmuş
+        : lead.website_url
+          ? "new" // site taraması başarısız olmuş
+          : null; // website_url hiç ayrıştırılamamış — otomatik düzeltilemez
+  }
 
   if (!retryStatus) {
     return NextResponse.json(

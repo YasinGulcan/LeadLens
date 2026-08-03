@@ -119,7 +119,7 @@ export function LeadsTable({
                     {new Date(l.created_at).toLocaleString("tr-TR")}
                   </td>
                   <td className="px-4 py-2">
-                    {l.status === "error" && (
+                    {(l.status === "error" || l.status === "analyzing" || l.status === "notifying") && (
                       <button
                         onClick={() => retry(l.id)}
                         disabled={retrying === l.id}
