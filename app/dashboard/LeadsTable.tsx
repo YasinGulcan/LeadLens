@@ -1,9 +1,67 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "./badges";
 import { RANK_TIER_LABEL, rankTier } from "@/lib/rank-tier";
+
+type SortKey = "name" | "match_score" | "priority" | "status" | "created_at";
+type SortDir = "asc" | "desc";
+
+const PRIORITY_RANK: Record<string, number> = { yüksek: 3, orta: 2, düşük: 1 };
+// Skor/tarih gibi sayısal alanlarda ilk tıklamada en yükseği/en yeniyi göstermek daha kullanışlı;
+// isim/öncelik/durum gibi alanlarda ise A→Z ile başlamak daha sezgisel.
+const DEFAULT_DIR: Record<SortKey, SortDir> = {
+  name: "asc",
+  match_score: "desc",
+  priority: "desc",
+  status: "asc",
+  created_at: "desc",
+};
+
+function compareLeads(a: LeadRow, b: LeadRow, key: SortKey): number {
+  switch (key) {
+    case "name":
+      return (a.name ?? "").localeCompare(b.name ?? "", "tr");
+    case "status":
+      return a.status.localeCompare(b.status, "tr");
+    case "priority":
+      return (PRIORITY_RANK[a.priority ?? ""] ?? 0) - (PRIORITY_RANK[b.priority ?? ""] ?? 0);
+    case "match_score":
+      return (a.match_score ?? -1) - (b.match_score ?? -1);
+    case "created_at":
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  }
+}
+
+function SortHeader({
+  label,
+  sortKey,
+  activeKey,
+  activeDir,
+  onSort,
+}: {
+  label: string;
+  sortKey: SortKey;
+  activeKey: SortKey | null;
+  activeDir: SortDir;
+  onSort: (key: SortKey) => void;
+}) {
+  const isActive = activeKey === sortKey;
+  return (
+    <th className="px-4 py-2 font-medium">
+      <button
+        onClick={() => onSort(sortKey)}
+        className={`flex items-center gap-1 hover:text-neutral-900 dark:hover:text-white ${
+          isActive ? "text-neutral-900 dark:text-white" : ""
+        }`}
+      >
+        {label}
+        <span className="text-neutral-400">{isActive ? (activeDir === "asc" ? "▲" : "▼") : "↕"}</span>
+      </button>
+    </th>
+  );
+}
 
 export interface LeadRow {
   id: string;
@@ -47,6 +105,25 @@ export function LeadsTable({
   const [retrying, setRetrying] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<Record<string, string>>({});
   const [feedbackPending, setFeedbackPending] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<Record<string, string>>({});
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(DEFAULT_DIR[key]);
+    }
+  }
+
+  const sortedLeads = useMemo(() => {
+    if (!sortKey) return leads;
+    const sorted = [...leads].sort((a, b) => compareLeads(a, b, sortKey));
+    return sortDir === "asc" ? sorted : sorted.reverse();
+  }, [leads, sortKey, sortDir]);
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -61,7 +138,7 @@ export function LeadsTable({
     setRetrying(id);
     setRetryError((prev) => ({ ...prev, [id]: "" }));
     try {
-      const res = await fetch("/api/admin/retry-lead", {
+      const res = await fetch("/api/dashboard/retry-lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ leadId: id }),
@@ -76,11 +153,28 @@ export function LeadsTable({
     }
   }
 
+  async function deleteLead(id: string, name: string | null) {
+    if (!window.confirm(`"${name ?? "Bu lead"}" kalıcı olarak silinsin mi?`)) return;
+
+    setDeletingId(id);
+    setDeleteError((prev) => ({ ...prev, [id]: "" }));
+    try {
+      const res = await fetch(`/api/dashboard/leads/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Bilinmeyen hata");
+      router.refresh();
+    } catch (err) {
+      setDeleteError((prev) => ({ ...prev, [id]: err instanceof Error ? err.message : "Hata" }));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   async function sendFeedback(id: string, current: string | null, value: "helpful" | "not_helpful") {
     const next = current === value ? null : value; // aynı değere tekrar tıklamak seçimi kaldırır
     setFeedbackPending(id);
     try {
-      const res = await fetch("/api/admin/lead-feedback", {
+      const res = await fetch("/api/dashboard/lead-feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ leadId: id, feedback: next }),
@@ -100,19 +194,19 @@ export function LeadsTable({
         <thead className="bg-neutral-50 dark:bg-neutral-900 text-left">
           <tr>
             <th className="px-4 py-2 font-medium" />
-            <th className="px-4 py-2 font-medium">İsim</th>
+            <SortHeader label="İsim" sortKey="name" activeKey={sortKey} activeDir={sortDir} onSort={handleSort} />
             <th className="px-4 py-2 font-medium">Telefon</th>
             <th className="px-4 py-2 font-medium">Site</th>
             <th className="px-4 py-2 font-medium">Önerilen Ürün</th>
-            <th className="px-4 py-2 font-medium">Skor</th>
-            <th className="px-4 py-2 font-medium">Öncelik</th>
-            <th className="px-4 py-2 font-medium">Durum</th>
-            <th className="px-4 py-2 font-medium">Oluşturulma</th>
+            <SortHeader label="Skor" sortKey="match_score" activeKey={sortKey} activeDir={sortDir} onSort={handleSort} />
+            <SortHeader label="Öncelik" sortKey="priority" activeKey={sortKey} activeDir={sortDir} onSort={handleSort} />
+            <SortHeader label="Durum" sortKey="status" activeKey={sortKey} activeDir={sortDir} onSort={handleSort} />
+            <SortHeader label="Oluşturulma" sortKey="created_at" activeKey={sortKey} activeDir={sortDir} onSort={handleSort} />
             <th className="px-4 py-2 font-medium" />
           </tr>
         </thead>
         <tbody>
-          {leads.map((l) => {
+          {sortedLeads.map((l) => {
             const isOpen = expanded.has(l.id);
             const history = historyByLeadId[l.id] ?? [];
             return (
@@ -144,15 +238,25 @@ export function LeadsTable({
                     {new Date(l.created_at).toLocaleString("tr-TR")}
                   </td>
                   <td className="px-4 py-2">
-                    {(l.status === "error" || l.status === "analyzing" || l.status === "notifying") && (
+                    <div className="flex items-center gap-2">
+                      {(l.status === "error" || l.status === "analyzing" || l.status === "notifying") && (
+                        <button
+                          onClick={() => retry(l.id)}
+                          disabled={retrying === l.id}
+                          className="rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                        >
+                          {retrying === l.id ? "Deneniyor..." : "Yeniden Dene"}
+                        </button>
+                      )}
                       <button
-                        onClick={() => retry(l.id)}
-                        disabled={retrying === l.id}
-                        className="rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                        onClick={() => deleteLead(l.id, l.name)}
+                        disabled={deletingId === l.id}
+                        className="rounded-md border border-red-300 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
                       >
-                        {retrying === l.id ? "Deneniyor..." : "Yeniden Dene"}
+                        {deletingId === l.id ? "Siliniyor..." : "Sil"}
                       </button>
-                    )}
+                    </div>
+                    {deleteError[l.id] && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{deleteError[l.id]}</p>}
                   </td>
                 </tr>
                 {isOpen && (

@@ -1,27 +1,31 @@
 import { supabase } from "../lib/supabase";
+import { addProductSource } from "../lib/ingest";
 
-// Kullanım: npm run sources:add -- https://ornek.com/urunler "Ürün Kataloğu"
+// Kullanım: npm run sources:add -- <hesap-slug> "https://ornek.com/urunler" "Ürün Kataloğu"
 async function main() {
-  const [url, label] = process.argv.slice(2);
+  const [accountSlug, url, label] = process.argv.slice(2);
 
-  if (!url) {
-    console.error('Kullanım: npm run sources:add -- "<url>" ["etiket"]');
+  if (!accountSlug || !url) {
+    console.error('Kullanım: npm run sources:add -- <hesap-slug> "<url>" ["etiket"]');
     process.exit(1);
   }
 
-  const { data, error } = await supabase
-    .from("product_sources")
-    .upsert({ url, label: label ?? null, active: true }, { onConflict: "url" })
-    .select()
+  const { data: account, error: accountError } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("slug", accountSlug)
     .single();
-
-  if (error) {
-    console.error("Kaynak eklenemedi:", error.message);
+  if (accountError || !account) {
+    console.error(`Hesap bulunamadı (slug: ${accountSlug}):`, accountError?.message ?? "kayıt yok");
     process.exit(1);
   }
 
-  console.log(`Eklendi/güncellendi: ${data.url} (id: ${data.id})`);
-  console.log('Taramayı başlatmak için: npm run ingest:products');
+  const source = await addProductSource(account.id, url, label ?? null);
+  console.log(`Eklendi/güncellendi: ${source.url} (id: ${source.id})`);
+  console.log(`Taramayı başlatmak için: npm run ingest:products -- ${accountSlug}`);
 }
 
-main();
+main().catch((err) => {
+  console.error("Kaynak eklenemedi:", err instanceof Error ? err.message : err);
+  process.exit(1);
+});

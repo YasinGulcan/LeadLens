@@ -55,7 +55,7 @@ describe("claimLead (eşzamanlılık kilidi)", () => {
 
 describe("findRecentDuplicateLead", () => {
   it("website ve telefon ikisi de yoksa sorgu atmadan null döner", async () => {
-    const result = await findRecentDuplicateLead(null, null);
+    const result = await findRecentDuplicateLead("acc-1", null, null);
 
     expect(result).toBeNull();
     expect(fromMock).not.toHaveBeenCalled();
@@ -69,7 +69,7 @@ describe("findRecentDuplicateLead", () => {
       })
     );
 
-    const result = await findRecentDuplicateLead("https://ornek.com", null);
+    const result = await findRecentDuplicateLead("acc-1", "https://ornek.com", null);
 
     expect(result).toEqual({ id: "lead-1", status: "analyzed" });
   });
@@ -82,7 +82,7 @@ describe("findRecentDuplicateLead", () => {
       })
     );
 
-    const result = await findRecentDuplicateLead(null, "5551112233");
+    const result = await findRecentDuplicateLead("acc-1", null, "5551112233");
 
     expect(result).toEqual({ id: "lead-2", status: "new" });
   });
@@ -95,7 +95,7 @@ describe("findRecentDuplicateLead", () => {
       })
     );
 
-    const result = await findRecentDuplicateLead("https://ornek.com", "5551112233");
+    const result = await findRecentDuplicateLead("acc-1", "https://ornek.com", "5551112233");
 
     expect(result).toBeNull();
   });

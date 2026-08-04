@@ -16,6 +16,7 @@ export interface LeadNotification {
   name: string | null;
   phone: string | null;
   websiteUrl: string | null;
+  message: string | null;
   sector: string | null;
   siteFinding: string | null;
   recommendedProduct: string | null;
@@ -73,6 +74,15 @@ export async function sendLeadNotification(lead: LeadNotification): Promise<void
         <strong>💡 Arama Öncesi Not:</strong><br/>
         ${escapeHtml(lead.salesNote ?? lead.reasoning ?? "—")}
       </div>
+
+      ${
+        lead.message
+          ? `<div style="background:#eef2ff; border-left:4px solid #4f46e5; padding:12px 16px; border-radius:6px; margin:16px 0;">
+        <strong>📝 Müşteri Mesajı:</strong><br/>
+        ${escapeHtml(lead.message)}
+      </div>`
+          : ""
+      }
 
       ${
         lead.clarifyingQuestion

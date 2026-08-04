@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionAccountId } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
 
 // 'analyzing'/'notifying' claim edilip fonksiyon zaman aşımına uğrarsa
@@ -7,12 +8,16 @@ import { supabase } from "@/lib/supabase";
 const RECOVERABLE_STATUSES = ["error", "analyzing", "notifying"];
 
 /**
- * Admin panelinden manuel "yeniden dene" — status='error' ya da takılı
+ * `/dashboard`'daki manuel "yeniden dene" — status='error' ya da takılı
  * kalmış ('analyzing'/'notifying') bir lead'i, hangi aşamada olduğuna göre
  * doğru önceki duruma geri alır ki bir sonraki pipeline çalıştırmasında o
- * adımdan devam etsin.
+ * adımdan devam etsin. Lead'in gerçekten bu oturumun hesabına ait olduğu
+ * doğrulanır — artık her şeyi görebilen tek bir admin yok.
  */
 export async function POST(req: NextRequest) {
+  const accountId = await getSessionAccountId();
+  if (!accountId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { leadId } = await req.json().catch(() => ({}));
   if (typeof leadId !== "string") {
     return NextResponse.json({ error: "leadId gerekli." }, { status: 400 });
@@ -20,12 +25,15 @@ export async function POST(req: NextRequest) {
 
   const { data: lead, error: fetchError } = await supabase
     .from("leads")
-    .select("id, status, website_url, site_summary, recommended_product")
+    .select("id, account_id, status, website_url, site_summary, recommended_product")
     .eq("id", leadId)
     .single();
 
   if (fetchError || !lead) {
     return NextResponse.json({ error: "Lead bulunamadı." }, { status: 404 });
+  }
+  if (lead.account_id !== accountId) {
+    return NextResponse.json({ error: "Bu lead size ait değil." }, { status: 403 });
   }
   if (!RECOVERABLE_STATUSES.includes(lead.status)) {
     return NextResponse.json(
@@ -60,7 +68,7 @@ export async function POST(req: NextRequest) {
   await supabase.from("lead_status_history").insert({
     lead_id: leadId,
     status: retryStatus,
-    detail: "Admin panelinden manuel olarak yeniden denemeye alındı",
+    detail: "Panelden manuel olarak yeniden denemeye alındı",
   });
 
   return NextResponse.json({ ok: true, newStatus: retryStatus });

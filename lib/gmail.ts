@@ -1,24 +1,37 @@
 import { google, gmail_v1 } from "googleapis";
 import { RANK_TIER_LABEL, rankTier } from "./rank-tier";
+import { decryptToken } from "./crypto";
 
 const PROCESSED_LABEL = "LeadLens-Islendi";
 
-let client: gmail_v1.Gmail | null = null;
+/** Bir hesabı Gmail işlemleri için tanımlamaya yeten minimum bilgi. */
+export interface GmailAccount {
+  id: string;
+  leadEmailSubject: string;
+  encryptedRefreshToken: string;
+  /** Form kopyası + rapor buraya gider; boşsa bağlı hesabın kendi adresi kullanılır. */
+  notificationEmail: string | null;
+}
 
-function getClient(): gmail_v1.Gmail {
-  if (!client) {
-    const clientId = process.env.GMAIL_CLIENT_ID;
-    const clientSecret = process.env.GMAIL_CLIENT_SECRET;
-    const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
-    if (!clientId || !clientSecret || !refreshToken) {
-      throw new Error(
-        "GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN ortam değişkenleri tanımlı olmalı."
-      );
-    }
-    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
-    oauth2Client.setCredentials({ refresh_token: refreshToken });
-    client = google.gmail({ version: "v1", auth: oauth2Client });
+// accountId → Gmail client. Her istekte OAuth2 client'ı yeniden kurmamak için
+// hafif bir bellek içi cache (aynı process içinde, cron/route çağrıları arası).
+const clientCache = new Map<string, gmail_v1.Gmail>();
+
+function getClientForAccount(account: GmailAccount): gmail_v1.Gmail {
+  const cached = clientCache.get(account.id);
+  if (cached) return cached;
+
+  const clientId = process.env.GMAIL_CLIENT_ID;
+  const clientSecret = process.env.GMAIL_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error("GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET ortam değişkenleri tanımlı olmalı.");
   }
+
+  const refreshToken = decryptToken(account.encryptedRefreshToken);
+  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  const client = google.gmail({ version: "v1", auth: oauth2Client });
+  clientCache.set(account.id, client);
   return client;
 }
 
@@ -30,29 +43,52 @@ export interface FormSubmission {
   consentGivenAt: string;
 }
 
-const SUBJECT_PREFIX = "Yeni Lead Formu";
-
 function encodeSubject(subject: string): string {
   // Gmail API "raw" mesajları ASCII bekler; UTF-8 konu satırı MIME encoded-word olarak kodlanmalı.
   return `=?UTF-8?B?${Buffer.from(subject, "utf-8").toString("base64")}?=`;
 }
 
-/** Aynı Gmail hesabına (kendine) e-posta gönderir (düz metin ya da HTML). */
+/**
+ * Gövdeyi base64'e çevirip 76 karakterde satır kırar (RFC 2045). Bir MIME
+ * parçasının gövdesini `Content-Transfer-Encoding: base64` ile birlikte
+ * kullanılmak üzere hazırlar — bu başlık olmadan (varsayılan "7bit"
+ * varsayımıyla) Türkçe karakterler gibi çok baytlı UTF-8 dizileri bazı
+ * istemcilerde (Gmail'in kendi render'ı dahil) bozuk gösteriliyordu.
+ */
+function encodeBodyBase64(text: string): string {
+  const b64 = Buffer.from(text, "utf-8").toString("base64");
+  return b64.match(/.{1,76}/g)?.join("\r\n") ?? b64;
+}
+
+/**
+ * Bağlı Gmail hesabı üzerinden e-posta gönderir. `to` verilmezse hesabın
+ * kendi adresine gider (self-email) — `fetchUnprocessedLeadEmails`'in
+ * okuduğu kutu bu olduğu için form kopyası (kuyruk mekanizması) HER ZAMAN
+ * kendine gitmeli, asla `notificationEmail`'e yönlendirilmemeli. Sadece son
+ * analiz raporu gibi salt bildirim amaçlı mailler `to` ile başka bir adrese
+ * (hesabın `notificationEmail` ayarına) yönlendirilebilir.
+ */
 async function sendSelfEmail(
+  account: GmailAccount,
   subject: string,
   body: string,
-  contentType: "text/plain" | "text/html" = "text/plain"
+  contentType: "text/plain" | "text/html" = "text/plain",
+  to?: string
 ): Promise<void> {
-  const gmail = getClient();
-  const profile = await gmail.users.getProfile({ userId: "me" });
-  const to = profile.data.emailAddress;
+  const gmail = getClientForAccount(account);
+  if (!to) {
+    const profile = await gmail.users.getProfile({ userId: "me" });
+    to = profile.data.emailAddress ?? undefined;
+  }
 
   const message = [
     `To: ${to}`,
     `Subject: ${encodeSubject(subject)}`,
+    "MIME-Version: 1.0",
     `Content-Type: ${contentType}; charset=utf-8`,
+    "Content-Transfer-Encoding: base64",
     "",
-    body,
+    encodeBodyBase64(body),
   ].join("\r\n");
 
   const raw = Buffer.from(message)
@@ -71,10 +107,57 @@ function escapeHtml(value: string): string {
   );
 }
 
-/** Form gönderimini simüle eden e-postayı, ayrıştırıcının anlayacağı sabit şablonla gönderir. */
-export async function sendFormSubmissionEmail(submission: FormSubmission): Promise<void> {
-  const subject = `${SUBJECT_PREFIX} — ${submission.name || "İsimsiz"}`;
-  const body = [
+/**
+ * `text/plain` + `text/html` bölümlerini birlikte taşıyan bir multipart/alternative
+ * mesajı ham (raw) olarak inşa eder. Her zaman bağlı hesabın kendi adresine gider
+ * (form kopyası — kuyruk mekanizması — asla başka bir adrese yönlendirilmemeli).
+ */
+async function sendMultipartSelfEmail(account: GmailAccount, subject: string, text: string, html: string): Promise<void> {
+  const gmail = getClientForAccount(account);
+  const profile = await gmail.users.getProfile({ userId: "me" });
+  const to = profile.data.emailAddress;
+  if (!to) throw new Error("Bağlı hesabın e-postası okunamadı.");
+
+  const boundary = `----=_LeadLens_${Date.now()}`;
+  const message = [
+    `To: ${to}`,
+    `Subject: ${encodeSubject(subject)}`,
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    encodeBodyBase64(text),
+    "",
+    `--${boundary}`,
+    "Content-Type: text/html; charset=utf-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    encodeBodyBase64(html),
+    "",
+    `--${boundary}--`,
+  ].join("\r\n");
+
+  const raw = Buffer.from(message)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
+}
+
+/**
+ * Form gönderimini simüle eden e-postayı gönderir. `text/plain` bölümü
+ * `fetchUnprocessedLeadEmails`'in ayrıştırdığı sabit şablon (satır satır
+ * "Etiket: değer") — değiştirilirse parser bozulur. `text/html` bölümü ise
+ * sadece görünüm için, aynı posta kutusunda daha okunaklı görünsün diye.
+ */
+export async function sendFormSubmissionEmail(account: GmailAccount, submission: FormSubmission): Promise<void> {
+  const subject = `${account.leadEmailSubject} — ${submission.name || "İsimsiz"}`;
+  const text = [
     `İsim: ${submission.name}`,
     `Telefon: ${submission.phone}`,
     `Website: ${submission.websiteUrl}`,
@@ -82,13 +165,45 @@ export async function sendFormSubmissionEmail(submission: FormSubmission): Promi
     `Onay: ${submission.consentGivenAt}`,
   ].join("\n");
 
-  await sendSelfEmail(subject, body);
+  const html = `
+    <div style="font-family: -apple-system, Arial, sans-serif; max-width: 600px; color: #1f2937;">
+      <h2 style="margin-bottom: 4px;">🆕 Yeni Lead: ${escapeHtml(submission.name || "İsimsiz")}</h2>
+      <p style="color:#6b7280; margin-top:0; font-size:13px;">Analiz raporu birazdan ayrı bir e-posta olarak gelecek.</p>
+
+      <table style="width:100%; border-collapse:collapse; font-size:14px; margin-top:12px;">
+        <tr>
+          <td style="padding:6px 0; color:#6b7280; width:120px;">Telefon</td>
+          <td style="padding:6px 0;">${escapeHtml(submission.phone || "—")}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0; color:#6b7280;">Website</td>
+          <td style="padding:6px 0;">
+            <a href="${escapeHtml(submission.websiteUrl)}" style="color:#2563eb;">${escapeHtml(submission.websiteUrl)}</a>
+          </td>
+        </tr>
+      </table>
+
+      ${
+        submission.message
+          ? `<div style="background:#f3f4f6; border-left:4px solid #2563eb; padding:12px 16px; border-radius:6px; margin:16px 0;">
+        <strong>📝 Müşteri Mesajı:</strong><br/>
+        ${escapeHtml(submission.message)}
+      </div>`
+          : ""
+      }
+
+      <p style="color:#9ca3af; font-size:12px; margin-top:20px;">Onay zamanı: ${escapeHtml(submission.consentGivenAt)}</p>
+    </div>
+  `.trim();
+
+  await sendMultipartSelfEmail(account, subject, text, html);
 }
 
 export interface LeadAnalysisNotification {
   name: string | null;
   phone: string | null;
   websiteUrl: string | null;
+  message: string | null;
   recommendedProduct: string | null;
   matchScore: number | null;
   reasoning: string | null;
@@ -110,11 +225,14 @@ const PRIORITY_COLOR: Record<string, string> = {
 };
 
 /** Gün 12 (Claude prompt + rapor iyileştirmesi): analiz raporunu HTML olarak aynı Gmail hesabına gönderir. */
-export async function sendAnalysisNotificationEmail(lead: LeadAnalysisNotification): Promise<void> {
+export async function sendAnalysisNotificationEmail(
+  account: GmailAccount,
+  lead: LeadAnalysisNotification
+): Promise<void> {
   const name = lead.name || "İsimsiz";
   const priority = lead.priority ?? "belirsiz";
   const priorityColor = PRIORITY_COLOR[priority] ?? "#6b7280";
-  const adminUrl = process.env.APP_URL ? `${process.env.APP_URL.replace(/\/$/, "")}/admin` : null;
+  const dashboardUrl = process.env.APP_URL ? `${process.env.APP_URL.replace(/\/$/, "")}/dashboard` : null;
 
   const subject = `Lead Analiz Raporu — ${name} (Öncelik: ${priority})`;
 
@@ -135,6 +253,15 @@ export async function sendAnalysisNotificationEmail(lead: LeadAnalysisNotificati
         <strong>💡 Arama Öncesi Not:</strong><br/>
         ${escapeHtml(lead.salesNote ?? lead.reasoning ?? "—")}
       </div>
+
+      ${
+        lead.message
+          ? `<div style="background:#eef2ff; border-left:4px solid #4f46e5; padding:12px 16px; border-radius:6px; margin:16px 0;">
+        <strong>📝 Müşteri Mesajı:</strong><br/>
+        ${escapeHtml(lead.message)}
+      </div>`
+          : ""
+      }
 
       ${
         lead.clarifyingQuestion
@@ -176,11 +303,11 @@ export async function sendAnalysisNotificationEmail(lead: LeadAnalysisNotificati
           : ""
       }
 
-      ${adminUrl ? `<p style="margin-top:20px;"><a href="${escapeHtml(adminUrl)}" style="color:#2563eb;">Admin panelinde görüntüle →</a></p>` : ""}
+      ${dashboardUrl ? `<p style="margin-top:20px;"><a href="${escapeHtml(dashboardUrl)}" style="color:#2563eb;">Panelde görüntüle →</a></p>` : ""}
     </div>
   `.trim();
 
-  await sendSelfEmail(subject, html, "text/html");
+  await sendSelfEmail(account, subject, html, "text/html", account.notificationEmail ?? undefined);
 }
 
 export interface ParsedLeadEmail {
@@ -228,15 +355,16 @@ async function getOrCreateProcessedLabelId(gmail: gmail_v1.Gmail): Promise<strin
 }
 
 /**
- * Konusu "Yeni Lead Formu" ile başlayan, henüz işlenmemiş (LeadLens-Islendi
- * etiketi olmayan) mailleri getirir ve sabit şablona göre ayrıştırır.
+ * Konusu hesabın yapılandırdığı `leadEmailSubject` ile başlayan, henüz
+ * işlenmemiş (LeadLens-Islendi etiketi olmayan) mailleri getirir ve sabit
+ * şablona göre ayrıştırır.
  */
-export async function fetchUnprocessedLeadEmails(): Promise<ParsedLeadEmail[]> {
-  const gmail = getClient();
+export async function fetchUnprocessedLeadEmails(account: GmailAccount): Promise<ParsedLeadEmail[]> {
+  const gmail = getClientForAccount(account);
 
   const { data } = await gmail.users.messages.list({
     userId: "me",
-    q: `subject:"${SUBJECT_PREFIX}" -label:${PROCESSED_LABEL}`,
+    q: `subject:"${account.leadEmailSubject}" -label:${PROCESSED_LABEL}`,
     maxResults: 20,
   });
 
@@ -261,8 +389,8 @@ export async function fetchUnprocessedLeadEmails(): Promise<ParsedLeadEmail[]> {
 }
 
 /** İşlenen maili tekrar yakalanmaması için etiketler. */
-export async function markEmailProcessed(gmailMessageId: string): Promise<void> {
-  const gmail = getClient();
+export async function markEmailProcessed(account: GmailAccount, gmailMessageId: string): Promise<void> {
+  const gmail = getClientForAccount(account);
   const labelId = await getOrCreateProcessedLabelId(gmail);
   await gmail.users.messages.modify({
     userId: "me",

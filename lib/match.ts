@@ -25,12 +25,17 @@ interface MatchProductChunksRow {
  * diyen ama sitesinde hiç "SEO" geçmeyen bir otel) kaçırıyordu — çünkü site
  * içeriğinin embedding'i mesajdaki ihtiyaçtan anlamsal olarak uzak kalabiliyor.
  */
-export async function matchProductChunks(queryTexts: string[], matchCount = 5): Promise<MatchedChunk[]> {
+export async function matchProductChunks(
+  accountId: string,
+  queryTexts: string[],
+  matchCount = 5
+): Promise<MatchedChunk[]> {
   const embeddings = await embedTexts(queryTexts);
 
   const bestById = new Map<string, MatchedChunk>();
   for (const embedding of embeddings) {
     const { data, error } = await supabase.rpc("match_product_chunks", {
+      p_account_id: accountId,
       query_embedding: embedding,
       match_count: matchCount,
     });

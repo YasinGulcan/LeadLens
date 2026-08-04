@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionAccountId } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
 
 const VALID_VALUES = ["helpful", "not_helpful", null];
 
 /**
- * Admin panelinden satış ekibi Claude'un önerisini 👍/👎 ile değerlendirir.
- * Aynı değere tekrar tıklamak seçimi kaldırır (null) — bu yüzden feedback
- * null da olabilir.
+ * `/dashboard`'da 👍/👎 ile Claude'un önerisini değerlendirme. Aynı değere
+ * tekrar tıklamak seçimi kaldırır (null) — bu yüzden feedback null da olabilir.
  */
 export async function POST(req: NextRequest) {
+  const accountId = await getSessionAccountId();
+  if (!accountId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { leadId, feedback } = await req.json().catch(() => ({}));
 
   if (typeof leadId !== "string") {
@@ -16,6 +19,11 @@ export async function POST(req: NextRequest) {
   }
   if (!VALID_VALUES.includes(feedback)) {
     return NextResponse.json({ error: "feedback 'helpful', 'not_helpful' ya da null olmalı." }, { status: 400 });
+  }
+
+  const { data: lead } = await supabase.from("leads").select("account_id").eq("id", leadId).single();
+  if (!lead || lead.account_id !== accountId) {
+    return NextResponse.json({ error: "Bu lead size ait değil." }, { status: 403 });
   }
 
   const { error } = await supabase

@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
-import { fetchUnprocessedLeadEmails, markEmailProcessed, sendAnalysisNotificationEmail } from "./gmail";
+import { fetchUnprocessedLeadEmails, markEmailProcessed, sendAnalysisNotificationEmail, type GmailAccount } from "./gmail";
+import { loadConnectedGmailAccounts } from "./accounts";
 import { sendLeadNotification } from "./resend";
 import { scrapeMarkdown } from "./firecrawl";
 import { stripBoilerplate, safeTruncate } from "./clean";
@@ -51,13 +52,18 @@ export async function claimLead(id: string, fromStatus: string, toStatus: string
  * art arda mail almaz.
  */
 export async function findRecentDuplicateLead(
+  accountId: string,
   websiteUrl: string | null,
   phone: string | null
 ): Promise<{ id: string; status: string } | null> {
   if (!websiteUrl && !phone) return null;
 
   const since = new Date(Date.now() - DUPLICATE_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
-  const { data } = await supabase.from("leads").select("id, status, website_url, phone").gte("created_at", since);
+  const { data } = await supabase
+    .from("leads")
+    .select("id, status, website_url, phone")
+    .eq("account_id", accountId)
+    .gte("created_at", since);
 
   const match = (data ?? []).find(
     (l) => (websiteUrl && l.website_url === websiteUrl) || (phone && l.phone === phone)
@@ -66,22 +72,22 @@ export async function findRecentDuplicateLead(
 }
 
 /** Gün 5-7: Gmail'deki işlenmemiş form maillerini okur, ayrıştırır, Supabase'e yazar. */
-export async function runFetchLeads() {
-  const emails = await fetchUnprocessedLeadEmails();
+export async function runFetchLeads(account: GmailAccount) {
+  const emails = await fetchUnprocessedLeadEmails(account);
 
   let created = 0;
   let errors = 0;
   let duplicates = 0;
 
   for (const email of emails) {
-    const duplicate = await findRecentDuplicateLead(email.websiteUrl, email.phone);
+    const duplicate = await findRecentDuplicateLead(account.id, email.websiteUrl, email.phone);
     if (duplicate) {
       await supabase.from("lead_status_history").insert({
         lead_id: duplicate.id,
         status: duplicate.status,
         detail: `Aynı website/telefon için ${DUPLICATE_WINDOW_HOURS} saat içinde tekrar form gönderimi geldi — tarama/analiz/bildirim tekrar tetiklenmedi.`,
       });
-      await markEmailProcessed(email.gmailMessageId);
+      await markEmailProcessed(account, email.gmailMessageId);
       duplicates++;
       continue;
     }
@@ -91,6 +97,7 @@ export async function runFetchLeads() {
     const { data: lead, error: insertError } = await supabase
       .from("leads")
       .insert({
+        account_id: account.id,
         name: email.name,
         phone: email.phone,
         website_url: email.websiteUrl,
@@ -114,7 +121,7 @@ export async function runFetchLeads() {
       detail: status === "error" ? "Gmail ayrıştırma: website_url eksik" : "Gmail'den alındı",
     });
 
-    await markEmailProcessed(email.gmailMessageId);
+    await markEmailProcessed(account, email.gmailMessageId);
 
     if (status === "new") created++;
     else errors++;
@@ -124,10 +131,11 @@ export async function runFetchLeads() {
 }
 
 /** Gün 8-9: status='new' lead'lerin website_url'ini Firecrawl ile tarar. */
-export async function runScrapeLeads() {
+export async function runScrapeLeads(accountId: string) {
   const { data: leads, error } = await supabase
     .from("leads")
     .select("id, website_url")
+    .eq("account_id", accountId)
     .eq("status", "new")
     .not("website_url", "is", null)
     .limit(BATCH_SIZE);
@@ -178,10 +186,11 @@ export async function runScrapeLeads() {
 }
 
 /** Gün 10-11: status='scraping' lead'ler için RAG eşleştirme + Claude analizi. */
-export async function runAnalyzeLeads() {
+export async function runAnalyzeLeads(accountId: string) {
   const { data: leads, error } = await supabase
     .from("leads")
     .select("id, site_summary, message, website_url")
+    .eq("account_id", accountId)
     .eq("status", "scraping")
     .not("site_summary", "is", null)
     .limit(BATCH_SIZE);
@@ -233,7 +242,7 @@ export async function runAnalyzeLeads() {
       };
 
       const [matches, visibility] = await Promise.all([
-        matchProductChunks(retrievalQueries, MATCH_COUNT),
+        matchProductChunks(accountId, retrievalQueries, MATCH_COUNT),
         checkVisibility(),
       ]);
 
@@ -299,12 +308,13 @@ export async function runAnalyzeLeads() {
 }
 
 /** Gün 12: status='analyzed' lead'ler için aynı Gmail hesabına analiz raporu gönderir. */
-export async function runNotifySales() {
+export async function runNotifySales(account: GmailAccount) {
   const { data: leads, error } = await supabase
     .from("leads")
     .select(
-      "id, name, phone, website_url, recommended_product, match_score, reasoning, priority, sales_note, site_finding, sector, clarifying_question, search_keyword, search_rank_position, search_checked_count, ai_visibility_mentioned, ai_visibility_note"
+      "id, name, phone, website_url, message, recommended_product, match_score, reasoning, priority, sales_note, site_finding, sector, clarifying_question, search_keyword, search_rank_position, search_checked_count, ai_visibility_mentioned, ai_visibility_note"
     )
+    .eq("account_id", account.id)
     .eq("status", "analyzed")
     .limit(BATCH_SIZE);
 
@@ -321,10 +331,11 @@ export async function runNotifySales() {
     }
 
     try {
-      await sendAnalysisNotificationEmail({
+      await sendAnalysisNotificationEmail(account, {
         name: lead.name,
         phone: lead.phone,
         websiteUrl: lead.website_url,
+        message: lead.message,
         recommendedProduct: lead.recommended_product,
         matchScore: lead.match_score,
         reasoning: lead.reasoning,
@@ -346,6 +357,7 @@ export async function runNotifySales() {
           name: lead.name,
           phone: lead.phone,
           websiteUrl: lead.website_url,
+          message: lead.message,
           sector: lead.sector,
           siteFinding: lead.site_finding,
           recommendedProduct: lead.recommended_product,
@@ -396,12 +408,34 @@ export async function runNotifySales() {
 /**
  * Gün 15: Vercel Hobby planı cron job'ları günde bir kez çalıştırabiliyor,
  * bu yüzden 4 adım burada tek bir sıralı çalıştırmada birleştiriliyor
- * (ayrı ayrı zamanlanırsa sıralama garantisi olmaz).
+ * (ayrı ayrı zamanlanırsa sıralama garantisi olmaz). Tek bir hesap için çalışır.
  */
-export async function runFullPipeline() {
-  const fetch = await runFetchLeads();
-  const scrape = await runScrapeLeads();
-  const analyze = await runAnalyzeLeads();
-  const notify = await runNotifySales();
+export async function runFullPipeline(account: GmailAccount) {
+  const fetch = await runFetchLeads(account);
+  const scrape = await runScrapeLeads(account.id);
+  const analyze = await runAnalyzeLeads(account.id);
+  const notify = await runNotifySales(account);
   return { fetch, scrape, analyze, notify };
+}
+
+/**
+ * Çoklu hesap desteği: `status='connected'` olan (Gmail'i bağlanmış) her
+ * hesap için sırayla `runFullPipeline` çalıştırır. Bir hesap hata verirse
+ * (örn. bağlantısı kopmuş) diğer hesapları etkilemez, hata sonuca yazılır.
+ * Düşük hacimde sıralı döngü yeterli; hacim artarsa paralel/kuyruk'a geçiş
+ * ayrı bir iş.
+ */
+export async function runFullPipelineForAllAccounts() {
+  const accounts = await loadConnectedGmailAccounts();
+
+  const results: Record<string, unknown> = {};
+  for (const account of accounts) {
+    try {
+      results[account.id] = await runFullPipeline(account);
+    } catch (err) {
+      results[account.id] = { error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  return results;
 }

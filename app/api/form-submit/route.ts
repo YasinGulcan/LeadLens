@@ -2,18 +2,32 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { sendFormSubmissionEmail } from "@/lib/gmail";
 import { runFullPipeline } from "@/lib/pipeline";
 import { isSuspiciouslyFast } from "@/lib/spam-protection";
+import { getAccountBySlug, loadGmailAccount } from "@/lib/accounts";
 
 export const maxDuration = 60; // after() ile arka planda çalışan pipeline için (scrape+analiz+bildirim)
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
 
+  const accountSlug = typeof body?.accountSlug === "string" ? body.accountSlug.trim() : "";
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
   const websiteUrl = typeof body?.websiteUrl === "string" ? body.websiteUrl.trim() : "";
   const message = typeof body?.message === "string" ? body.message.trim() : "";
   const consentGiven = body?.consentGiven === true;
   const honeypot = typeof body?.companyWebsiteConfirm === "string" ? body.companyWebsiteConfirm.trim() : "";
+
+  if (!accountSlug) {
+    return NextResponse.json({ error: "accountSlug zorunlu." }, { status: 400 });
+  }
+  const accountRecord = await getAccountBySlug(accountSlug);
+  if (!accountRecord || accountRecord.status === "disabled") {
+    return NextResponse.json({ error: "Geçersiz form adresi." }, { status: 404 });
+  }
+  const account = await loadGmailAccount(accountRecord.id);
+  if (!account) {
+    return NextResponse.json({ error: "Bu işletme için Gmail bağlantısı henüz kurulmamış." }, { status: 400 });
+  }
 
   // Honeypot doluysa ya da form şüpheli derecede hızlı gönderildiyse: bota
   // fark ettirmeden "başarılı" gibi görünen bir yanıt dön, hiçbir şey işleme.
@@ -40,7 +54,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await sendFormSubmissionEmail({ name, phone, websiteUrl, message, consentGivenAt: new Date().toISOString() });
+    await sendFormSubmissionEmail(account, {
+      name,
+      phone,
+      websiteUrl,
+      message,
+      consentGivenAt: new Date().toISOString(),
+    });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     console.error("Form gönderim maili başarısız:", errorMessage);
@@ -55,7 +75,7 @@ export async function POST(req: NextRequest) {
   // mail düşerse, en geç ertesi gün yine yakalanır.
   after(async () => {
     try {
-      await runFullPipeline();
+      await runFullPipeline(account);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error("Gerçek zamanlı pipeline tetiklemesi başarısız:", message);

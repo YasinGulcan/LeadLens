@@ -18,7 +18,7 @@ describe("matchProductChunks", () => {
     embedTextsMock.mockResolvedValue([[0.1], [0.2]]);
     rpcMock.mockResolvedValue({ data: [], error: null });
 
-    await matchProductChunks(["site içeriği", "müşteri mesajı"], 5);
+    await matchProductChunks("acc-1", ["site içeriği", "müşteri mesajı"], 5);
 
     expect(embedTextsMock).toHaveBeenCalledWith(["site içeriği", "müşteri mesajı"]);
     expect(rpcMock).toHaveBeenCalledTimes(2);
@@ -36,7 +36,7 @@ describe("matchProductChunks", () => {
         error: null,
       });
 
-    const result = await matchProductChunks(["site içeriği", "müşteri mesajı"], 5);
+    const result = await matchProductChunks("acc-1", ["site içeriği", "müşteri mesajı"], 5);
 
     expect(result).toHaveLength(1);
     expect(result[0].similarity).toBe(0.9);
@@ -52,7 +52,7 @@ describe("matchProductChunks", () => {
       error: null,
     });
 
-    const result = await matchProductChunks(["site içeriği"], 5);
+    const result = await matchProductChunks("acc-1", ["site içeriği"], 5);
 
     expect(result.map((r) => r.id)).toEqual(["high", "low"]);
   });
@@ -61,6 +61,6 @@ describe("matchProductChunks", () => {
     embedTextsMock.mockResolvedValue([[0.1]]);
     rpcMock.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
 
-    await expect(matchProductChunks(["site içeriği"], 5)).rejects.toThrow("boom");
+    await expect(matchProductChunks("acc-1", ["site içeriği"], 5)).rejects.toThrow("boom");
   });
 });

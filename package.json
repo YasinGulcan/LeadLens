@@ -11,15 +11,18 @@
     "check:setup": "tsx --env-file=.env.local scripts/check-setup.ts",
     "sources:add": "tsx --env-file=.env.local scripts/add-source.ts",
     "ingest:products": "tsx --env-file=.env.local scripts/ingest-products.ts",
-    "gmail:auth": "tsx --env-file=.env.local scripts/gmail-auth.ts"
+    "gmail:auth": "tsx --env-file=.env.local scripts/gmail-auth.ts",
+    "accounts:backfill": "tsx --env-file=.env.local scripts/migrate-to-accounts.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
     "@mendable/firecrawl-js": "^4.31.1",
     "@supabase/supabase-js": "^2.111.0",
+    "exceljs": "^4.4.0",
     "googleapis": "^173.0.0",
     "next": "16.2.12",
     "openai": "^7.2.0",
+    "pdf-parse": "^2.4.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "resend": "^6.18.1",
