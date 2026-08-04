@@ -1,4 +1,4 @@
-# Lead Analiz Otomasyonu — Proje & Geliştirme Planı
+bu prompt# Lead Analiz Otomasyonu — Proje & Geliştirme Planı
 
 > **Durum:** Sıfırdan başlanacak (greenfield). Şu an elde sadece teknik tasarım sunumu (`lead_analiz_otomasyonu_sunum.pptx`) var, kod yok.
 > **Aşama:** Prototip / POC — üretim (canlı müşteri verisi) hedefi şimdilik yok, ama mimari ileride canlıya taşınabilecek şekilde kurulacak.
@@ -9,7 +9,7 @@
 ## 1. Proje Özeti & Mevcut Durum
 
 ### Ne yapıyor?
-Şirketin web sitesindeki bir formdan gelen lead'leri (isim, telefon, `website_url`, mesaj) otomatik olarak işleyip satış ekibine **zenginleştirilmiş, önceliklendirilmiş bir rapor** halinde sunan bir boru hattı (pipeline):
+Şirketin web sitesindeki bir formdan gelen lead'leri (isim, telefon, `website_url`, mesaj) otomatik olarak işleyip satış ekibine **zenginleştirilmiş, önceliklendirilmiş bir rapor** halinde sunan bir boru hattı (pipeline):bizim
 
 1. **Veri toplama** — Form yanıtı Gmail'e düşer → Next.js API, `googleapis` ile Gmail'e OAuth2 bağlanıp maili ayrıştırır → Supabase'e `status='new'` olarak yazar.
 2. **Web scraping** — Lead'in `website_url`'i Firecrawl'a gönderilir, temiz markdown olarak müşteri sitesinin özeti çıkarılır.
