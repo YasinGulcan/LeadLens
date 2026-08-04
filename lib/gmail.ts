@@ -11,6 +11,8 @@ export interface GmailAccount {
   encryptedRefreshToken: string;
   /** Form kopyası + rapor buraya gider; boşsa bağlı hesabın kendi adresi kullanılır. */
   notificationEmail: string | null;
+  /** Davetli ekip üyeleri — form kopyası ve rapor bunlara da Cc olarak gider. */
+  teamEmails: string[];
 }
 
 // accountId → Gmail client. Her istekte OAuth2 client'ı yeniden kurmamak için
@@ -83,6 +85,7 @@ async function sendSelfEmail(
 
   const message = [
     `To: ${to}`,
+    ...(account.teamEmails.length > 0 ? [`Cc: ${account.teamEmails.join(", ")}`] : []),
     `Subject: ${encodeSubject(subject)}`,
     "MIME-Version: 1.0",
     `Content-Type: ${contentType}; charset=utf-8`,
@@ -109,18 +112,15 @@ function escapeHtml(value: string): string {
 
 /**
  * `text/plain` + `text/html` bölümlerini birlikte taşıyan bir multipart/alternative
- * mesajı ham (raw) olarak inşa eder. Her zaman bağlı hesabın kendi adresine gider
- * (form kopyası — kuyruk mekanizması — asla başka bir adrese yönlendirilmemeli).
+ * ham (raw) e-posta gövdesi inşa eder — hem parser'ın okuyabildiği düz metni hem
+ * okunaklı HTML görünümü aynı anda taşır, ve tek parçalı HTML-only maillere göre
+ * spam filtrelerine takılma ihtimali daha düşüktür.
  */
-async function sendMultipartSelfEmail(account: GmailAccount, subject: string, text: string, html: string): Promise<void> {
-  const gmail = getClientForAccount(account);
-  const profile = await gmail.users.getProfile({ userId: "me" });
-  const to = profile.data.emailAddress;
-  if (!to) throw new Error("Bağlı hesabın e-postası okunamadı.");
-
+function buildMultipartMessage(to: string, cc: string[], subject: string, text: string, html: string): string {
   const boundary = `----=_LeadLens_${Date.now()}`;
-  const message = [
+  return [
     `To: ${to}`,
+    ...(cc.length > 0 ? [`Cc: ${cc.join(", ")}`] : []),
     `Subject: ${encodeSubject(subject)}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
@@ -139,13 +139,27 @@ async function sendMultipartSelfEmail(account: GmailAccount, subject: string, te
     "",
     `--${boundary}--`,
   ].join("\r\n");
+}
 
-  const raw = Buffer.from(message)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+function toRawMessage(message: string): string {
+  return Buffer.from(message).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 
+/** Bağlı hesabın kendi adresine (self-email) multipart mail gönderir — form kopyası (kuyruk mekanizması) asla başka bir adrese yönlendirilmemeli. */
+async function sendMultipartSelfEmail(account: GmailAccount, subject: string, text: string, html: string): Promise<void> {
+  const gmail = getClientForAccount(account);
+  const profile = await gmail.users.getProfile({ userId: "me" });
+  const to = profile.data.emailAddress;
+  if (!to) throw new Error("Bağlı hesabın e-postası okunamadı.");
+
+  const raw = toRawMessage(buildMultipartMessage(to, account.teamEmails, subject, text, html));
+  await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
+}
+
+/** Bağlı hesap üzerinden, hesabın dışındaki rastgele bir adrese (davet vb.) multipart mail gönderir. */
+async function sendMultipartEmailTo(account: GmailAccount, to: string, subject: string, text: string, html: string): Promise<void> {
+  const gmail = getClientForAccount(account);
+  const raw = toRawMessage(buildMultipartMessage(to, [], subject, text, html));
   await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
 }
 
@@ -308,6 +322,66 @@ export async function sendAnalysisNotificationEmail(
   `.trim();
 
   await sendSelfEmail(account, subject, html, "text/html", account.notificationEmail ?? undefined);
+}
+
+/**
+ * Ekip davet maili — bağlı hesabın kendi Gmail'inden davet edilen kişiye
+ * gönderilir (Resend sandbox modunda olduğu için üçüncü taraf adreslere
+ * gönderim yapamıyor, bu yüzden Gmail API kullanılıyor). Özel bir
+ * kabul-token'ına gerek yok: davetli, gösterilen adımları izleyip aynı
+ * e-postayla Google'da oturum açtığında `account_members` eşleşmesi
+ * (bkz. app/api/oauth/gmail/callback) onu otomatik bu hesaba bağlar.
+ */
+export async function sendTeamInviteEmail(account: GmailAccount, businessName: string, inviteEmail: string): Promise<void> {
+  const appUrl = process.env.APP_URL;
+  const loginUrl = appUrl ? appUrl.replace(/\/$/, "") : "";
+
+  const subject = `${businessName} sizi LeadLens ekibine davet etti`;
+  const text = [
+    `${businessName} sizi LeadLens panelinde ekip üyesi olarak eklemek istiyor.`,
+    `Katılmak için ${loginUrl || "LeadLens'e"} gidip "Google ile Bağlan" butonuna bu davetin gönderildiği (${inviteEmail}) Gmail hesabınızla tıklamanız yeterli — ayrı bir şifre oluşturmanıza gerek yok.`,
+  ].join("\n\n");
+  const html = `
+    <div style="font-family: -apple-system, Arial, sans-serif; max-width: 600px; color: #1f2937;">
+      <h2>Ekibe davet edildiniz 👋</h2>
+      <p><strong>${escapeHtml(businessName)}</strong> sizi LeadLens panelinde ekip üyesi olarak eklemek istiyor.</p>
+      <p>Katılmak için aşağıdaki bağlantıya gidip <strong>"Google ile Bağlan"</strong> butonuna bu davetin gönderildiği
+      (<strong>${escapeHtml(inviteEmail)}</strong>) Gmail hesabınızla tıklamanız yeterli — ayrı bir şifre oluşturmanıza gerek yok.</p>
+      ${loginUrl ? `<p style="margin-top:20px;"><a href="${escapeHtml(loginUrl)}" style="color:#2563eb;">${escapeHtml(loginUrl)}</a></p>` : ""}
+    </div>
+  `.trim();
+
+  await sendMultipartEmailTo(account, inviteEmail, subject, text, html);
+}
+
+/**
+ * Sahiplik devri daveti — mevcut sahip bir ekip üyesini "gelecek sahip"
+ * olarak işaretledikten sonra gönderilir. Özel bir kabul-token'ına gerek
+ * yok: hedef kişi kendi Gmail'ini bağladığında (`accounts.pending_owner_email`
+ * eşleşmesiyle, bkz. app/api/oauth/gmail/callback) devir otomatik tamamlanır.
+ */
+export async function sendOwnershipTransferInviteEmail(account: GmailAccount, businessName: string, newOwnerEmail: string): Promise<void> {
+  const appUrl = process.env.APP_URL;
+  const loginUrl = appUrl ? appUrl.replace(/\/$/, "") : "";
+
+  const subject = `${businessName} sahipliğini size devretmek istiyor`;
+  const text = [
+    `${businessName} hesabının sahipliğini size devretmek istiyor.`,
+    `Devri tamamlamak için ${loginUrl || "LeadLens'e"} gidip "Google ile Bağlan" butonuna bu davetin gönderildiği (${newOwnerEmail}) Gmail hesabınızla tıklamanız yeterli. Bunu yaptığınızda kendi Gmail'iniz hesabın veri bağlantısı olur (lead'ler artık sizin kutunuza düşer) ve eski sahip otomatik olarak sıradan bir ekip üyesine dönüşür.`,
+  ].join("\n\n");
+  const html = `
+    <div style="font-family: -apple-system, Arial, sans-serif; max-width: 600px; color: #1f2937;">
+      <h2>Hesap sahipliği size devrediliyor 🔑</h2>
+      <p><strong>${escapeHtml(businessName)}</strong> hesabının sahipliğini size devretmek istiyor.</p>
+      <p>Devri tamamlamak için aşağıdaki bağlantıya gidip <strong>"Google ile Bağlan"</strong> butonuna bu davetin
+      gönderildiği (<strong>${escapeHtml(newOwnerEmail)}</strong>) Gmail hesabınızla tıklamanız yeterli.</p>
+      <p style="color:#6b7280; font-size:13px;">Bunu yaptığınızda kendi Gmail'iniz hesabın veri bağlantısı olur
+      (lead'ler artık sizin kutunuza düşer) ve eski sahip otomatik olarak sıradan bir ekip üyesine dönüşür.</p>
+      ${loginUrl ? `<p style="margin-top:20px;"><a href="${escapeHtml(loginUrl)}" style="color:#2563eb;">${escapeHtml(loginUrl)}</a></p>` : ""}
+    </div>
+  `.trim();
+
+  await sendMultipartEmailTo(account, newOwnerEmail, subject, text, html);
 }
 
 export interface ParsedLeadEmail {

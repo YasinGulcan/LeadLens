@@ -3,7 +3,13 @@ import { google } from "googleapis";
 import { verifyOAuthState } from "@/lib/oauth-state";
 import { encryptToken } from "@/lib/crypto";
 import { createAccountSessionValue, ACCOUNT_SESSION_COOKIE } from "@/lib/account-session";
-import { generateUniqueSlug } from "@/lib/accounts";
+import {
+  generateUniqueSlug,
+  findAccountIdByMemberEmail,
+  getAccountOwnerEmail,
+  getPendingOwnerEmail,
+  clearPendingOwnerTransfer,
+} from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 
 const NEW_ACCOUNT_STATE = "new";
@@ -20,8 +26,8 @@ function errorRedirect(req: NextRequest, message: string): NextResponse {
   return NextResponse.redirect(url);
 }
 
-function withSessionCookie(res: NextResponse, accountId: string): NextResponse {
-  res.cookies.set(ACCOUNT_SESSION_COOKIE, createAccountSessionValue(accountId), {
+function withSessionCookie(res: NextResponse, accountId: string, email: string): NextResponse {
+  res.cookies.set(ACCOUNT_SESSION_COOKIE, createAccountSessionValue(accountId, email), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -33,10 +39,12 @@ function withSessionCookie(res: NextResponse, accountId: string): NextResponse {
 
 /**
  * Google'ın kullanıcıyı onaydan sonra geri yönlendirdiği adres. "Google ile
- * Bağlan" hem kayıt hem giriş hem Gmail bağlantısı olduğu için burada üç
+ * Bağlan" hem kayıt hem giriş hem Gmail bağlantısı olduğu için burada dört
  * senaryo var: (1) `/dashboard`'dan "yeniden bağla" — state gerçek bir
- * accountId taşıyor; (2) bağlanan Gmail adresi daha önce bir hesaba
- * kayıtlıysa — o hesaba giriş; (3) hiç kayıtlı değilse — yeni hesap açılır.
+ * accountId taşıyor; (2) bağlanan Gmail adresi bir hesabın sahibiyse — o
+ * hesaba giriş; (3) bağlanan Gmail adresi davetli bir ekip üyesiyse — token
+ * hiç saklanmadan sadece kimlik doğrulanıp o hesaba giriş yapılır; (4) hiç
+ * kayıtlı değilse — yeni hesap açılır.
  */
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
@@ -88,6 +96,7 @@ export async function GET(req: NextRequest) {
 
   if (stateAccountId !== NEW_ACCOUNT_STATE) {
     // /dashboard'dan "yeniden bağla" — mevcut hesabın bağlantısı güncellenir.
+    // (Sadece sahip buraya gelebilir — bkz. start/route.ts'teki kontrol.)
     accountId = stateAccountId;
     const { error: upsertError } = await supabase.from("gmail_connections").upsert({
       account_id: accountId,
@@ -108,7 +117,7 @@ export async function GET(req: NextRequest) {
     const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", accountId).single();
     onboardedAt = account?.onboarded_at ?? null;
   } else {
-    // Kayıt/giriş: bu Gmail adresi daha önce bağlanmış mı diye bakılır.
+    // Kayıt/giriş: önce bu Gmail adresi bir hesabın SAHİBİ mi diye bakılır.
     const { data: existingConnection } = await supabase
       .from("gmail_connections")
       .select("account_id")
@@ -126,34 +135,69 @@ export async function GET(req: NextRequest) {
       const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", accountId).single();
       onboardedAt = account?.onboarded_at ?? null;
     } else {
-      const placeholderName = connectedEmail.split("@")[0];
-      const slug = await generateUniqueSlug(placeholderName);
+      // Sahip değilse, davetli bir ekip ÜYESİ mi diye bakılır — üyenin kendi
+      // Gmail token'ı hiç saklanmaz/kullanılmaz, sadece kimliği doğrulanmış olur.
+      const memberAccountId = await findAccountIdByMemberEmail(connectedEmail);
 
-      const { data: newAccount, error: insertError } = await supabase
-        .from("accounts")
-        .insert({ business_name: placeholderName, slug, status: "connected" })
-        .select("id")
-        .single();
-      if (insertError || !newAccount) {
-        return errorRedirect(req, insertError?.message ?? "Hesap oluşturulamadı.");
-      }
-      accountId = newAccount.id;
-      onboardedAt = null;
+      if (memberAccountId) {
+        accountId = memberAccountId;
 
-      const { error: connError } = await supabase.from("gmail_connections").insert({
-        account_id: accountId,
-        connected_email: connectedEmail,
-        encrypted_refresh_token: encryptedRefreshToken,
-        scopes: tokens.scope ?? null,
-      });
-      if (connError) {
-        const message =
-          connError.code === "23505" ? "Bu Gmail adresi zaten başka bir hesaba bağlı." : connError.message;
-        return errorRedirect(req, message);
+        // Bu üye, sahibin "sahipliği devret" ile işaretlediği bekleyen devrin
+        // hedefiyse — gerçek devir burada tamamlanır: kendi Gmail'i hesabın
+        // yeni veri bağlantısı olur, eski sahip otomatik sıradan üyeye döner.
+        const pendingOwnerEmail = await getPendingOwnerEmail(accountId);
+        if (pendingOwnerEmail && pendingOwnerEmail === connectedEmail) {
+          const previousOwnerEmail = await getAccountOwnerEmail(accountId);
+
+          const { error: transferError } = await supabase.from("gmail_connections").upsert({
+            account_id: accountId,
+            connected_email: connectedEmail,
+            encrypted_refresh_token: encryptedRefreshToken,
+            scopes: tokens.scope ?? null,
+            connected_at: new Date().toISOString(),
+          });
+          if (transferError) return errorRedirect(req, transferError.message);
+
+          if (previousOwnerEmail && previousOwnerEmail !== connectedEmail) {
+            await supabase.from("account_members").insert({ account_id: accountId, email: previousOwnerEmail });
+          }
+          await supabase.from("account_members").delete().eq("account_id", accountId).eq("email", connectedEmail);
+          await clearPendingOwnerTransfer(accountId);
+        }
+
+        const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", accountId).single();
+        onboardedAt = account?.onboarded_at ?? null;
+      } else {
+        // Ne sahip ne üye — hiç kayıtlı değil, yeni hesap açılır.
+        const placeholderName = connectedEmail.split("@")[0];
+        const slug = await generateUniqueSlug(placeholderName);
+
+        const { data: newAccount, error: insertError } = await supabase
+          .from("accounts")
+          .insert({ business_name: placeholderName, slug, status: "connected" })
+          .select("id")
+          .single();
+        if (insertError || !newAccount) {
+          return errorRedirect(req, insertError?.message ?? "Hesap oluşturulamadı.");
+        }
+        accountId = newAccount.id;
+        onboardedAt = null;
+
+        const { error: connError } = await supabase.from("gmail_connections").insert({
+          account_id: accountId,
+          connected_email: connectedEmail,
+          encrypted_refresh_token: encryptedRefreshToken,
+          scopes: tokens.scope ?? null,
+        });
+        if (connError) {
+          const message =
+            connError.code === "23505" ? "Bu Gmail adresi zaten başka bir hesaba bağlı." : connError.message;
+          return errorRedirect(req, message);
+        }
       }
     }
   }
 
   const destination = onboardedAt ? "/dashboard" : "/onboarding";
-  return withSessionCookie(NextResponse.redirect(new URL(destination, new URL(req.url).origin)), accountId);
+  return withSessionCookie(NextResponse.redirect(new URL(destination, new URL(req.url).origin)), accountId, connectedEmail);
 }

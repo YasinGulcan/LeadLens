@@ -69,7 +69,102 @@ export async function loadGmailAccount(accountId: string): Promise<GmailAccount 
     leadEmailSubject: acc.lead_email_subject,
     encryptedRefreshToken: connection.encrypted_refresh_token,
     notificationEmail: acc.notification_email,
+    teamEmails: await listTeamMemberEmails(accountId),
   };
+}
+
+export interface TeamMember {
+  id: string;
+  email: string;
+  invitedAt: string;
+}
+
+/** Hesabın Gmail'ini bağlayan e-posta — sadece bu kişi Gmail bağlama/kesme ve ekip yönetimi gibi hassas işlemleri yapabilir. */
+export async function getAccountOwnerEmail(accountId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("gmail_connections")
+    .select("connected_email")
+    .eq("account_id", accountId)
+    .single();
+  return data?.connected_email ?? null;
+}
+
+export async function isAccountOwner(accountId: string, email: string): Promise<boolean> {
+  const ownerEmail = await getAccountOwnerEmail(accountId);
+  return ownerEmail !== null && ownerEmail === email;
+}
+
+export async function listTeamMembers(accountId: string): Promise<TeamMember[]> {
+  const { data, error } = await supabase
+    .from("account_members")
+    .select("id, email, invited_at")
+    .eq("account_id", accountId)
+    .order("invited_at", { ascending: true });
+  if (error) throw new Error(`Ekip üyeleri okunamadı: ${error.message}`);
+  return (data ?? []).map((row) => ({ id: row.id, email: row.email, invitedAt: row.invited_at }));
+}
+
+async function listTeamMemberEmails(accountId: string): Promise<string[]> {
+  const { data } = await supabase.from("account_members").select("email").eq("account_id", accountId);
+  return (data ?? []).map((row) => row.email);
+}
+
+/** Verilen e-postayı hesaba ekip üyesi olarak ekler. E-posta zaten (bu ya da başka bir hesapta) üye/sahipse hata verir. */
+export async function addTeamMember(accountId: string, email: string): Promise<TeamMember> {
+  // Bu e-posta zaten başka bir hesabın SAHİBİyse (kendi Gmail'ini bağlamışsa) davet etmiyoruz —
+  // "Google ile Bağlan" akışı sahiplik eşleşmesini üyelikten önce kontrol ettiği için, davetli
+  // olsa bile giriş yaptığında hep kendi hesabına düşer, üyelik hiçbir zaman ulaşılamaz olur.
+  const { data: existingConnection } = await supabase
+    .from("gmail_connections")
+    .select("account_id")
+    .eq("connected_email", email)
+    .maybeSingle();
+  if (existingConnection) {
+    throw new Error(
+      existingConnection.account_id === accountId
+        ? "Bu e-posta zaten bu hesabın sahibi."
+        : "Bu e-posta zaten başka bir hesabın (kendi Gmail'ini bağlamış) sahibi, ekip üyesi olarak eklenemez."
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("account_members")
+    .insert({ account_id: accountId, email })
+    .select("id, email, invited_at")
+    .single();
+  if (error) {
+    const message = error.code === "23505" ? "Bu e-posta zaten bir ekibe davetli." : error.message;
+    throw new Error(message);
+  }
+  return { id: data.id, email: data.email, invitedAt: data.invited_at };
+}
+
+export async function removeTeamMember(accountId: string, memberId: string): Promise<void> {
+  const { error } = await supabase.from("account_members").delete().eq("id", memberId).eq("account_id", accountId);
+  if (error) throw new Error(error.message);
+}
+
+/** Bu e-posta bir hesabın ekip üyesiyse o hesabın id'sini döner (sahiplik kontrolü ayrı — bkz. isAccountOwner). */
+export async function findAccountIdByMemberEmail(email: string): Promise<string | null> {
+  const { data } = await supabase.from("account_members").select("account_id").eq("email", email).maybeSingle();
+  return data?.account_id ?? null;
+}
+
+/** Devri başlatan sahip, hangi ekip üyesinin "gelecek sahip" olarak işaretlendiğini görebilsin diye. */
+export async function getPendingOwnerEmail(accountId: string): Promise<string | null> {
+  const { data } = await supabase.from("accounts").select("pending_owner_email").eq("id", accountId).single();
+  return data?.pending_owner_email ?? null;
+}
+
+/** Sahiplik devrini başlatır — gerçek devir, hedef kişi kendi Gmail'ini bağlayınca OAuth callback'te tamamlanır. */
+export async function setPendingOwnerTransfer(accountId: string, memberEmail: string): Promise<void> {
+  const { error } = await supabase.from("accounts").update({ pending_owner_email: memberEmail }).eq("id", accountId);
+  if (error) throw new Error(error.message);
+}
+
+export async function clearPendingOwnerTransfer(accountId: string): Promise<void> {
+  const { error } = await supabase.from("accounts").update({ pending_owner_email: null }).eq("id", accountId);
+  if (error) throw new Error(error.message);
 }
 
 export function slugify(value: string): string {

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { signOAuthState } from "@/lib/oauth-state";
-import { getSessionAccountId } from "@/lib/account-session";
+import { getSessionInfo } from "@/lib/account-session";
+import { isAccountOwner } from "@/lib/accounts";
 
 // scripts/gmail-auth.ts ile aynı scope'lar: okuma+etiketleme (lead mailini
 // yakalamak için) ve gönderme (form relay + analiz raporu için). Ayrı bir
@@ -26,18 +27,20 @@ function getRedirectUri(req: NextRequest): string {
  * - `accountId` yoksa: herkese açık "Google ile Bağlan" girişi (`/`) —
  *   callback, bağlanan Gmail adresine göre mevcut hesaba giriş yapar ya da
  *   yeni hesap açar.
- * - `accountId` varsa: `/dashboard`'daki "Gmail'i yeniden bağla" — sadece
- *   çağıranın kendi oturumu o hesaba aitse kabul edilir (başkasının
- *   hesabına token bağlanmasın diye).
+ * - `accountId` varsa: `/dashboard`'daki "Gmail'i yeniden bağla" — sadece o
+ *   hesabın SAHİBİ (Gmail'i ilk bağlayan kişi) kabul edilir. Davetli ekip
+ *   üyeleri aynı accountId'ye giriş yapabildiği için burada salt accountId
+ *   eşleşmesi yetmez, oturumun e-postası da hesabın sahibiyle eşleşmeli.
  */
 export async function GET(req: NextRequest) {
   const requestedAccountId = req.nextUrl.searchParams.get("accountId");
 
   let stateAccountId: string = NEW_ACCOUNT_STATE;
   if (requestedAccountId) {
-    const sessionAccountId = await getSessionAccountId();
-    if (sessionAccountId !== requestedAccountId) {
-      return NextResponse.json({ error: "Bu hesap için yetkiniz yok." }, { status: 403 });
+    const session = await getSessionInfo();
+    const isOwner = session?.accountId === requestedAccountId && (await isAccountOwner(requestedAccountId, session.email));
+    if (!isOwner) {
+      return NextResponse.json({ error: "Bu hesap için yetkiniz yok — sadece hesap sahibi Gmail bağlantısını değiştirebilir." }, { status: 403 });
     }
     stateAccountId = requestedAccountId;
   }

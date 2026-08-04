@@ -7,6 +7,7 @@ const TABS = [
   { href: "/dashboard", label: "Genel Bakış" },
   { href: "/dashboard/gmail", label: "Gmail Bağlantısı" },
   { href: "/dashboard/sources", label: "Ürün Kataloğu" },
+  { href: "/dashboard/team", label: "Ekip" },
   { href: "/dashboard/settings", label: "Ayarlar" },
 ];
 
