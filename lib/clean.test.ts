@@ -48,6 +48,43 @@ describe("stripBoilerplate", () => {
 
     expect(stripBoilerplate(input)).toBe(input);
   });
+
+  it("çok sayıda marka/logo görseli içeren paragrafları (müşteri galerisi) kaldırır", () => {
+    const logoWall = Array.from({ length: 10 }, (_, i) => `![Marka${i}](https://ornek.com/logo${i}.png)`).join(
+      ""
+    );
+    const input = ["Gerçek ürün açıklaması.", logoWall].join("\n\n");
+
+    const result = stripBoilerplate(input);
+
+    expect(result).toBe("Gerçek ürün açıklaması.");
+  });
+
+  it("birkaç görsel içeren normal bir paragrafı korur (eşik altı)", () => {
+    const input = "Ürünümüzün ekran görüntüleri: ![ss1](a.png) ![ss2](b.png)";
+    expect(stripBoilerplate(input)).toBe(input);
+  });
+
+  it("lead formu / telefon doğrulama widget'ı arayüz metinlerini kaldırır", () => {
+    const input = [
+      "Gerçek ürün açıklaması burada.",
+      "Lütfen geçerli bir telefon numarası girin (10 haneli).",
+      "Doğrulama Kodu SMS ile gönderilen 6 haneli kodu girin. Formunuz gönderiliyor...",
+    ].join("\n\n");
+
+    const result = stripBoilerplate(input);
+
+    expect(result).toBe("Gerçek ürün açıklaması burada.");
+  });
+
+  it("aynı paragraf birden fazla kez geçiyorsa (örn. üst+alt menü) yalnızca ilkini tutar", () => {
+    const menu = "Ürünler Fiyatlandırma İletişim";
+    const input = [menu, "Gerçek içerik burada.", menu].join("\n\n");
+
+    const result = stripBoilerplate(input);
+
+    expect(result).toBe([menu, "Gerçek içerik burada."].join("\n\n"));
+  });
 });
 
 describe("safeTruncate", () => {

@@ -25,6 +25,17 @@ const BOILERPLATE_PATTERNS = [
   /gizliliğinize değer veriyoruz/i,
   /çerezleri kullanıyoruz/i,
   /çerez politikası/i,
+  // Lead-formu / telefon doğrulama widget'larının arayüz metinleri — gerçek
+  // içerik metniyle aynı paragrafa karışabilse de kendileri ürün bilgisi taşımaz.
+  /lütfen (bir )?geçerli/i,
+  /lütfen adınızı ve soyadınızı/i,
+  /doğrulama kodu/i,
+  /sms ile gönderilen/i,
+  /telefon numaranız doğrulandı/i,
+  /formunuz gönderiliyor/i,
+  /açık rıza metni/i,
+  /ticari elektronik ileti/i,
+  /aydınlatma metinlerine buradan ulaşabilirsiniz/i,
 ];
 
 // Bu sitelerin hiçbiri gerçek içeriğinde "cookie" kelimesini kullanmıyor
@@ -34,8 +45,18 @@ const BOILERPLATE_PATTERNS = [
 const COOKIE_WORD = /\bcookies?\b/i;
 const MAX_COOKIE_PARAGRAPH_LENGTH = 700;
 
-/** Cookie-consent bandı gibi tekrarlayan boilerplate paragrafları ayıklar. */
+// "Bize güvenen markalar" gibi müşteri/partner logosu galerileri, markdown'a
+// üst üste onlarca `![marka](url)` bağlantısı olarak çevriliyor — gerçek
+// ürün/hizmet bilgisi taşımıyor, sadece süs. Bir paragrafta bu kadar çok
+// görsel bağlantı varsa güvenle atılabilir (gerçek içerik paragraflarının
+// bu kadar görsel içermesi olağan değil).
+const IMAGE_LINK_PATTERN = /!\[[^\]]*\]\([^)]*\)/g;
+const MAX_IMAGE_LINKS_PER_PARAGRAPH = 4;
+
+/** Cookie-consent bandı, marka/logo galerileri ve tekrar eden paragrafları (örn. hem üst hem alt menüde aynı liste) ayıklar. */
 export function stripBoilerplate(markdown: string): string {
+  const seenParagraphs = new Set<string>();
+
   return markdown
     .split(/\n{2,}/)
     .filter((paragraph) => {
@@ -43,6 +64,18 @@ export function stripBoilerplate(markdown: string): string {
       if (COOKIE_WORD.test(paragraph) && paragraph.length <= MAX_COOKIE_PARAGRAPH_LENGTH) {
         return false;
       }
+
+      const imageLinkCount = paragraph.match(IMAGE_LINK_PATTERN)?.length ?? 0;
+      if (imageLinkCount > MAX_IMAGE_LINKS_PER_PARAGRAPH) return false;
+
+      // Aynı paragraf (örn. hem masaüstü hem mobil menüde tekrar eden gezinme
+      // listesi) belgede birden fazla kez geçiyorsa yalnızca ilk görüleni tutulur.
+      const normalized = paragraph.trim().replace(/\s+/g, " ");
+      if (normalized.length > 0) {
+        if (seenParagraphs.has(normalized)) return false;
+        seenParagraphs.add(normalized);
+      }
+
       return true;
     })
     .join("\n\n");
