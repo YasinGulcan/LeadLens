@@ -125,8 +125,13 @@ export async function listTeamMembers(accountId: string): Promise<TeamMember[]> 
     .map((row) => ({ id: row.id, email: row.email, invitedAt: row.invited_at, acceptedAt: row.accepted_at }));
 }
 
+/** Rapor/form maillerinde Cc'ye eklenecek üye listesi — sadece daveti kabul edip en az bir kez giriş yapmış üyeler (bkz. accepted_at). Henüz kabul etmemiş biri gerçek lead verisini görmemeli. */
 async function listTeamMemberEmails(accountId: string): Promise<string[]> {
-  const { data } = await supabase.from("account_members").select("email").eq("account_id", accountId);
+  const { data } = await supabase
+    .from("account_members")
+    .select("email")
+    .eq("account_id", accountId)
+    .not("accepted_at", "is", null);
   return (data ?? []).map((row) => row.email);
 }
 
