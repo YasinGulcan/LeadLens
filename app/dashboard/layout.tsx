@@ -35,7 +35,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <h1 className="text-2xl font-bold">{account.business_name}</h1>
           <p className="mt-1 text-sm text-neutral-500">Form adresi: /form/{account.slug}</p>
         </div>
-        <LogoutButton />
+        <div className="flex items-center gap-3 text-right">
+          <span className="text-sm text-neutral-500">{session.email}</span>
+          <LogoutButton />
+        </div>
       </div>
 
       <DashboardNav />
