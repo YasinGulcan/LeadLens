@@ -133,39 +133,47 @@ export async function GET(req: NextRequest) {
     } else {
       // Sahip değilse, davetli bir ekip ÜYESİ mi diye bakılır — üyenin kendi
       // Gmail token'ı hiç saklanmaz/kullanılmaz, sadece kimliği doğrulanmış olur.
-      const memberAccountId = await findAccountIdByMemberEmail(connectedEmail);
+      const member = await findAccountIdByMemberEmail(connectedEmail);
 
-      if (memberAccountId) {
-        // Davetli bir üye ya da sahiplik devri hedefi eşleşti — ama üyeliği/
-        // devri hemen uygulamıyoruz. Kullanıcı /confirm-join'de açıkça
-        // onaylamadan hiçbir yazma işlemi yapılmaz (yanlış davet edilmiş biri
-        // ya da yanlış Google hesabıyla tıklama, sessizce gerçek işletme
-        // verisine erişim kazandırmasın diye).
-        const [{ data: account }, pendingOwnerEmail] = await Promise.all([
-          supabase.from("accounts").select("business_name").eq("id", memberAccountId).single(),
-          getPendingOwnerEmail(memberAccountId),
-        ]);
+      if (member) {
+        const pendingOwnerEmail = await getPendingOwnerEmail(member.accountId);
         const isTransfer = !!pendingOwnerEmail && pendingOwnerEmail === connectedEmail;
-        const previousOwnerEmail = isTransfer ? await getAccountOwnerEmail(memberAccountId) : null;
 
-        const pendingValue = createPendingMembershipValue({
-          type: isTransfer ? "transfer" : "join",
-          accountId: memberAccountId,
-          businessName: account?.business_name ?? "İşletme",
-          connectedEmail,
-          encryptedRefreshToken,
-          scopes: tokens.scope ?? null,
-          previousOwnerEmail,
-        });
-        const res = NextResponse.redirect(new URL("/confirm-join", new URL(req.url).origin));
-        res.cookies.set(PENDING_MEMBERSHIP_COOKIE, pendingValue, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 60 * 10,
-        });
-        return res;
+        if (!isTransfer && member.acceptedAt) {
+          // Zaten daveti kabul edip en az bir kez giriş yapmış bir üye —
+          // /confirm-join'i tekrar sormaya gerek yok, doğrudan panele giriyor
+          // (aynı owner-match dalındaki gibi paylaşılan bitiş mantığına düşer).
+          accountId = member.accountId;
+          const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", accountId).single();
+          onboardedAt = account?.onboarded_at ?? null;
+        } else {
+          // Henüz kabul edilmemiş bir davet ya da bir sahiplik devri hedefi —
+          // üyeliği/devri hemen uygulamıyoruz. Kullanıcı /confirm-join'de
+          // açıkça onaylamadan hiçbir yazma işlemi yapılmaz (yanlış davet
+          // edilmiş biri ya da yanlış Google hesabıyla tıklama, sessizce
+          // gerçek işletme verisine erişim kazandırmasın diye).
+          const { data: account } = await supabase.from("accounts").select("business_name").eq("id", member.accountId).single();
+          const previousOwnerEmail = isTransfer ? await getAccountOwnerEmail(member.accountId) : null;
+
+          const pendingValue = createPendingMembershipValue({
+            type: isTransfer ? "transfer" : "join",
+            accountId: member.accountId,
+            businessName: account?.business_name ?? "İşletme",
+            connectedEmail,
+            encryptedRefreshToken,
+            scopes: tokens.scope ?? null,
+            previousOwnerEmail,
+          });
+          const res = NextResponse.redirect(new URL("/confirm-join", new URL(req.url).origin));
+          res.cookies.set(PENDING_MEMBERSHIP_COOKIE, pendingValue, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+            maxAge: 60 * 10,
+          });
+          return res;
+        }
       } else {
         // Ne sahip ne üye — hiç kayıtlı değil. Hesabı hemen açmıyoruz; kullanıcı
         // "Evet, yeni hesap oluştur" diyene kadar bilgiler imzalı bir cookie'de

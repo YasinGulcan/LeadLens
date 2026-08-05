@@ -181,9 +181,15 @@ export async function removeTeamMember(accountId: string, memberId: string): Pro
 }
 
 /** Bu e-posta bir hesabın ekip üyesiyse o hesabın id'sini döner (sahiplik kontrolü ayrı — bkz. isAccountOwner). */
-export async function findAccountIdByMemberEmail(email: string): Promise<string | null> {
-  const { data } = await supabase.from("account_members").select("account_id").eq("email", email).maybeSingle();
-  return data?.account_id ?? null;
+export interface MemberLookup {
+  accountId: string;
+  acceptedAt: string | null;
+}
+
+export async function findAccountIdByMemberEmail(email: string): Promise<MemberLookup | null> {
+  const { data } = await supabase.from("account_members").select("account_id, accepted_at").eq("email", email).maybeSingle();
+  if (!data) return null;
+  return { accountId: data.account_id, acceptedAt: data.accepted_at };
 }
 
 /** Devri başlatan sahip, hangi ekip üyesinin "gelecek sahip" olarak işaretlendiğini görebilsin diye. */
