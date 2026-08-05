@@ -4,7 +4,6 @@ import { verifyOAuthState } from "@/lib/oauth-state";
 import { encryptToken } from "@/lib/crypto";
 import { createAccountSessionValue, ACCOUNT_SESSION_COOKIE } from "@/lib/account-session";
 import {
-  generateUniqueSlug,
   findAccountIdByMemberEmail,
   getAccountOwnerEmail,
   getPendingOwnerEmail,
@@ -13,6 +12,7 @@ import {
 } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/activity-log";
+import { createPendingSignupValue, PENDING_SIGNUP_COOKIE } from "@/lib/pending-signup";
 
 const NEW_ACCOUNT_STATE = "new";
 
@@ -173,32 +173,25 @@ export async function GET(req: NextRequest) {
         const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", accountId).single();
         onboardedAt = account?.onboarded_at ?? null;
       } else {
-        // Ne sahip ne üye — hiç kayıtlı değil, yeni hesap açılır.
-        const placeholderName = connectedEmail.split("@")[0];
-        const slug = await generateUniqueSlug(placeholderName);
-
-        const { data: newAccount, error: insertError } = await supabase
-          .from("accounts")
-          .insert({ business_name: placeholderName, slug, status: "connected" })
-          .select("id")
-          .single();
-        if (insertError || !newAccount) {
-          return errorRedirect(req, insertError?.message ?? "Hesap oluşturulamadı.");
-        }
-        accountId = newAccount.id;
-        onboardedAt = null;
-
-        const { error: connError } = await supabase.from("gmail_connections").insert({
-          account_id: accountId,
-          connected_email: connectedEmail,
-          encrypted_refresh_token: encryptedRefreshToken,
+        // Ne sahip ne üye — hiç kayıtlı değil. Hesabı hemen açmıyoruz; kullanıcı
+        // "Evet, yeni hesap oluştur" diyene kadar bilgiler imzalı bir cookie'de
+        // bekliyor (bkz. lib/pending-signup.ts — yanlış hesapla tıklama ya da
+        // iptal edilmiş bir davetten sonra tekrar girişte sessizce boş hesap
+        // türememesi için).
+        const pendingValue = createPendingSignupValue({
+          connectedEmail,
+          encryptedRefreshToken,
           scopes: tokens.scope ?? null,
         });
-        if (connError) {
-          const message =
-            connError.code === "23505" ? "Bu Gmail adresi zaten başka bir hesaba bağlı." : connError.message;
-          return errorRedirect(req, message);
-        }
+        const res = NextResponse.redirect(new URL("/confirm-signup", new URL(req.url).origin));
+        res.cookies.set(PENDING_SIGNUP_COOKIE, pendingValue, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: 60 * 10,
+        });
+        return res;
       }
     }
   }
