@@ -1,4 +1,3 @@
-import ExcelJS from "exceljs";
 import { chunkMarkdown } from "./chunk";
 
 /** RFC4180'e yakın basit bir CSV satırı ayrıştırıcı (tırnaklı alanlar + kaçışlı çift tırnak dahil). */
@@ -63,6 +62,11 @@ function extractChunksFromCsv(buffer: Buffer): string[] {
 }
 
 async function extractChunksFromExcel(buffer: Buffer): Promise<string[]> {
+  // Lazy import — bkz. extractChunksFromPdf'teki not: exceljs ve pdf-parse
+  // aynı process'te birlikte yüklüyken pdf-parse'ın xref ayrıştırması
+  // (nedeni netleşmemiş bir global çakışma yüzünden) bozuluyor. İkisi de
+  // sadece gerçekten ihtiyaç duyulan dosya türü işlenirken yükleniyor.
+  const { default: ExcelJS } = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
 
@@ -82,19 +86,18 @@ async function extractChunksFromExcel(buffer: Buffer): Promise<string[]> {
 }
 
 /**
- * pdf-parse'ın altında çalışan pdfjs-dist, Node'da da DOMMatrix global'inin
- * ortam tarafından sağlanmasını bekliyor (kendi polyfill'ini içermiyor) —
- * Vercel'in serverless Node runtime'ında bu global yok, "DOMMatrix is not
- * defined" ile çöküyordu. pdf-parse import edilmeden önce polyfill kurulmalı,
- * bu yüzden ikisi birlikte (sadece PDF işlenirken, lazy) burada yapılıyor.
+ * pdf-parse v2, ayrıştırmayı bir Node worker_threads içinde yapıyor — worker
+ * script'i "pdf-parse/worker" ayrıca (side-effect olarak) import edilmezse,
+ * Vercel'in bundle'ında worker'ın gerçek dosya yolu doğru izlenip pakete
+ * dahil edilmiyor; sonuç olarak worker'ın kendi modül grafiği (pdfjs-dist)
+ * yanlış/eksik çözülüp DOMMatrix'e (tarayıcıya özgü) düşen bir koda düşüyor,
+ * "DOMMatrix is not defined" ile çöküyordu. Resmi Vercel örneği ("pdf-parse"
+ * paketinin kendi Next.js+Vercel demo reposu) bu import'u ekleyip
+ * next.config.ts'te serverExternalPackages ile birlikte kullanıyor.
  */
 async function extractChunksFromPdf(buffer: Buffer): Promise<string[]> {
-  if (typeof globalThis.DOMMatrix === "undefined") {
-    const { default: CSSMatrix } = await import("dommatrix");
-    (globalThis as unknown as { DOMMatrix: unknown }).DOMMatrix = CSSMatrix;
-  }
+  await import("pdf-parse/worker");
   const { PDFParse } = await import("pdf-parse");
-
   const parser = new PDFParse({ data: buffer });
   try {
     const result = await parser.getText();
