@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAuthorizedForAccount } from "@/lib/accounts";
@@ -47,6 +48,15 @@ export default async function HomePage({
       <p className="mt-3 text-xs text-neutral-400">
         Gmail hesabınızı bağlayarak hesabınızı oluşturur ya da mevcut hesabınıza giriş yaparsınız.
       </p>
+
+      <div className="mt-10 flex gap-4 text-xs text-neutral-400">
+        <Link href="/privacy" className="hover:underline">
+          Gizlilik Politikası
+        </Link>
+        <Link href="/terms" className="hover:underline">
+          Hizmet Şartları
+        </Link>
+      </div>
     </main>
   );
 }

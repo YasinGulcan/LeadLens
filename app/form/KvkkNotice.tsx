@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 
-/**
- * KVKK aydınlatma metni taslağı — hukuki inceleme gerektirir. Şirket
- * unvanı/adresi/iletişim bilgileri [ ] içindeki alanlara girilmeli.
- */
+/** KVKK aydınlatma metni taslağı — hukuki inceleme önerilir, ama artık placeholder içermiyor. */
 export function KvkkNotice() {
   const [open, setOpen] = useState(false);
 
@@ -22,7 +19,8 @@ export function KvkkNotice() {
       {open && (
         <div className="mt-3 space-y-2 leading-relaxed">
           <p>
-            <strong>Veri Sorumlusu:</strong> [Şirket unvanı], [adres] (&quot;Şirket&quot;).
+            <strong>Veri Sorumlusu:</strong> LeadLens (&quot;Hizmet&quot;), iletişim:
+            yasingulcan288@gmail.com.
           </p>
           <p>
             <strong>İşlenen Kişisel Veriler:</strong> Ad-soyad, telefon numarası, web sitesi adresi ve
@@ -57,7 +55,7 @@ export function KvkkNotice() {
             kullanılmadığını öğrenme, yurt içi/yurt dışı aktarıldığı üçüncü kişileri bilme, eksik/yanlış
             işlenmişse düzeltilmesini isteme, silinmesini/yok edilmesini isteme ve bu işlemlerin
             aktarılan üçüncü kişilere bildirilmesini isteme haklarına sahipsiniz. Taleplerinizi
-            [e-posta adresi] üzerinden iletebilirsiniz.
+            yasingulcan288@gmail.com üzerinden iletebilirsiniz.
           </p>
         </div>
       )}
