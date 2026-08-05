@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { getSessionAccountId } from "@/lib/account-session";
+import { getSessionInfo } from "@/lib/account-session";
+import { isAuthorizedForAccount } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { DashboardNav } from "./DashboardNav";
 import { LogoutButton } from "./LogoutButton";
@@ -7,11 +8,16 @@ import { LogoutButton } from "./LogoutButton";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const accountId = await getSessionAccountId();
-  if (!accountId) redirect("/");
+  const session = await getSessionInfo();
+  if (!session) redirect("/");
+  const { accountId } = session;
 
   const { data: account } = await supabase.from("accounts").select("business_name, slug, onboarded_at").eq("id", accountId).single();
   if (!account) redirect("/");
+  // Oturum çerezi 30 gün geçerli kalabiliyor — ekipten çıkarıldıktan sonra
+  // bile eski çerez taşınabilir, bu yüzden her girişte yetki tekrar
+  // doğrulanır (sadece ilk "Google ile Bağlan" anında değil).
+  if (!(await isAuthorizedForAccount(accountId, session.email))) redirect("/");
   if (!account.onboarded_at) redirect("/onboarding");
 
   return (

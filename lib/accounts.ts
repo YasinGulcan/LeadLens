@@ -96,6 +96,19 @@ export async function isAccountOwner(accountId: string, email: string): Promise<
   return ownerEmail !== null && ownerEmail === email;
 }
 
+/**
+ * Oturumdaki e-postanın hâlâ bu hesaba erişim hakkı olup olmadığını kontrol
+ * eder (sahip ya da ekip üyesi). Session cookie'si tek başına 30 gün geçerli
+ * kalabiliyor — biri ekipten çıkarıldıktan sonra bile eski çerezi hâlâ
+ * taşıyabilir, bu yüzden `/`, `/onboarding` ve `/dashboard` girişlerinde her
+ * seferinde tekrar doğrulanır.
+ */
+export async function isAuthorizedForAccount(accountId: string, email: string): Promise<boolean> {
+  if (await isAccountOwner(accountId, email)) return true;
+  const { data } = await supabase.from("account_members").select("id").eq("account_id", accountId).eq("email", email).maybeSingle();
+  return !!data;
+}
+
 /** Sahip hiçbir zaman aynı zamanda "üye" olarak listelenmemeli — normalde `addTeamMember` bunu zaten engeller, ama eski/bozuk veriye karşı burada da süzülür. */
 export async function listTeamMembers(accountId: string): Promise<TeamMember[]> {
   const [{ data, error }, ownerEmail] = await Promise.all([
