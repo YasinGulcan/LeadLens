@@ -1,5 +1,4 @@
 import ExcelJS from "exceljs";
-import { PDFParse } from "pdf-parse";
 import { chunkMarkdown } from "./chunk";
 
 /** RFC4180'e yakın basit bir CSV satırı ayrıştırıcı (tırnaklı alanlar + kaçışlı çift tırnak dahil). */
@@ -82,7 +81,20 @@ async function extractChunksFromExcel(buffer: Buffer): Promise<string[]> {
   return chunks;
 }
 
+/**
+ * pdf-parse'ın altında çalışan pdfjs-dist, Node'da da DOMMatrix global'inin
+ * ortam tarafından sağlanmasını bekliyor (kendi polyfill'ini içermiyor) —
+ * Vercel'in serverless Node runtime'ında bu global yok, "DOMMatrix is not
+ * defined" ile çöküyordu. pdf-parse import edilmeden önce polyfill kurulmalı,
+ * bu yüzden ikisi birlikte (sadece PDF işlenirken, lazy) burada yapılıyor.
+ */
 async function extractChunksFromPdf(buffer: Buffer): Promise<string[]> {
+  if (typeof globalThis.DOMMatrix === "undefined") {
+    const { default: CSSMatrix } = await import("dommatrix");
+    (globalThis as unknown as { DOMMatrix: unknown }).DOMMatrix = CSSMatrix;
+  }
+  const { PDFParse } = await import("pdf-parse");
+
   const parser = new PDFParse({ data: buffer });
   try {
     const result = await parser.getText();
