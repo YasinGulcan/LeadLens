@@ -47,7 +47,13 @@ export async function POST(req: NextRequest) {
       await supabase.from("account_members").insert({ account_id: accountId, email: previousOwnerEmail });
     }
     await supabase.from("account_members").delete().eq("account_id", accountId).eq("email", connectedEmail);
-    await clearPendingOwnerTransfer(accountId);
+    try {
+      await clearPendingOwnerTransfer(accountId);
+    } catch (err) {
+      const url = new URL("/", origin);
+      url.searchParams.set("connectError", err instanceof Error ? err.message : String(err));
+      return NextResponse.redirect(url);
+    }
     await logActivity(accountId, connectedEmail, "Sahipliği devraldı", previousOwnerEmail);
   } else {
     await acceptTeamMembership(accountId, connectedEmail);

@@ -12,7 +12,11 @@ export async function DELETE() {
   }
 
   const pendingOwnerEmail = await getPendingOwnerEmail(session.accountId);
-  await clearPendingOwnerTransfer(session.accountId);
+  try {
+    await clearPendingOwnerTransfer(session.accountId);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+  }
   await logActivity(session.accountId, session.email, "Sahiplik devrini iptal etti", pendingOwnerEmail);
   return NextResponse.json({ ok: true });
 }

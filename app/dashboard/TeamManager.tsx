@@ -4,6 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "./useConfirm";
 
+/** Sunucu beklenmedik şekilde çökerse (boş/HTML gövdeli 500 vb.) res.json() ham bir JS hatasıyla patlamasın diye. */
+async function safeJson(res: Response): Promise<{ error?: string }> {
+  try {
+    return await res.json();
+  } catch {
+    return { error: `Sunucu hatası (${res.status})` };
+  }
+}
+
 export interface TeamMemberRow {
   id: string;
   email: string;
@@ -43,7 +52,7 @@ export function TeamManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!res.ok) throw new Error(data.error ?? "Bilinmeyen hata");
       setMessage(`Davet gönderildi: ${email}`);
       setEmail("");
@@ -82,7 +91,7 @@ export function TeamManager({
     setMessage(null);
     try {
       const res = await fetch(`/api/dashboard/team/${id}/transfer`, { method: "POST" });
-      const data = await res.json();
+      const data = await safeJson(res);
       if (!res.ok) throw new Error(data.error ?? "Bilinmeyen hata");
       setMessage(`Sahiplik devri daveti gönderildi: ${memberEmail}`);
       router.refresh();

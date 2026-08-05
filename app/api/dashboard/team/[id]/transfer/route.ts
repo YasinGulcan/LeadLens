@@ -17,7 +17,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const member = members.find((m) => m.id === id);
   if (!member) return NextResponse.json({ error: "Ekip üyesi bulunamadı." }, { status: 404 });
 
-  await setPendingOwnerTransfer(session.accountId, member.email);
+  try {
+    await setPendingOwnerTransfer(session.accountId, member.email);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+  }
   await logActivity(session.accountId, session.email, "Sahiplik devrini başlattı", member.email);
 
   try {
