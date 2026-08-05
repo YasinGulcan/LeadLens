@@ -3,7 +3,11 @@ import { scrapeMarkdown } from "./firecrawl";
 import { stripBoilerplate } from "./clean";
 import { chunkMarkdown } from "./chunk";
 import { embedTexts } from "./embeddings";
-import { extractChunksFromFile } from "./file-ingest";
+// extractChunksFromFile bilinçli olarak dinamik import ediliyor (aşağıda) —
+// dosyası pdf-parse'ı içeriyor, o da Vercel'in Node runtime'ında modül yükleme
+// anında "ReferenceError: DOMMatrix is not defined" fırlatıyor. URL tarama
+// akışının (bu dosyanın geri kalanı) dosya yüklemeyle hiç ilgisi yok, statik
+// import bile bu hatayı tüm /api/dashboard/sources isteklerine bulaştırıyordu.
 
 export interface ProductSource {
   id: string;
@@ -98,6 +102,7 @@ async function ingestSource(accountId: string, source: ProductSource): Promise<n
 }
 
 async function ingestFileSource(accountId: string, source: ProductSource, buffer: Buffer): Promise<number> {
+  const { extractChunksFromFile } = await import("./file-ingest");
   const chunks = await extractChunksFromFile(source.fileName ?? "dosya", buffer);
   return writeChunks(accountId, source, chunks);
 }
