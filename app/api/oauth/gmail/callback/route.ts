@@ -3,16 +3,10 @@ import { google } from "googleapis";
 import { verifyOAuthState } from "@/lib/oauth-state";
 import { encryptToken } from "@/lib/crypto";
 import { createAccountSessionValue, ACCOUNT_SESSION_COOKIE } from "@/lib/account-session";
-import {
-  findAccountIdByMemberEmail,
-  getAccountOwnerEmail,
-  getPendingOwnerEmail,
-  clearPendingOwnerTransfer,
-  acceptTeamMembership,
-} from "@/lib/accounts";
+import { findAccountIdByMemberEmail, getAccountOwnerEmail, getPendingOwnerEmail } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
-import { logActivity } from "@/lib/activity-log";
 import { createPendingSignupValue, PENDING_SIGNUP_COOKIE } from "@/lib/pending-signup";
+import { createPendingMembershipValue, PENDING_MEMBERSHIP_COOKIE } from "@/lib/pending-membership";
 
 const NEW_ACCOUNT_STATE = "new";
 
@@ -142,36 +136,36 @@ export async function GET(req: NextRequest) {
       const memberAccountId = await findAccountIdByMemberEmail(connectedEmail);
 
       if (memberAccountId) {
-        accountId = memberAccountId;
-        // Davet edilen kişi ilk kez giriş yapıyor olabilir — daveti "kabul edilmiş" işaretle.
-        await acceptTeamMembership(accountId, connectedEmail);
+        // Davetli bir üye ya da sahiplik devri hedefi eşleşti — ama üyeliği/
+        // devri hemen uygulamıyoruz. Kullanıcı /confirm-join'de açıkça
+        // onaylamadan hiçbir yazma işlemi yapılmaz (yanlış davet edilmiş biri
+        // ya da yanlış Google hesabıyla tıklama, sessizce gerçek işletme
+        // verisine erişim kazandırmasın diye).
+        const [{ data: account }, pendingOwnerEmail] = await Promise.all([
+          supabase.from("accounts").select("business_name").eq("id", memberAccountId).single(),
+          getPendingOwnerEmail(memberAccountId),
+        ]);
+        const isTransfer = !!pendingOwnerEmail && pendingOwnerEmail === connectedEmail;
+        const previousOwnerEmail = isTransfer ? await getAccountOwnerEmail(memberAccountId) : null;
 
-        // Bu üye, sahibin "sahipliği devret" ile işaretlediği bekleyen devrin
-        // hedefiyse — gerçek devir burada tamamlanır: kendi Gmail'i hesabın
-        // yeni veri bağlantısı olur, eski sahip otomatik sıradan üyeye döner.
-        const pendingOwnerEmail = await getPendingOwnerEmail(accountId);
-        if (pendingOwnerEmail && pendingOwnerEmail === connectedEmail) {
-          const previousOwnerEmail = await getAccountOwnerEmail(accountId);
-
-          const { error: transferError } = await supabase.from("gmail_connections").upsert({
-            account_id: accountId,
-            connected_email: connectedEmail,
-            encrypted_refresh_token: encryptedRefreshToken,
-            scopes: tokens.scope ?? null,
-            connected_at: new Date().toISOString(),
-          });
-          if (transferError) return errorRedirect(req, transferError.message);
-
-          if (previousOwnerEmail && previousOwnerEmail !== connectedEmail) {
-            await supabase.from("account_members").insert({ account_id: accountId, email: previousOwnerEmail });
-          }
-          await supabase.from("account_members").delete().eq("account_id", accountId).eq("email", connectedEmail);
-          await clearPendingOwnerTransfer(accountId);
-          await logActivity(accountId, connectedEmail, "Sahipliği devraldı", previousOwnerEmail);
-        }
-
-        const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", accountId).single();
-        onboardedAt = account?.onboarded_at ?? null;
+        const pendingValue = createPendingMembershipValue({
+          type: isTransfer ? "transfer" : "join",
+          accountId: memberAccountId,
+          businessName: account?.business_name ?? "İşletme",
+          connectedEmail,
+          encryptedRefreshToken,
+          scopes: tokens.scope ?? null,
+          previousOwnerEmail,
+        });
+        const res = NextResponse.redirect(new URL("/confirm-join", new URL(req.url).origin));
+        res.cookies.set(PENDING_MEMBERSHIP_COOKIE, pendingValue, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: 60 * 10,
+        });
+        return res;
       } else {
         // Ne sahip ne üye — hiç kayıtlı değil. Hesabı hemen açmıyoruz; kullanıcı
         // "Evet, yeni hesap oluştur" diyene kadar bilgiler imzalı bir cookie'de
