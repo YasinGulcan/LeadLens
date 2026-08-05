@@ -16,12 +16,17 @@ export async function POST(req: NextRequest) {
 
   const slug = await generateUniqueSlug(businessName);
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("accounts")
     .update({ business_name: businessName, slug, onboarded_at: new Date().toISOString() })
-    .eq("id", accountId);
+    .eq("id", accountId)
+    .select("id")
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  // Hesap silinmiş olabilir (eski oturum çerezi) — sessizce "başarılı" dönüp
+  // kullanıcıyı var olmayan bir hesaba yönlendirmek yerine net bir hata verilir.
+  if (!data) return NextResponse.json({ error: "Hesap bulunamadı, lütfen tekrar giriş yapın." }, { status: 404 });
 
   return NextResponse.json({ ok: true, slug });
 }

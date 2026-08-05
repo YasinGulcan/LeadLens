@@ -10,7 +10,12 @@ export default async function OnboardingPage() {
   if (!accountId) redirect("/");
 
   const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", accountId).single();
-  if (account?.onboarded_at) redirect("/dashboard");
+  // Hesap silinmişse (ör. kaza sonucu oluşan boş hesapların temizlenmesi) ama
+  // tarayıcıda hâlâ o hesaba ait eski (imza olarak geçerli) bir oturum
+  // çerezi varsa, "hayalet" bir onboarding ekranı göstermek yerine sıfırdan
+  // başlat — bkz. app/dashboard/layout.tsx'teki aynı desen.
+  if (!account) redirect("/");
+  if (account.onboarded_at) redirect("/dashboard");
 
   return (
     <main className="mx-auto max-w-md px-6 py-16">
