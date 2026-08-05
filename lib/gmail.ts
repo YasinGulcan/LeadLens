@@ -334,20 +334,25 @@ export async function sendAnalysisNotificationEmail(
  */
 export async function sendTeamInviteEmail(account: GmailAccount, businessName: string, inviteEmail: string): Promise<void> {
   const appUrl = process.env.APP_URL;
-  const loginUrl = appUrl ? appUrl.replace(/\/$/, "") : "";
+  const baseUrl = appUrl ? appUrl.replace(/\/$/, "") : "";
+  // Ana sayfa yerine doğrudan OAuth başlatma uç noktasına bağlanılır — tarayıcıda
+  // zaten geçerli bir oturum varsa (ör. bu kişi başka bir hesaba üye/sahipse)
+  // ana sayfa onu hiç "Google ile Bağlan" ekranını göstermeden kendi paneline
+  // yönlendiriyor, bu da davetin hiç işlenmemesine yol açıyordu.
+  const startUrl = baseUrl ? `${baseUrl}/api/oauth/gmail/start` : "";
 
   const subject = `${businessName} sizi LeadLens ekibine davet etti`;
   const text = [
     `${businessName} sizi LeadLens panelinde ekip üyesi olarak eklemek istiyor.`,
-    `Katılmak için ${loginUrl || "LeadLens'e"} gidip "Google ile Bağlan" butonuna bu davetin gönderildiği (${inviteEmail}) Gmail hesabınızla tıklamanız yeterli — ayrı bir şifre oluşturmanıza gerek yok.`,
+    `Katılmak için ${startUrl || "LeadLens'e"} gidip bu davetin gönderildiği (${inviteEmail}) Gmail hesabınızla giriş yapmanız yeterli — ayrı bir şifre oluşturmanıza gerek yok.`,
   ].join("\n\n");
   const html = `
     <div style="font-family: -apple-system, Arial, sans-serif; max-width: 600px; color: #1f2937;">
       <h2>Ekibe davet edildiniz 👋</h2>
       <p><strong>${escapeHtml(businessName)}</strong> sizi LeadLens panelinde ekip üyesi olarak eklemek istiyor.</p>
-      <p>Katılmak için aşağıdaki bağlantıya gidip <strong>"Google ile Bağlan"</strong> butonuna bu davetin gönderildiği
-      (<strong>${escapeHtml(inviteEmail)}</strong>) Gmail hesabınızla tıklamanız yeterli — ayrı bir şifre oluşturmanıza gerek yok.</p>
-      ${loginUrl ? `<p style="margin-top:20px;"><a href="${escapeHtml(loginUrl)}" style="color:#2563eb;">${escapeHtml(loginUrl)}</a></p>` : ""}
+      <p>Katılmak için aşağıdaki bağlantıya gidip bu davetin gönderildiği
+      (<strong>${escapeHtml(inviteEmail)}</strong>) Gmail hesabınızla giriş yapmanız yeterli — ayrı bir şifre oluşturmanıza gerek yok.</p>
+      ${startUrl ? `<p style="margin-top:20px;"><a href="${escapeHtml(startUrl)}" style="color:#2563eb;">Google ile Bağlan</a></p>` : ""}
     </div>
   `.trim();
 
@@ -362,22 +367,26 @@ export async function sendTeamInviteEmail(account: GmailAccount, businessName: s
  */
 export async function sendOwnershipTransferInviteEmail(account: GmailAccount, businessName: string, newOwnerEmail: string): Promise<void> {
   const appUrl = process.env.APP_URL;
-  const loginUrl = appUrl ? appUrl.replace(/\/$/, "") : "";
+  const baseUrl = appUrl ? appUrl.replace(/\/$/, "") : "";
+  // bkz. sendTeamInviteEmail'deki aynı not — ana sayfa değil, doğrudan OAuth
+  // başlatma uç noktası (zaten oturumu olan biri için de taze bir Google
+  // girişini garanti eder).
+  const startUrl = baseUrl ? `${baseUrl}/api/oauth/gmail/start` : "";
 
   const subject = `${businessName} sahipliğini size devretmek istiyor`;
   const text = [
     `${businessName} hesabının sahipliğini size devretmek istiyor.`,
-    `Devri tamamlamak için ${loginUrl || "LeadLens'e"} gidip "Google ile Bağlan" butonuna bu davetin gönderildiği (${newOwnerEmail}) Gmail hesabınızla tıklamanız yeterli. Bunu yaptığınızda kendi Gmail'iniz hesabın veri bağlantısı olur (lead'ler artık sizin kutunuza düşer) ve eski sahip otomatik olarak sıradan bir ekip üyesine dönüşür.`,
+    `Devri tamamlamak için ${startUrl || "LeadLens'e"} gidip bu davetin gönderildiği (${newOwnerEmail}) Gmail hesabınızla giriş yapmanız yeterli. Bunu yaptığınızda kendi Gmail'iniz hesabın veri bağlantısı olur (lead'ler artık sizin kutunuza düşer) ve eski sahip otomatik olarak sıradan bir ekip üyesine dönüşür.`,
   ].join("\n\n");
   const html = `
     <div style="font-family: -apple-system, Arial, sans-serif; max-width: 600px; color: #1f2937;">
       <h2>Hesap sahipliği size devrediliyor 🔑</h2>
       <p><strong>${escapeHtml(businessName)}</strong> hesabının sahipliğini size devretmek istiyor.</p>
-      <p>Devri tamamlamak için aşağıdaki bağlantıya gidip <strong>"Google ile Bağlan"</strong> butonuna bu davetin
-      gönderildiği (<strong>${escapeHtml(newOwnerEmail)}</strong>) Gmail hesabınızla tıklamanız yeterli.</p>
+      <p>Devri tamamlamak için aşağıdaki bağlantıya gidip bu davetin
+      gönderildiği (<strong>${escapeHtml(newOwnerEmail)}</strong>) Gmail hesabınızla giriş yapmanız yeterli.</p>
       <p style="color:#6b7280; font-size:13px;">Bunu yaptığınızda kendi Gmail'iniz hesabın veri bağlantısı olur
       (lead'ler artık sizin kutunuza düşer) ve eski sahip otomatik olarak sıradan bir ekip üyesine dönüşür.</p>
-      ${loginUrl ? `<p style="margin-top:20px;"><a href="${escapeHtml(loginUrl)}" style="color:#2563eb;">${escapeHtml(loginUrl)}</a></p>` : ""}
+      ${startUrl ? `<p style="margin-top:20px;"><a href="${escapeHtml(startUrl)}" style="color:#2563eb;">Google ile Bağlan</a></p>` : ""}
     </div>
   `.trim();
 
