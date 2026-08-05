@@ -14,7 +14,12 @@ export default async function HomePage({
   const accountId = await getSessionAccountId();
   if (accountId) {
     const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", accountId).single();
-    redirect(account?.onboarded_at ? "/dashboard" : "/onboarding");
+    // Hesap hâlâ varsa yönlendir; silinmişse (eski/askıda kalmış çerez) hiçbir
+    // yere yönlendirmeden burada normal giriş ekranını göster — aksi halde
+    // /onboarding'in "hesap yok" kontrolüyle sonsuz yönlendirme döngüsü oluşur.
+    if (account) {
+      redirect(account.onboarded_at ? "/dashboard" : "/onboarding");
+    }
   }
 
   return (
