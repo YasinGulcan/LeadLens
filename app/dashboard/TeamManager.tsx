@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "./useConfirm";
 
 export interface TeamMemberRow {
   id: string;
   email: string;
   invitedAt: string;
+  acceptedAt: string | null;
 }
 
 export function TeamManager({
@@ -28,6 +30,7 @@ export function TeamManager({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [transferringId, setTransferringId] = useState<string | null>(null);
   const [cancellingTransfer, setCancellingTransfer] = useState(false);
+  const { confirm, dialog } = useConfirm();
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -52,8 +55,11 @@ export function TeamManager({
     }
   }
 
-  async function handleRemove(id: string) {
-    if (!window.confirm("Bu kişiyi ekipten çıkarmak istediğinize emin misiniz?")) return;
+  async function handleRemove(id: string, accepted: boolean) {
+    const message = accepted
+      ? "Bu kişiyi ekipten çıkarmak istediğinize emin misiniz?"
+      : "Bu daveti iptal etmek istediğinize emin misiniz?";
+    if (!(await confirm(message, { danger: true }))) return;
     setRemovingId(id);
     try {
       const res = await fetch(`/api/dashboard/team/${id}`, { method: "DELETE" });
@@ -67,12 +73,10 @@ export function TeamManager({
   }
 
   async function handleTransfer(id: string, memberEmail: string) {
-    if (
-      !window.confirm(
-        `"${memberEmail}" adresine sahiplik devri daveti gönderilsin mi? O kişi kendi Gmail'ini bağladığında hesabın yeni sahibi olur, siz otomatik olarak sıradan bir ekip üyesine dönüşürsünüz.`
-      )
-    )
-      return;
+    const ok = await confirm(
+      `"${memberEmail}" adresine sahiplik devri daveti gönderilsin mi? O kişi kendi Gmail'ini bağladığında hesabın yeni sahibi olur, siz otomatik olarak sıradan bir ekip üyesine dönüşürsünüz.`
+    );
+    if (!ok) return;
     setTransferringId(id);
     setError(null);
     setMessage(null);
@@ -155,7 +159,7 @@ export function TeamManager({
             <tr>
               <th className="px-4 py-2 font-medium">E-posta</th>
               <th className="px-4 py-2 font-medium">Rol</th>
-              <th className="px-4 py-2 font-medium">Katılma</th>
+              <th className="px-4 py-2 font-medium">Durum</th>
               <th className="px-4 py-2 font-medium" />
             </tr>
           </thead>
@@ -172,23 +176,32 @@ export function TeamManager({
               <tr key={m.id} className="border-t border-neutral-200 dark:border-neutral-800">
                 <td className="px-4 py-2">{m.email}</td>
                 <td className="px-4 py-2 text-neutral-500">Üye</td>
-                <td className="px-4 py-2 text-neutral-500">{new Date(m.invitedAt).toLocaleString("tr-TR")}</td>
+                <td className="px-4 py-2 text-neutral-500">
+                  {m.acceptedAt ? (
+                    `Katıldı: ${new Date(m.acceptedAt).toLocaleString("tr-TR")}`
+                  ) : (
+                    <span className="text-amber-600 dark:text-amber-400" title={`Davet: ${new Date(m.invitedAt).toLocaleString("tr-TR")}`}>
+                      Davet edildi (bekliyor)
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-2">
                   {isOwner && (
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleTransfer(m.id, m.email)}
-                        disabled={transferringId === m.id || !!pendingOwnerEmail}
+                        disabled={transferringId === m.id || !!pendingOwnerEmail || !m.acceptedAt}
+                        title={!m.acceptedAt ? "Sahiplik ancak daveti kabul edip en az bir kez giriş yapan üyelere devredilebilir." : undefined}
                         className="rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
                       >
                         {transferringId === m.id ? "Gönderiliyor..." : "Sahipliği Devret"}
                       </button>
                       <button
-                        onClick={() => handleRemove(m.id)}
+                        onClick={() => handleRemove(m.id, !!m.acceptedAt)}
                         disabled={removingId === m.id}
                         className="rounded-md border border-red-300 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
                       >
-                        {removingId === m.id ? "Çıkarılıyor..." : "Çıkar"}
+                        {removingId === m.id ? "Çıkarılıyor..." : m.acceptedAt ? "Çıkar" : "Daveti İptal Et"}
                       </button>
                     </div>
                   )}
@@ -205,6 +218,7 @@ export function TeamManager({
           </tbody>
         </table>
       </div>
+      {dialog}
     </div>
   );
 }

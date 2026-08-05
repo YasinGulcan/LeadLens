@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { addTeamMember, getAccountById, isAccountOwner, loadGmailAccount } from "@/lib/accounts";
 import { sendTeamInviteEmail } from "@/lib/gmail";
+import { logActivity } from "@/lib/activity-log";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 400 });
   }
+
+  await logActivity(session.accountId, session.email, "Ekip üyesi davet etti", email);
 
   try {
     const [account, gmailAccount] = await Promise.all([

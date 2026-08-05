@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { getSessionAccountId } from "@/lib/account-session";
+import { getSessionInfo } from "@/lib/account-session";
+import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { StatCard } from "./badges";
 import { LeadsTable, type HistoryEntry, type LeadRow } from "./LeadsTable";
@@ -7,10 +8,11 @@ import { LeadsTable, type HistoryEntry, type LeadRow } from "./LeadsTable";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardOverviewPage() {
-  const accountId = await getSessionAccountId();
-  if (!accountId) redirect("/");
+  const session = await getSessionInfo();
+  if (!session) redirect("/");
+  const { accountId } = session;
 
-  const [{ data: sources }, { data: chunkSourceIds }, { data: leads }, { data: history }] = await Promise.all([
+  const [{ data: sources }, { data: chunkSourceIds }, { data: leads }, { data: history }, isOwner] = await Promise.all([
     supabase.from("product_sources").select("id, active").eq("account_id", accountId),
     supabase.from("product_chunks").select("source_id").eq("account_id", accountId),
     supabase
@@ -22,6 +24,7 @@ export default async function DashboardOverviewPage() {
       .order("created_at", { ascending: false })
       .limit(50),
     supabase.from("lead_status_history").select("id, lead_id, status, detail, created_at").order("created_at", { ascending: true }),
+    isAccountOwner(accountId, session.email),
   ]);
 
   const leadIds = new Set((leads ?? []).map((l) => l.id));
@@ -47,8 +50,9 @@ export default async function DashboardOverviewPage() {
         <p className="mt-1 text-xs text-neutral-500">
           Satırın solundaki ok ile geçmişi (zaman çizelgesi) görebilir, hatalı lead&apos;leri &quot;Yeniden Dene&quot; ile tekrar işleme
           alabilirsiniz.
+          {!isOwner && " Lead silme sadece hesap sahibinde."}
         </p>
-        <LeadsTable leads={(leads ?? []) as LeadRow[]} historyByLeadId={historyByLeadId} />
+        <LeadsTable leads={(leads ?? []) as LeadRow[]} historyByLeadId={historyByLeadId} canDelete={isOwner} />
       </section>
     </>
   );

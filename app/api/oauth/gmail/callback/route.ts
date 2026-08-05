@@ -9,8 +9,10 @@ import {
   getAccountOwnerEmail,
   getPendingOwnerEmail,
   clearPendingOwnerTransfer,
+  acceptTeamMembership,
 } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/activity-log";
 
 const NEW_ACCOUNT_STATE = "new";
 
@@ -141,6 +143,8 @@ export async function GET(req: NextRequest) {
 
       if (memberAccountId) {
         accountId = memberAccountId;
+        // Davet edilen kişi ilk kez giriş yapıyor olabilir — daveti "kabul edilmiş" işaretle.
+        await acceptTeamMembership(accountId, connectedEmail);
 
         // Bu üye, sahibin "sahipliği devret" ile işaretlediği bekleyen devrin
         // hedefiyse — gerçek devir burada tamamlanır: kendi Gmail'i hesabın
@@ -163,6 +167,7 @@ export async function GET(req: NextRequest) {
           }
           await supabase.from("account_members").delete().eq("account_id", accountId).eq("email", connectedEmail);
           await clearPendingOwnerTransfer(accountId);
+          await logActivity(accountId, connectedEmail, "Sahipliği devraldı", previousOwnerEmail);
         }
 
         const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", accountId).single();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { getAccountById, isAccountOwner, listTeamMembers, loadGmailAccount, setPendingOwnerTransfer } from "@/lib/accounts";
 import { sendOwnershipTransferInviteEmail } from "@/lib/gmail";
+import { logActivity } from "@/lib/activity-log";
 
 /** `/dashboard/team`'deki "Sahipliği Devret" butonu — sadece mevcut sahip başlatabilir. */
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -17,6 +18,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (!member) return NextResponse.json({ error: "Ekip üyesi bulunamadı." }, { status: 404 });
 
   await setPendingOwnerTransfer(session.accountId, member.email);
+  await logActivity(session.accountId, session.email, "Sahiplik devrini başlattı", member.email);
 
   try {
     const [account, gmailAccount] = await Promise.all([

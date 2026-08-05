@@ -77,6 +77,8 @@ export interface TeamMember {
   id: string;
   email: string;
   invitedAt: string;
+  /** null = davet gönderildi ama kişi henüz "Google ile Bağlan" ile ilk girişini yapmadı. */
+  acceptedAt: string | null;
 }
 
 /** Hesabın Gmail'ini bağlayan e-posta — sadece bu kişi Gmail bağlama/kesme ve ekip yönetimi gibi hassas işlemleri yapabilir. */
@@ -94,14 +96,20 @@ export async function isAccountOwner(accountId: string, email: string): Promise<
   return ownerEmail !== null && ownerEmail === email;
 }
 
+/** Sahip hiçbir zaman aynı zamanda "üye" olarak listelenmemeli — normalde `addTeamMember` bunu zaten engeller, ama eski/bozuk veriye karşı burada da süzülür. */
 export async function listTeamMembers(accountId: string): Promise<TeamMember[]> {
-  const { data, error } = await supabase
-    .from("account_members")
-    .select("id, email, invited_at")
-    .eq("account_id", accountId)
-    .order("invited_at", { ascending: true });
+  const [{ data, error }, ownerEmail] = await Promise.all([
+    supabase
+      .from("account_members")
+      .select("id, email, invited_at, accepted_at")
+      .eq("account_id", accountId)
+      .order("invited_at", { ascending: true }),
+    getAccountOwnerEmail(accountId),
+  ]);
   if (error) throw new Error(`Ekip üyeleri okunamadı: ${error.message}`);
-  return (data ?? []).map((row) => ({ id: row.id, email: row.email, invitedAt: row.invited_at }));
+  return (data ?? [])
+    .filter((row) => row.email !== ownerEmail)
+    .map((row) => ({ id: row.id, email: row.email, invitedAt: row.invited_at, acceptedAt: row.accepted_at }));
 }
 
 async function listTeamMemberEmails(accountId: string): Promise<string[]> {
@@ -130,13 +138,23 @@ export async function addTeamMember(accountId: string, email: string): Promise<T
   const { data, error } = await supabase
     .from("account_members")
     .insert({ account_id: accountId, email })
-    .select("id, email, invited_at")
+    .select("id, email, invited_at, accepted_at")
     .single();
   if (error) {
     const message = error.code === "23505" ? "Bu e-posta zaten bir ekibe davetli." : error.message;
     throw new Error(message);
   }
-  return { id: data.id, email: data.email, invitedAt: data.invited_at };
+  return { id: data.id, email: data.email, invitedAt: data.invited_at, acceptedAt: data.accepted_at };
+}
+
+/** Davetli bir üye ilk kez "Google ile Bağlan" ile giriş yaptığında çağrılır — daveti "kabul edilmiş" işaretler. */
+export async function acceptTeamMembership(accountId: string, email: string): Promise<void> {
+  await supabase
+    .from("account_members")
+    .update({ accepted_at: new Date().toISOString() })
+    .eq("account_id", accountId)
+    .eq("email", email)
+    .is("accepted_at", null);
 }
 
 export async function removeTeamMember(accountId: string, memberId: string): Promise<void> {

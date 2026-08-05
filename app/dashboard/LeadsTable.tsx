@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "./badges";
 import { RANK_TIER_LABEL, rankTier } from "@/lib/rank-tier";
+import { useConfirm } from "./useConfirm";
 
 type SortKey = "name" | "match_score" | "priority" | "status" | "created_at";
 type SortDir = "asc" | "desc";
@@ -96,9 +97,11 @@ export interface HistoryEntry {
 export function LeadsTable({
   leads,
   historyByLeadId,
+  canDelete,
 }: {
   leads: LeadRow[];
   historyByLeadId: Record<string, HistoryEntry[]>;
+  canDelete: boolean;
 }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -109,6 +112,8 @@ export function LeadsTable({
   const [deleteError, setDeleteError] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [query, setQuery] = useState("");
+  const { confirm, dialog } = useConfirm();
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -119,11 +124,20 @@ export function LeadsTable({
     }
   }
 
+  const filteredLeads = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase("tr");
+    if (!q) return leads;
+    return leads.filter((l) =>
+      [l.name, l.phone, l.website_url, l.recommended_product, l.sector, l.status]
+        .some((field) => field?.toLocaleLowerCase("tr").includes(q))
+    );
+  }, [leads, query]);
+
   const sortedLeads = useMemo(() => {
-    if (!sortKey) return leads;
-    const sorted = [...leads].sort((a, b) => compareLeads(a, b, sortKey));
+    if (!sortKey) return filteredLeads;
+    const sorted = [...filteredLeads].sort((a, b) => compareLeads(a, b, sortKey));
     return sortDir === "asc" ? sorted : sorted.reverse();
-  }, [leads, sortKey, sortDir]);
+  }, [filteredLeads, sortKey, sortDir]);
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -154,7 +168,7 @@ export function LeadsTable({
   }
 
   async function deleteLead(id: string, name: string | null) {
-    if (!window.confirm(`"${name ?? "Bu lead"}" kalıcı olarak silinsin mi?`)) return;
+    if (!(await confirm(`"${name ?? "Bu lead"}" kalıcı olarak silinsin mi?`, { danger: true }))) return;
 
     setDeletingId(id);
     setDeleteError((prev) => ({ ...prev, [id]: "" }));
@@ -189,6 +203,21 @@ export function LeadsTable({
   }
 
   return (
+    <Fragment>
+    <div className="mt-3 flex items-center justify-between gap-3">
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="İsim, telefon, site, ürün, sektör veya durum ara..."
+        className="w-full max-w-sm rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+      />
+      {query && (
+        <span className="shrink-0 text-xs text-neutral-500">
+          {filteredLeads.length} / {leads.length} sonuç
+        </span>
+      )}
+    </div>
     <div className="mt-3 overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
       <table className="w-full text-sm">
         <thead className="bg-neutral-50 dark:bg-neutral-900 text-left">
@@ -248,13 +277,15 @@ export function LeadsTable({
                           {retrying === l.id ? "Deneniyor..." : "Yeniden Dene"}
                         </button>
                       )}
-                      <button
-                        onClick={() => deleteLead(l.id, l.name)}
-                        disabled={deletingId === l.id}
-                        className="rounded-md border border-red-300 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
-                      >
-                        {deletingId === l.id ? "Siliniyor..." : "Sil"}
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={() => deleteLead(l.id, l.name)}
+                          disabled={deletingId === l.id}
+                          className="rounded-md border border-red-300 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
+                        >
+                          {deletingId === l.id ? "Siliniyor..." : "Sil"}
+                        </button>
+                      )}
                     </div>
                     {deleteError[l.id] && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{deleteError[l.id]}</p>}
                   </td>
@@ -359,15 +390,19 @@ export function LeadsTable({
               </Fragment>
             );
           })}
-          {leads.length === 0 && (
+          {sortedLeads.length === 0 && (
             <tr>
               <td colSpan={10} className="px-4 py-6 text-center text-neutral-500">
-                Henüz lead yok — form doldurulup Gmail üzerinden işlendiğinde burada görünecek.
+                {leads.length === 0
+                  ? "Henüz lead yok — form doldurulup Gmail üzerinden işlendiğinde burada görünecek."
+                  : "Aramanızla eşleşen lead bulunamadı."}
               </td>
             </tr>
           )}
         </tbody>
       </table>
     </div>
+    {dialog}
+    </Fragment>
   );
 }

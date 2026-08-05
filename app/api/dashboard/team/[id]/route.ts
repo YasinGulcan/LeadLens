@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
-import { isAccountOwner, removeTeamMember } from "@/lib/accounts";
+import { isAccountOwner, removeTeamMember, listTeamMembers } from "@/lib/accounts";
+import { logActivity } from "@/lib/activity-log";
 
 /** `/dashboard/team`'deki "Çıkar" butonu — sadece hesap sahibi ekip üyesi çıkarabilir. */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,6 +12,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { id } = await params;
+  const members = await listTeamMembers(session.accountId);
+  const removedEmail = members.find((m) => m.id === id)?.email ?? null;
+
   await removeTeamMember(session.accountId, id);
+  await logActivity(session.accountId, session.email, "Ekip üyesini çıkardı", removedEmail);
   return NextResponse.json({ ok: true });
 }
