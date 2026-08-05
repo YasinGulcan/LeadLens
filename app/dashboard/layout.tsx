@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
-import { isAuthorizedForAccount } from "@/lib/accounts";
+import { acceptTeamMembership, isAccountOwner, isAuthorizedForAccount } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { DashboardNav } from "./DashboardNav";
 import { LogoutButton } from "./LogoutButton";
@@ -19,6 +19,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // doğrulanır (sadece ilk "Google ile Bağlan" anında değil).
   if (!(await isAuthorizedForAccount(accountId, session.email))) redirect("/");
   if (!account.onboarded_at) redirect("/onboarding");
+
+  // "Kabul edildi" işareti sadece taze bir Google girişinde değil, panele her
+  // başarılı erişimde de tetiklenir — aksi halde tarayıcıda zaten geçerli bir
+  // oturum çerezi olan (yeniden davet sonrası hiç OAuth'a hiç uğramayan) bir
+  // üye panelde gezinirken "bekliyor" olarak görünmeye devam ederdi.
+  if (!(await isAccountOwner(accountId, session.email))) {
+    await acceptTeamMembership(accountId, session.email);
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
