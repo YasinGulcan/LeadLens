@@ -2,8 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
 import { acceptTeamMembership, isAccountOwner, isAuthorizedForAccount } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
-import { DashboardNav } from "./DashboardNav";
-import { LogoutButton } from "./LogoutButton";
+import { DashboardSidebar } from "./DashboardSidebar";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +11,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) redirect("/");
   const { accountId } = session;
 
-  const { data: account } = await supabase.from("accounts").select("business_name, slug, onboarded_at").eq("id", accountId).single();
+  const [{ data: account }, { count: leadCount }] = await Promise.all([
+    supabase.from("accounts").select("business_name, slug, onboarded_at").eq("id", accountId).single(),
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("account_id", accountId),
+  ]);
   if (!account) redirect("/");
   // Oturum çerezi 30 gün geçerli kalabiliyor — ekipten çıkarıldıktan sonra
   // bile eski çerez taşınabilir, bu yüzden her girişte yetki tekrar
@@ -29,21 +31,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{account.business_name}</h1>
-          <p className="mt-1 text-sm text-neutral-500">Form adresi: /form/{account.slug}</p>
+    <div className="flex min-h-screen">
+      <DashboardSidebar businessName={account.business_name} email={session.email} leadCount={leadCount ?? 0} />
+      <div className="min-w-0 flex-1 overflow-x-hidden">
+        <div className="border-b border-neutral-200 px-8 py-4 text-xs text-neutral-500 dark:border-neutral-800">
+          Form adresi: /form/{account.slug}
         </div>
-        <div className="flex items-center gap-3 text-right">
-          <span className="text-sm text-neutral-500">{session.email}</span>
-          <LogoutButton />
-        </div>
+        <main className="px-8 py-8">{children}</main>
       </div>
-
-      <DashboardNav />
-
-      <main className="mt-8">{children}</main>
     </div>
   );
 }
