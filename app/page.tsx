@@ -30,6 +30,32 @@ const FEATURES = [
   { title: "KVKK'ya Duyarlı", body: "Form sayfanızda hazır bir aydınlatma metni ve açık rıza kutusu ile başlarsınız." },
 ];
 
+/**
+ * "Giriş Yap" ve "Kayıt Ol" ayrı görünse de ikisi de aynı tek akışa (Google
+ * OAuth) çıkıyor — sistemde ayrı bir şifre/kayıt formu yok. Tıklayınca küçük
+ * bir panelde gerçek CTA'yı ("Google ile Bağlan") gösteriyor. Native
+ * <details>/<summary> kullanıldığı için client component gerekmiyor.
+ */
+function AuthMenuButton({ label, className }: { label: string; className: string }) {
+  return (
+    <details className="relative">
+      <summary
+        className={`list-none cursor-pointer marker:hidden [&::-webkit-details-marker]:hidden ${className}`}
+      >
+        {label}
+      </summary>
+      <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border border-neutral-200 bg-white p-3 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
+        <a
+          href="/api/oauth/gmail/start"
+          className="flex items-center justify-center gap-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+        >
+          Google ile Bağlan
+        </a>
+      </div>
+    </details>
+  );
+}
+
 export default async function HomePage({
   searchParams,
 }: {
@@ -54,12 +80,16 @@ export default async function HomePage({
     <main className="flex min-h-screen flex-col">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-6">
         <span className="text-lg font-bold">LeadLens</span>
-        <a
-          href="/api/oauth/gmail/start"
-          className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          Giriş Yap
-        </a>
+        <div className="flex items-center gap-2">
+          <AuthMenuButton
+            label="Giriş Yap"
+            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          />
+          <AuthMenuButton
+            label="Kayıt Ol"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
+          />
+        </div>
       </header>
 
       {/* Hero */}
