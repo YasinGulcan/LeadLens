@@ -74,16 +74,30 @@ interface ChunkItem {
   sourceUrl: string;
 }
 
-/** Embed edip eski chunk'ları silip yenilerini yazan ortak adım — hem URL hem dosya kaynakları için. */
-async function writeChunks(accountId: string, source: ProductSource, items: ChunkItem[]): Promise<number> {
+/**
+ * Embed edip (varsayılan olarak) eski chunk'ları silip yenilerini yazan ortak
+ * adım — hem URL hem dosya kaynakları için. Çok sayfalı sitemap seçimleri
+ * Vercel'in fonksiyon süresi sınırına takılmasın diye client tarafında
+ * parti parti (batch) gönderiliyor (bkz. SourcesForm.tsx) — `replaceExisting:
+ * false` ilk partiden sonraki partilerin, henüz o istekte yazılmış chunk'ları
+ * silmeden üzerine eklemesini sağlar.
+ */
+async function writeChunks(
+  accountId: string,
+  source: ProductSource,
+  items: ChunkItem[],
+  replaceExisting = true
+): Promise<number> {
   if (items.length === 0) {
     throw new Error("İçerikten hiç kullanılabilir parça çıkmadı.");
   }
 
   const embeddings = await embedTexts(items.map((i) => i.content));
 
-  const { error: deleteError } = await supabase.from("product_chunks").delete().eq("source_id", source.id);
-  if (deleteError) throw new Error(`Eski chunk'lar silinemedi: ${deleteError.message}`);
+  if (replaceExisting) {
+    const { error: deleteError } = await supabase.from("product_chunks").delete().eq("source_id", source.id);
+    if (deleteError) throw new Error(`Eski chunk'lar silinemedi: ${deleteError.message}`);
+  }
 
   const rows = items.map((item, i) => ({
     account_id: accountId,
@@ -163,7 +177,8 @@ interface MultiPageIngestOutcome {
 async function ingestSelectedPages(
   accountId: string,
   source: ProductSource,
-  urls: string[]
+  urls: string[],
+  replaceExisting: boolean
 ): Promise<MultiPageIngestOutcome> {
   if (urls.length === 0) throw new Error("Taranacak sayfa seçilmedi.");
 
@@ -185,7 +200,7 @@ async function ingestSelectedPages(
     throw new Error(`Hiçbir sayfa taranamadı (${failedUrls.length} sayfa başarısız).`);
   }
 
-  const chunkCount = await writeChunks(accountId, source, items);
+  const chunkCount = await writeChunks(accountId, source, items, replaceExisting);
   return { chunkCount, failedUrls };
 }
 
@@ -235,13 +250,20 @@ export async function ingestFileSourceAndRecordStatus(
   return recordIngestResult(source, async () => ({ chunkCount: await ingestFileSource(accountId, source, buffer) }));
 }
 
-/** Sitemap'ten seçilen (ya da tek sayfalık onaydan gelen) sayfa listesini tarayıp sonucu `product_sources`'a yazar. */
+/**
+ * Sitemap'ten seçilen (ya da tek sayfalık onaydan gelen) sayfa listesini
+ * tarayıp sonucu `product_sources`'a yazar. Büyük sitemap seçimleri client
+ * tarafında partiler halinde gönderildiği için `replaceExisting=false`
+ * geçilen partiler, önceki partinin bu istekte yazdığı chunk'ları silmeden
+ * üzerine ekler (bkz. SourcesForm.tsx).
+ */
 export async function ingestSelectedPagesAndRecordStatus(
   accountId: string,
   source: ProductSource,
-  urls: string[]
+  urls: string[],
+  replaceExisting = true
 ): Promise<IngestResult> {
-  return recordIngestResult(source, () => ingestSelectedPages(accountId, source, urls));
+  return recordIngestResult(source, () => ingestSelectedPages(accountId, source, urls, replaceExisting));
 }
 
 /**

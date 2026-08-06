@@ -19,6 +19,27 @@ type Step =
   | { kind: "sitemap"; pages: SitemapPage[]; selected: Set<string> }
   | { kind: "single"; page: SinglePreview };
 
+// Bir istekte 99 sayfa taramak Vercel'in fonksiyon süresi sınırını (maxDuration=60)
+// aşıp yarım kalmış, JSON olmayan bir hata sayfasıyla çöküyordu. Seçilen sayfaları
+// bu boyutta partilere bölüp sırayla göndermek her isteği güvenle sınırın altında tutuyor.
+const BATCH_SIZE = 10;
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) batches.push(arr.slice(i, i + size));
+  return batches;
+}
+
+/** `res.json()` sunucu tarafı zaman aşımı gibi durumlarda JSON olmayan bir gövdeyle ("An error occurred...") çökebiliyordu — güvenli ayrıştırma. */
+async function parseJsonResponse(res: Response): Promise<{ ok: boolean; data: Record<string, unknown> }> {
+  const text = await res.text();
+  try {
+    return { ok: res.ok, data: JSON.parse(text) };
+  } catch {
+    return { ok: false, data: { error: res.ok ? "Sunucu geçersiz bir yanıt döndürdü." : text.slice(0, 200) || `HTTP ${res.status}` } };
+  }
+}
+
 export function SourcesForm() {
   const router = useRouter();
   const [url, setUrl] = useState("");
@@ -26,6 +47,7 @@ export function SourcesForm() {
   const [step, setStep] = useState<Step>({ kind: "input" });
   const [discovering, setDiscovering] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,14 +68,14 @@ export function SourcesForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Bilinmeyen hata");
+      const { ok, data } = await parseJsonResponse(res);
+      if (!ok) throw new Error((data.error as string | undefined) ?? "Bilinmeyen hata");
 
       if (data.mode === "sitemap") {
-        const pages: SitemapPage[] = data.pages;
+        const pages = data.pages as SitemapPage[];
         setStep({ kind: "sitemap", pages, selected: new Set(pages.map((p) => p.url)) });
       } else {
-        setStep({ kind: "single", page: data.page });
+        setStep({ kind: "single", page: data.page as SinglePreview });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Hata");
@@ -65,19 +87,36 @@ export function SourcesForm() {
   async function handleConfirm(selectedUrls: string[]) {
     setSubmitting(true);
     setError(null);
+    const batches = chunkArray(selectedUrls, BATCH_SIZE);
+    let totalChunkCount = 0;
+    const allFailedUrls: string[] = [];
     try {
-      const res = await fetch("/api/dashboard/sources", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, label: label || undefined, selectedUrls }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Bilinmeyen hata");
-      const failedCount = data.failedUrls?.length ?? 0;
+      for (let i = 0; i < batches.length; i++) {
+        if (batches.length > 1) {
+          setProgress(`${Math.min(i * BATCH_SIZE, selectedUrls.length)} / ${selectedUrls.length} sayfa taranıyor...`);
+        }
+        const res = await fetch("/api/dashboard/sources", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, label: label || undefined, selectedUrls: batches[i], replaceExisting: i === 0 }),
+        });
+        const { ok, data } = await parseJsonResponse(res);
+        if (!ok) {
+          // İlk parti başarısızsa (kaynak henüz oluşmadan) tamamen durduruyoruz;
+          // sonraki bir parti başarısız olursa o partiyi "başarısız" işaretleyip
+          // 99 sayfalık seçimin geri kalanını taramaya devam ediyoruz.
+          if (i === 0) throw new Error((data.error as string | undefined) ?? "Bilinmeyen hata");
+          allFailedUrls.push(...batches[i]);
+          continue;
+        }
+        totalChunkCount += (data.chunkCount as number | undefined) ?? 0;
+        allFailedUrls.push(...((data.failedUrls as string[] | undefined) ?? []));
+      }
+
       setMessage(
-        failedCount > 0
-          ? `Tarandı: ${data.chunkCount} chunk kaydedildi. ${failedCount} sayfa (rate limit vb. yüzünden) taranamadı, atlandı.`
-          : `Tarandı: ${data.chunkCount} chunk kaydedildi.`
+        allFailedUrls.length > 0
+          ? `Tarandı: ${totalChunkCount} chunk kaydedildi. ${allFailedUrls.length} sayfa (rate limit vb. yüzünden) taranamadı, atlandı.`
+          : `Tarandı: ${totalChunkCount} chunk kaydedildi.`
       );
       reset();
       router.refresh();
@@ -85,6 +124,7 @@ export function SourcesForm() {
       setError(err instanceof Error ? err.message : "Hata");
     } finally {
       setSubmitting(false);
+      setProgress(null);
     }
   }
 
@@ -142,7 +182,7 @@ export function SourcesForm() {
             onClick={() => handleConfirm(Array.from(step.selected))}
             className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
           >
-            {submitting ? "Taranıyor..." : `Seçilenleri Tara ve Ekle (${step.selected.size})`}
+            {submitting ? (progress ?? "Taranıyor...") : `Seçilenleri Tara ve Ekle (${step.selected.size})`}
           </button>
           <button
             type="button"

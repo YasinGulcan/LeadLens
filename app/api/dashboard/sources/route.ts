@@ -20,6 +20,9 @@ export async function POST(req: NextRequest) {
   const selectedUrls = Array.isArray(body?.selectedUrls)
     ? body.selectedUrls.filter((u: unknown): u is string => typeof u === "string" && u.trim().length > 0)
     : [];
+  // Büyük sitemap seçimleri client'ta partiler halinde gönderiliyor (bkz.
+  // SourcesForm.tsx) — sadece ilk parti eski chunk'ları silsin diye.
+  const replaceExisting = body?.replaceExisting !== false;
   if (!url) return NextResponse.json({ error: "url zorunlu." }, { status: 400 });
   if (selectedUrls.length === 0) return NextResponse.json({ error: "En az bir sayfa seçilmeli." }, { status: 400 });
 
@@ -30,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 400 });
   }
 
-  const result = await ingestSelectedPagesAndRecordStatus(accountId, source, selectedUrls);
+  const result = await ingestSelectedPagesAndRecordStatus(accountId, source, selectedUrls, replaceExisting);
   if (!result.ok) {
     return NextResponse.json({ error: `Kaynak eklendi ama tarama başarısız: ${result.error}` }, { status: 502 });
   }
