@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionAccountId } from "@/lib/account-session";
 import { addProductSource, ingestSelectedPagesAndRecordStatus } from "@/lib/ingest";
 
+export const maxDuration = 60; // sitemap'ten seçilen birden çok sayfa sırayla (rate-limit beklemeleriyle) taranabiliyor
+
 /**
  * `/dashboard`'daki "Kaynak Ekle" formunun 2. (onay) adımı — `selectedUrls`,
  * `/discover` adımında kullanıcının işaretlediği sayfalar (sitemap seçimi)
@@ -33,5 +35,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Kaynak eklendi ama tarama başarısız: ${result.error}` }, { status: 502 });
   }
 
-  return NextResponse.json({ ok: true, source, chunkCount: result.chunkCount });
+  return NextResponse.json({ ok: true, source, chunkCount: result.chunkCount, failedUrls: result.failedUrls ?? [] });
 }

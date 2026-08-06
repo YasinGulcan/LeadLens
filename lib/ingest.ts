@@ -99,9 +99,41 @@ async function writeChunks(accountId: string, source: ProductSource, items: Chun
   return rows.length;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Firecrawl'ın 429 gövdesi "...please retry after 39s, resets at ..." biçiminde saniye veriyor — varsa onu, yoksa sabit bir bekleme kullanılır. */
+function rateLimitWaitMs(err: unknown): number | null {
+  const status = (err as { status?: number } | null | undefined)?.status;
+  const message = err instanceof Error ? err.message : String(err);
+  if (status !== 429 && !/rate limit/i.test(message)) return null;
+  const match = message.match(/retry after (\d+)s/i);
+  return match ? (Number(match[1]) + 1) * 1000 : 15000;
+}
+
+/**
+ * Sitemap'ten çok sayfa seçildiğinde Firecrawl'ın dakikalık rate limitine art
+ * arda takılmamak için taramalar arasına küçük bir bekleme koyar. Değerler
+ * (istek başı sabit bekleme + yeniden deneme sayısı) API route'undaki
+ * `maxDuration = 60` sınırı içinde kalacak şekilde ayarlı — çok agresif bir
+ * bekleme/retry, büyük bir sitemap seçiminde tüm isteğin zaman aşımına
+ * uğramasına yol açar.
+ */
+const MULTI_PAGE_SCRAPE_DELAY_MS = 2000;
+const MAX_RATE_LIMIT_RETRIES = 2;
+
 async function scrapeAndChunk(url: string): Promise<string[]> {
-  const markdown = await scrapeMarkdown(url);
-  return chunkMarkdown(stripBoilerplate(markdown));
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const markdown = await scrapeMarkdown(url);
+      return chunkMarkdown(stripBoilerplate(markdown));
+    } catch (err) {
+      const waitMs = rateLimitWaitMs(err);
+      if (waitMs === null || attempt >= MAX_RATE_LIMIT_RETRIES) throw err;
+      await sleep(waitMs);
+    }
+  }
 }
 
 export interface UrlPreview {
@@ -115,16 +147,46 @@ export async function previewSinglePage(url: string): Promise<UrlPreview> {
   return { chunkCount: chunks.length, preview: chunks[0]?.slice(0, 280) ?? "" };
 }
 
-/** Kullanıcının sitemap listesinden seçtiği (ya da tek sayfalık onaydan gelen) URL'ler taranır; hepsi tek bir `source` altında toplanır, her chunk kendi sayfasının URL'ini taşır. */
-async function ingestSelectedPages(accountId: string, source: ProductSource, urls: string[]): Promise<number> {
+interface MultiPageIngestOutcome {
+  chunkCount: number;
+  failedUrls: string[];
+}
+
+/**
+ * Kullanıcının sitemap listesinden seçtiği (ya da tek sayfalık onaydan gelen)
+ * URL'ler taranır; hepsi tek bir `source` altında toplanır, her chunk kendi
+ * sayfasının URL'ini taşır. Bir sayfa (rate limit vb. yüzünden, yeniden
+ * denemelere rağmen) taranamazsa tüm parti iptal edilmez — o sayfa atlanıp
+ * başarıyla taranan diğer sayfalar yine de kaydedilir, atlananlar
+ * `failedUrls`'ta döner (çağıran taraf kullanıcıya gösterebilsin diye).
+ */
+async function ingestSelectedPages(
+  accountId: string,
+  source: ProductSource,
+  urls: string[]
+): Promise<MultiPageIngestOutcome> {
   if (urls.length === 0) throw new Error("Taranacak sayfa seçilmedi.");
 
   const items: ChunkItem[] = [];
-  for (const pageUrl of urls) {
-    const chunks = await scrapeAndChunk(pageUrl);
-    for (const content of chunks) items.push({ content, sourceUrl: pageUrl });
+  const failedUrls: string[] = [];
+  for (let i = 0; i < urls.length; i++) {
+    if (i > 0) await sleep(MULTI_PAGE_SCRAPE_DELAY_MS);
+    try {
+      const chunks = await scrapeAndChunk(urls[i]);
+      for (const content of chunks) items.push({ content, sourceUrl: urls[i] });
+    } catch (err) {
+      failedUrls.push(urls[i]);
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Sayfa taranamadı, atlanıyor: ${urls[i]} — ${message}`);
+    }
   }
-  return writeChunks(accountId, source, items);
+
+  if (items.length === 0) {
+    throw new Error(`Hiçbir sayfa taranamadı (${failedUrls.length} sayfa başarısız).`);
+  }
+
+  const chunkCount = await writeChunks(accountId, source, items);
+  return { chunkCount, failedUrls };
 }
 
 async function ingestFileSource(accountId: string, source: ProductSource, buffer: Buffer): Promise<number> {
@@ -139,18 +201,21 @@ async function ingestFileSource(accountId: string, source: ProductSource, buffer
 }
 
 export type IngestResult = { source: ProductSource } & (
-  | { ok: true; chunkCount: number }
+  | { ok: true; chunkCount: number; failedUrls?: string[] }
   | { ok: false; error: string }
 );
 
-async function recordIngestResult(source: ProductSource, run: () => Promise<number>): Promise<IngestResult> {
+async function recordIngestResult(
+  source: ProductSource,
+  run: () => Promise<{ chunkCount: number; failedUrls?: string[] }>
+): Promise<IngestResult> {
   try {
-    const chunkCount = await run();
+    const { chunkCount, failedUrls } = await run();
     await supabase
       .from("product_sources")
       .update({ last_scraped_at: new Date().toISOString(), last_scrape_status: "ok", last_scrape_error: null })
       .eq("id", source.id);
-    return { source, ok: true, chunkCount };
+    return { source, ok: true, chunkCount, failedUrls };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await supabase
@@ -167,7 +232,7 @@ export async function ingestFileSourceAndRecordStatus(
   source: ProductSource,
   buffer: Buffer
 ): Promise<IngestResult> {
-  return recordIngestResult(source, () => ingestFileSource(accountId, source, buffer));
+  return recordIngestResult(source, async () => ({ chunkCount: await ingestFileSource(accountId, source, buffer) }));
 }
 
 /** Sitemap'ten seçilen (ya da tek sayfalık onaydan gelen) sayfa listesini tarayıp sonucu `product_sources`'a yazar. */

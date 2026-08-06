@@ -73,7 +73,12 @@ export function SourcesForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Bilinmeyen hata");
-      setMessage(`Tarandı: ${data.chunkCount} chunk kaydedildi.`);
+      const failedCount = data.failedUrls?.length ?? 0;
+      setMessage(
+        failedCount > 0
+          ? `Tarandı: ${data.chunkCount} chunk kaydedildi. ${failedCount} sayfa (rate limit vb. yüzünden) taranamadı, atlandı.`
+          : `Tarandı: ${data.chunkCount} chunk kaydedildi.`
+      );
       reset();
       router.refresh();
     } catch (err) {

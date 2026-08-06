@@ -4,6 +4,8 @@ import { supabase } from "@/lib/supabase";
 import { rescrapeSource } from "@/lib/ingest";
 import { logActivity } from "@/lib/activity-log";
 
+export const maxDuration = 60; // kaynak birden çok sayfayı kapsıyorsa sırayla (rate-limit beklemeleriyle) yeniden taranabiliyor
+
 /**
  * `/dashboard/sources`'taki "Yeniden Tara" butonu — sadece URL kaynakları için
  * (dosya kaynakları yeniden taranamaz). Eski chunk'lar silinip site yeniden
@@ -38,5 +40,5 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 500 });
 
   await logActivity(session.accountId, session.email, "Kaynağı yeniden taradı", source.label ?? source.url);
-  return NextResponse.json({ ok: true, chunkCount: result.chunkCount });
+  return NextResponse.json({ ok: true, chunkCount: result.chunkCount, failedUrls: result.failedUrls ?? [] });
 }
