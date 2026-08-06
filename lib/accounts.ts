@@ -8,9 +8,12 @@ export interface Account {
   leadEmailSubjects: string[];
   status: string;
   notificationEmail: string | null;
+  /** Panelde düzenlenebilen, lead analiz asistanının sistem promptu — boş/null ise lib/claude.ts'teki varsayılan kullanılır. */
+  customSystemPrompt: string | null;
 }
 
-const ACCOUNT_COLUMNS = "id, business_name, slug, lead_email_subjects, status, notification_email";
+const ACCOUNT_COLUMNS =
+  "id, business_name, slug, lead_email_subjects, status, notification_email, custom_system_prompt";
 
 function toAccount(row: {
   id: string;
@@ -19,6 +22,7 @@ function toAccount(row: {
   lead_email_subjects: string[];
   status: string;
   notification_email: string | null;
+  custom_system_prompt: string | null;
 }): Account {
   return {
     id: row.id,
@@ -27,6 +31,7 @@ function toAccount(row: {
     leadEmailSubjects: row.lead_email_subjects,
     status: row.status,
     notificationEmail: row.notification_email,
+    customSystemPrompt: row.custom_system_prompt,
   };
 }
 

@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import { fetchUnprocessedLeadEmails, markEmailProcessed, sendAnalysisNotificationEmail, type GmailAccount } from "./gmail";
-import { loadConnectedGmailAccounts } from "./accounts";
+import { loadConnectedGmailAccounts, getAccountById } from "./accounts";
 import { sendLeadNotification } from "./resend";
 import { scrapeMarkdown } from "./firecrawl";
 import { stripBoilerplate, safeTruncate } from "./clean";
@@ -187,6 +187,11 @@ export async function runScrapeLeads(accountId: string) {
 
 /** Gün 10-11: status='scraping' lead'ler için RAG eşleştirme + Claude analizi. */
 export async function runAnalyzeLeads(accountId: string) {
+  // Hesabın panelde düzenlediği sistem promptu (varsa) — tüm partide aynı,
+  // o yüzden lead başına değil, bir kere okunuyor.
+  const account = await getAccountById(accountId);
+  const customSystemPrompt = account?.customSystemPrompt ?? null;
+
   const { data: leads, error } = await supabase
     .from("leads")
     .select("id, site_summary, message, website_url")
@@ -259,6 +264,7 @@ export async function runAnalyzeLeads(accountId: string) {
               aiMentioned: visibility.aiVisibility.mentioned,
             }
           : null,
+        customSystemPrompt,
       });
 
       const { error: updateError } = await supabase

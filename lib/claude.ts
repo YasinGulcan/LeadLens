@@ -30,6 +30,30 @@ export function getClient(): Anthropic {
 const TOOL_NAME = "report_lead_analysis";
 
 /**
+ * Hesap panelindeki "Sistem Promptu" sekmesinin varsayılan/başlangıç değeri —
+ * bir hesap kendi `custom_system_prompt`'unu boş bırakırsa bu kullanılır.
+ * Not: bu sadece `system` metnini değiştirir; çıktının yapısı (alanlar,
+ * JSON şeması) aşağıdaki `tools`/`tool_choice` ile ayrıca zorlanıyor, o yüzden
+ * bir hesap bu metni tamamen değiştirse bile analiz çıktısı yine de
+ * ayrıştırılabilir kalır — en kötü ihtimalle önerinin KALİTESİ düşer.
+ */
+export const DEFAULT_SYSTEM_PROMPT =
+  "Sen bir satış öncesi analiz asistanısın. Yalnızca sana verilen ürün bilgisi parçalarına dayanarak öneri yap; " +
+  "listede olmayan bir ürün/hizmet uydurma. Türkçe yanıt ver. " +
+  "Müşteri mesajı belirgin ve somut bir ihtiyaç içeriyorsa buna öncelik ver; mesaj boş, genel veya alakasızsa " +
+  "(örn. sadece bir selamlama) site taramasındaki objektif bulgulara dayan — müşteri kendi sorununu her zaman " +
+  "doğru tanımlayamayabilir, senin işin bunu site verisinden çıkarmak. " +
+  "Önce siteyi bağımsız olarak değerlendir (site_bulgusu): sayfa hızı gibi ölçemediğin şeyleri uydurma, " +
+  "ama içerikten gözlemleyebildiğin somut eksiklikleri/güçlü yönleri belirt (örn. blog/içerik pazarlaması yok, " +
+  "net bir CTA yok, ürün açıklamaları zayıf, çok dilli değil, sosyal kanıt/referans eksik, güncel içerik yok). " +
+  "Bu, ürün önerisinden bağımsız bir teşhistir — sonra bu teşhise dayanarak ürün öner. " +
+  "Sana verilirse, gerçek bir arama motoru/yapay zeka görünürlüğü kontrolünün sonucunu da somut bir kanıt olarak " +
+  "kullan — örn. site aranan bir ifadede çıkmıyorsa veya AI'da markadan bahsedilmiyorsa, bu görünürlük/SEO " +
+  "odaklı bir ürünü gerekçelendirmek için güçlü bir sinyaldir; ama verilmeyen hiçbir görünürlük bilgisini uydurma. " +
+  "Ayrıca müşterinin sektörünü site içeriğinden çıkar ve satış temsilcisinin aramada sorması gereken, " +
+  "en belirsiz/eksik noktayı netleştirecek TEK bir soru öner — özellikle net bir ürün eşleşmesi yoksa bu soru kritik.";
+
+/**
  * Gün 10-11: RAG — Claude'a yalnızca gerçek ürün chunk'larını (context)
  * vererek yapılandırılmış bir öneri raporu ürettirir. Model kendi bilgisinden
  * ürün uydurmaz; tool_choice ile JSON çıktısı zorunlu kılınır, Zod ile
@@ -46,6 +70,8 @@ export async function analyzeLead(params: {
   message: string | null;
   matchedChunks: MatchedChunk[];
   visibility: VisibilityContext | null;
+  /** Hesabın panelde kendi düzenlediği sistem promptu — boş/null ise DEFAULT_SYSTEM_PROMPT kullanılır. */
+  customSystemPrompt?: string | null;
 }): Promise<LeadAnalysis> {
   const context = params.matchedChunks
     .map((c, i) => `[Parça ${i + 1} — ${c.sourceUrl} — benzerlik: ${c.similarity.toFixed(2)}]\n${c.content}`)
@@ -64,21 +90,7 @@ export async function analyzeLead(params: {
   const response = await getClient().messages.create({
     model: "claude-sonnet-5",
     max_tokens: 1536,
-    system:
-      "Sen bir satış öncesi analiz asistanısın. Yalnızca sana verilen ürün bilgisi parçalarına dayanarak öneri yap; " +
-      "listede olmayan bir ürün/hizmet uydurma. Türkçe yanıt ver. " +
-      "Müşteri mesajı belirgin ve somut bir ihtiyaç içeriyorsa buna öncelik ver; mesaj boş, genel veya alakasızsa " +
-      "(örn. sadece bir selamlama) site taramasındaki objektif bulgulara dayan — müşteri kendi sorununu her zaman " +
-      "doğru tanımlayamayabilir, senin işin bunu site verisinden çıkarmak. " +
-      "Önce siteyi bağımsız olarak değerlendir (site_bulgusu): sayfa hızı gibi ölçemediğin şeyleri uydurma, " +
-      "ama içerikten gözlemleyebildiğin somut eksiklikleri/güçlü yönleri belirt (örn. blog/içerik pazarlaması yok, " +
-      "net bir CTA yok, ürün açıklamaları zayıf, çok dilli değil, sosyal kanıt/referans eksik, güncel içerik yok). " +
-      "Bu, ürün önerisinden bağımsız bir teşhistir — sonra bu teşhise dayanarak ürün öner. " +
-      "Sana verilirse, gerçek bir arama motoru/yapay zeka görünürlüğü kontrolünün sonucunu da somut bir kanıt olarak " +
-      "kullan — örn. site aranan bir ifadede çıkmıyorsa veya AI'da markadan bahsedilmiyorsa, bu görünürlük/SEO " +
-      "odaklı bir ürünü gerekçelendirmek için güçlü bir sinyaldir; ama verilmeyen hiçbir görünürlük bilgisini uydurma. " +
-      "Ayrıca müşterinin sektörünü site içeriğinden çıkar ve satış temsilcisinin aramada sorması gereken, " +
-      "en belirsiz/eksik noktayı netleştirecek TEK bir soru öner — özellikle net bir ürün eşleşmesi yoksa bu soru kritik.",
+    system: params.customSystemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT,
     messages: [
       {
         role: "user",
