@@ -143,46 +143,69 @@ export function SourcesForm() {
   if (step.kind === "sitemap") {
     const allSelected = step.selected.size === step.pages.length;
     return (
-      <div className="mt-3 rounded-md border border-neutral-200 p-3 dark:border-neutral-800">
-        <p className="text-sm font-medium">
-          {step.pages.length} sayfa bulundu — bilgi tabanına eklenecek sayfaları seçin.
-        </p>
-        <div className="mt-2 flex items-center justify-between text-xs">
-          <button
-            type="button"
-            onClick={() =>
-              setStep((prev) =>
-                prev.kind === "sitemap"
-                  ? { ...prev, selected: allSelected ? new Set() : new Set(prev.pages.map((p) => p.url)) }
-                  : prev
-              )
-            }
-            className="text-neutral-500 underline hover:text-neutral-900 dark:hover:text-neutral-200"
-          >
-            {allSelected ? "Seçimi kaldır" : "Tümünü seç"}
-          </button>
-          <span className="text-neutral-500">{step.selected.size} sayfa seçildi</span>
+      <div className="mt-3 max-w-2xl overflow-hidden rounded-lg border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
+          <p className="text-sm font-medium">
+            {step.pages.length} sayfa bulundu — bilgi tabanına eklenecek sayfaları seçin.
+          </p>
+          <div className="mt-2 flex items-center justify-between text-xs">
+            <button
+              type="button"
+              onClick={() =>
+                setStep((prev) =>
+                  prev.kind === "sitemap"
+                    ? { ...prev, selected: allSelected ? new Set() : new Set(prev.pages.map((p) => p.url)) }
+                    : prev
+                )
+              }
+              className="font-medium text-neutral-500 underline hover:text-neutral-900 dark:hover:text-neutral-200"
+            >
+              {allSelected ? "Seçimi kaldır" : "Tümünü seç"}
+            </button>
+            <span className="rounded-full bg-neutral-100 px-2.5 py-1 font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+              {step.selected.size} / {step.pages.length} sayfa seçildi
+            </span>
+          </div>
         </div>
-        <ul className="mt-2 max-h-72 space-y-1 overflow-y-auto rounded-md border border-neutral-200 p-2 text-xs dark:border-neutral-800">
-          {step.pages.map((page) => (
-            <li key={page.url} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={step.selected.has(page.url)}
-                onChange={() => toggleSelected(page.url)}
-              />
-              <span className="truncate" title={page.url}>
-                {page.title ? `${page.title} — ${page.url}` : page.url}
-              </span>
-            </li>
-          ))}
+
+        <ul className="max-h-80 divide-y divide-neutral-100 overflow-y-auto dark:divide-neutral-800">
+          {step.pages.map((page) => {
+            const checked = step.selected.has(page.url);
+            return (
+              <li key={page.url}>
+                <label
+                  className={`flex cursor-pointer items-center gap-3 px-4 py-3 text-sm transition hover:bg-neutral-50 dark:hover:bg-neutral-800/60 ${
+                    checked ? "bg-neutral-50 dark:bg-neutral-800/40" : ""
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleSelected(page.url)}
+                    className="h-[18px] w-[18px] shrink-0 cursor-pointer accent-neutral-900 dark:accent-white"
+                  />
+                  <span className="min-w-0 flex-1 truncate" title={page.url}>
+                    {page.title ? (
+                      <>
+                        <span className="font-medium">{page.title}</span>{" "}
+                        <span className="text-neutral-400">— {page.url}</span>
+                      </>
+                    ) : (
+                      page.url
+                    )}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
         </ul>
-        <div className="mt-3 flex gap-2">
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-neutral-200 px-4 py-3 dark:border-neutral-800">
           <button
             type="button"
             disabled={submitting || step.selected.size === 0}
             onClick={() => handleConfirm(Array.from(step.selected))}
-            className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+            className="rounded-md bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
           >
             {submitting ? (progress ?? "Taranıyor...") : `Seçilenleri Tara ve Ekle (${step.selected.size})`}
           </button>
@@ -190,12 +213,12 @@ export function SourcesForm() {
             type="button"
             disabled={submitting}
             onClick={reset}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+            className="rounded-md border border-neutral-300 px-4 py-2.5 text-sm font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
           >
             Vazgeç
           </button>
+          {error && <p className="w-full text-xs text-red-600 dark:text-red-400">{error}</p>}
         </div>
-        {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
       </div>
     );
   }
