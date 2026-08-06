@@ -92,48 +92,52 @@ export function SettingsForm({
           Bağlı Gmail hesabınızda bu başlıklardan HERHANGİ biriyle gelen mailler lead olarak yakalanacak.
         </p>
 
-        {leadEmailSubjects.length > 0 && (
-          <ul className="mt-2 flex max-w-sm flex-wrap gap-2">
-            {leadEmailSubjects.map((subject) => (
-              <li
-                key={subject}
-                className="flex items-center gap-1.5 rounded-full border border-neutral-300 bg-neutral-100 py-1 pr-1.5 pl-3 text-xs dark:border-neutral-700 dark:bg-neutral-800"
-              >
-                {subject}
-                <button
-                  type="button"
-                  onClick={() => removeSubject(subject)}
-                  aria-label={`"${subject}" başlığını kaldır`}
-                  className="flex h-4 w-4 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-300 hover:text-neutral-900 dark:hover:bg-neutral-600 dark:hover:text-white"
+        <div className="mt-2 max-w-md rounded-lg border border-neutral-300 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+          {leadEmailSubjects.length > 0 ? (
+            <ul className="mb-3 flex flex-wrap gap-2">
+              {leadEmailSubjects.map((subject) => (
+                <li
+                  key={subject}
+                  className="flex items-center gap-2 rounded-md border border-neutral-200 bg-neutral-100 py-1.5 pr-2 pl-3 text-sm dark:border-neutral-700 dark:bg-neutral-800"
                 >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+                  {subject}
+                  <button
+                    type="button"
+                    onClick={() => removeSubject(subject)}
+                    aria-label={`"${subject}" başlığını kaldır`}
+                    className="flex h-5 w-5 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-300 hover:text-neutral-900 dark:hover:bg-neutral-600 dark:hover:text-white"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mb-3 text-xs text-neutral-400">Henüz başlık eklenmedi.</p>
+          )}
 
-        <div className="mt-2 flex max-w-sm gap-2">
-          <input
-            value={newSubject}
-            onChange={(e) => setNewSubject(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addSubject();
-              }
-            }}
-            placeholder="Yeni başlık ekle…"
-            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          />
-          <button
-            type="button"
-            onClick={addSubject}
-            disabled={!newSubject.trim()}
-            className="shrink-0 rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
-          >
-            + Ekle
-          </button>
+          <div className="flex gap-2">
+            <input
+              value={newSubject}
+              onChange={(e) => setNewSubject(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addSubject();
+                }
+              }}
+              placeholder="Yeni başlık ekle ve Enter'a basın…"
+              className="w-full rounded-md border border-neutral-300 px-3 py-2.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+            />
+            <button
+              type="button"
+              onClick={addSubject}
+              disabled={!newSubject.trim()}
+              className="shrink-0 rounded-md bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40 dark:bg-white dark:text-neutral-900"
+            >
+              + Ekle
+            </button>
+          </div>
         </div>
       </div>
 
