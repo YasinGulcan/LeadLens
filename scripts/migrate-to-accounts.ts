@@ -47,7 +47,7 @@ async function main() {
     .insert({
       business_name: businessName,
       slug,
-      lead_email_subject: "Yeni Lead Formu",
+      lead_email_subjects: ["Yeni Lead Formu"],
       status: "connected",
       onboarded_at: new Date().toISOString(), // gerçek işletme adı zaten biliniyor, onboarding adımı atlanır
     })

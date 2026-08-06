@@ -12,7 +12,7 @@ export default async function DashboardGmailPage() {
 
   const [{ data: connection }, { data: account }, isOwner] = await Promise.all([
     supabase.from("gmail_connections").select("connected_email, connected_at").eq("account_id", accountId).maybeSingle(),
-    supabase.from("accounts").select("lead_email_subject").eq("id", accountId).single(),
+    supabase.from("accounts").select("lead_email_subjects").eq("id", accountId).single(),
     isAccountOwner(accountId, session.email),
   ]);
 
@@ -41,7 +41,14 @@ export default async function DashboardGmailPage() {
 
       {account && (
         <p className="mt-6 text-xs text-neutral-500">
-          Lead e-postası başlığı: <code>{account.lead_email_subject}</code> — değiştirmek için{" "}
+          Lead e-postası başlıkları:{" "}
+          {(account.lead_email_subjects as string[]).map((subject, i) => (
+            <span key={subject}>
+              {i > 0 && " veya "}
+              <code>{subject}</code>
+            </span>
+          ))}{" "}
+          — değiştirmek için{" "}
           <a href="/dashboard/settings" className="text-blue-600 hover:underline dark:text-blue-400">
             Ayarlar
           </a>

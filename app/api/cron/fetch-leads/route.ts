@@ -4,7 +4,7 @@ import { loadGmailAccount } from "@/lib/accounts";
 import { isAuthorizedCronRequest, unauthorizedCronResponse } from "@/lib/cron-auth";
 
 /**
- * Gün 5-7: Gmail'de hesabın yapılandırdığı başlıkla (`lead_email_subject`),
+ * Gün 5-7: Gmail'de hesabın yapılandırdığı başlıklardan biriyle (`lead_email_subjects`),
  * henüz işlenmemiş mailleri bulur, ayrıştırır, doğrular ve Supabase'e yazar.
  * website_url eksikse status='error' ile kaydedilip mail yine de işlenmiş
  * sayılır (tekrar denenmez).

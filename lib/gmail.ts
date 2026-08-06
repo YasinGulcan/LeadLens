@@ -7,7 +7,8 @@ const PROCESSED_LABEL = "LeadLens-Islendi";
 /** Bir hesabı Gmail işlemleri için tanımlamaya yeten minimum bilgi. */
 export interface GmailAccount {
   id: string;
-  leadEmailSubject: string;
+  /** Birden fazla olabilir — herhangi biriyle gelen mail lead olarak yakalanır (bkz. fetchUnprocessedLeadEmails). */
+  leadEmailSubjects: string[];
   encryptedRefreshToken: string;
   /** Form kopyası + rapor buraya gider; boşsa bağlı hesabın kendi adresi kullanılır. */
   notificationEmail: string | null;
@@ -170,7 +171,10 @@ async function sendMultipartEmailTo(account: GmailAccount, to: string, subject: 
  * sadece görünüm için, aynı posta kutusunda daha okunaklı görünsün diye.
  */
 export async function sendFormSubmissionEmail(account: GmailAccount, submission: FormSubmission): Promise<void> {
-  const subject = `${account.leadEmailSubject} — ${submission.name || "İsimsiz"}`;
+  // Birden çok başlık varsa yazarken hep ilki (kanonik/birincil) kullanılır —
+  // aşağıdaki fetchUnprocessedLeadEmails zaten tüm başlıkları eşleştirdiği
+  // için bu mail de her durumda yakalanır.
+  const subject = `${account.leadEmailSubjects[0]} — ${submission.name || "İsimsiz"}`;
   const text = [
     `İsim: ${submission.name}`,
     `Telefon: ${submission.phone}`,
@@ -438,16 +442,17 @@ async function getOrCreateProcessedLabelId(gmail: gmail_v1.Gmail): Promise<strin
 }
 
 /**
- * Konusu hesabın yapılandırdığı `leadEmailSubject` ile başlayan, henüz
- * işlenmemiş (LeadLens-Islendi etiketi olmayan) mailleri getirir ve sabit
- * şablona göre ayrıştırır.
+ * Konusu hesabın yapılandırdığı `leadEmailSubjects`'ten HERHANGİ biriyle
+ * eşleşen, henüz işlenmemiş (LeadLens-Islendi etiketi olmayan) mailleri
+ * getirir ve sabit şablona göre ayrıştırır.
  */
 export async function fetchUnprocessedLeadEmails(account: GmailAccount): Promise<ParsedLeadEmail[]> {
   const gmail = getClientForAccount(account);
 
+  const subjectClause = account.leadEmailSubjects.map((subject) => `subject:"${subject}"`).join(" OR ");
   const { data } = await gmail.users.messages.list({
     userId: "me",
-    q: `subject:"${account.leadEmailSubject}" -label:${PROCESSED_LABEL}`,
+    q: `(${subjectClause}) -label:${PROCESSED_LABEL}`,
     maxResults: 20,
   });
 

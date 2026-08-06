@@ -13,7 +13,15 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const businessName = typeof body?.businessName === "string" ? body.businessName.trim() : "";
   const slug = typeof body?.slug === "string" ? body.slug.trim().toLowerCase() : "";
-  const leadEmailSubject = typeof body?.leadEmailSubject === "string" ? body.leadEmailSubject.trim() : "";
+  const leadEmailSubjects = Array.isArray(body?.leadEmailSubjects)
+    ? Array.from(
+        new Set(
+          body.leadEmailSubjects
+            .filter((s: unknown): s is string => typeof s === "string" && s.trim().length > 0)
+            .map((s: string) => s.trim())
+        )
+      )
+    : [];
   const notificationEmailRaw = typeof body?.notificationEmail === "string" ? body.notificationEmail.trim() : "";
 
   if (!businessName) return NextResponse.json({ error: "İşletme adı zorunlu." }, { status: 400 });
@@ -23,7 +31,9 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  if (!leadEmailSubject) return NextResponse.json({ error: "Lead e-postası başlığı zorunlu." }, { status: 400 });
+  if (leadEmailSubjects.length === 0) {
+    return NextResponse.json({ error: "En az bir lead e-postası başlığı girilmeli." }, { status: 400 });
+  }
   if (notificationEmailRaw && !EMAIL_PATTERN.test(notificationEmailRaw)) {
     return NextResponse.json({ error: "Bildirim e-postası geçerli bir adres olmalı." }, { status: 400 });
   }
@@ -33,7 +43,7 @@ export async function POST(req: NextRequest) {
     .update({
       business_name: businessName,
       slug,
-      lead_email_subject: leadEmailSubject,
+      lead_email_subjects: leadEmailSubjects,
       notification_email: notificationEmailRaw || null,
     })
     .eq("id", accountId);

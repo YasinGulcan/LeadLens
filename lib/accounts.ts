@@ -5,18 +5,18 @@ export interface Account {
   id: string;
   businessName: string;
   slug: string;
-  leadEmailSubject: string;
+  leadEmailSubjects: string[];
   status: string;
   notificationEmail: string | null;
 }
 
-const ACCOUNT_COLUMNS = "id, business_name, slug, lead_email_subject, status, notification_email";
+const ACCOUNT_COLUMNS = "id, business_name, slug, lead_email_subjects, status, notification_email";
 
 function toAccount(row: {
   id: string;
   business_name: string;
   slug: string;
-  lead_email_subject: string;
+  lead_email_subjects: string[];
   status: string;
   notification_email: string | null;
 }): Account {
@@ -24,7 +24,7 @@ function toAccount(row: {
     id: row.id,
     businessName: row.business_name,
     slug: row.slug,
-    leadEmailSubject: row.lead_email_subject,
+    leadEmailSubjects: row.lead_email_subjects,
     status: row.status,
     notificationEmail: row.notification_email,
   };
@@ -52,7 +52,7 @@ export async function listAccounts(): Promise<Account[]> {
 export async function loadGmailAccount(accountId: string): Promise<GmailAccount | null> {
   const { data: acc, error: accError } = await supabase
     .from("accounts")
-    .select("id, lead_email_subject, notification_email")
+    .select("id, lead_email_subjects, notification_email")
     .eq("id", accountId)
     .single();
   if (accError || !acc) return null;
@@ -66,7 +66,7 @@ export async function loadGmailAccount(accountId: string): Promise<GmailAccount 
 
   return {
     id: acc.id,
-    leadEmailSubject: acc.lead_email_subject,
+    leadEmailSubjects: acc.lead_email_subjects,
     encryptedRefreshToken: connection.encrypted_refresh_token,
     notificationEmail: acc.notification_email,
     teamEmails: await listTeamMemberEmails(accountId),

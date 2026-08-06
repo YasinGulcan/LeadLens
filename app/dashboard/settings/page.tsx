@@ -11,7 +11,7 @@ export default async function DashboardSettingsPage() {
 
   const { data: account } = await supabase
     .from("accounts")
-    .select("business_name, slug, lead_email_subject, notification_email")
+    .select("business_name, slug, lead_email_subjects, notification_email")
     .eq("id", accountId)
     .single();
 
@@ -23,7 +23,7 @@ export default async function DashboardSettingsPage() {
       <SettingsForm
         initialBusinessName={account.business_name}
         initialSlug={account.slug}
-        initialLeadEmailSubject={account.lead_email_subject}
+        initialLeadEmailSubjects={account.lead_email_subjects}
         initialNotificationEmail={account.notification_email}
       />
     </section>
