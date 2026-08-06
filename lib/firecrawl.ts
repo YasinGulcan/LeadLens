@@ -28,6 +28,24 @@ export async function scrapeMarkdown(url: string): Promise<string> {
   return doc.markdown;
 }
 
+export interface SitemapPage {
+  url: string;
+  title?: string;
+}
+
+/**
+ * Sitenin sitemap.xml'inden sayfa listesini döner (`sitemap: "only"` — link
+ * keşfi/crawl yapmaz, yalnızca sitemap'te ilan edilmiş URL'leri okur).
+ * Sitemap yoksa/boşsa boş dizi döner — çağıran taraf bunu "sitemap yok"
+ * sinyali olarak yorumlayıp tek sayfa taramasına düşer.
+ */
+export async function discoverSitemapPages(url: string): Promise<SitemapPage[]> {
+  const result = await getClient().map(url, { sitemap: "only", limit: 200 });
+  return (result.links ?? [])
+    .filter((l): l is { url: string; title?: string } => "url" in l && typeof l.url === "string")
+    .map((l) => ({ url: l.url, title: l.title }));
+}
+
 export interface WebSearchResult {
   url: string;
   title?: string;

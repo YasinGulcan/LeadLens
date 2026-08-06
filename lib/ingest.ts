@@ -68,23 +68,28 @@ function toProductSource(row: {
   };
 }
 
+interface ChunkItem {
+  content: string;
+  /** Bu chunk'ın geldiği gerçek sayfa/dosya — bir source birden çok sayfayı (sitemap seçimi) kapsayabildiği için artık `source.url`'den bağımsız, chunk bazlı tutuluyor. */
+  sourceUrl: string;
+}
+
 /** Embed edip eski chunk'ları silip yenilerini yazan ortak adım — hem URL hem dosya kaynakları için. */
-async function writeChunks(accountId: string, source: ProductSource, chunks: string[]): Promise<number> {
-  if (chunks.length === 0) {
+async function writeChunks(accountId: string, source: ProductSource, items: ChunkItem[]): Promise<number> {
+  if (items.length === 0) {
     throw new Error("İçerikten hiç kullanılabilir parça çıkmadı.");
   }
 
-  const embeddings = await embedTexts(chunks);
+  const embeddings = await embedTexts(items.map((i) => i.content));
 
   const { error: deleteError } = await supabase.from("product_chunks").delete().eq("source_id", source.id);
   if (deleteError) throw new Error(`Eski chunk'lar silinemedi: ${deleteError.message}`);
 
-  const sourceUrl = source.url ?? `file:${source.fileName ?? source.id}`;
-  const rows = chunks.map((content, i) => ({
+  const rows = items.map((item, i) => ({
     account_id: accountId,
     source_id: source.id,
-    source_url: sourceUrl,
-    content,
+    source_url: item.sourceUrl,
+    content: item.content,
     embedding: embeddings[i],
   }));
 
@@ -94,17 +99,43 @@ async function writeChunks(accountId: string, source: ProductSource, chunks: str
   return rows.length;
 }
 
-async function ingestSource(accountId: string, source: ProductSource): Promise<number> {
-  if (!source.url) throw new Error("Kaynağın URL'i yok.");
-  const markdown = await scrapeMarkdown(source.url);
-  const chunks = chunkMarkdown(stripBoilerplate(markdown));
-  return writeChunks(accountId, source, chunks);
+async function scrapeAndChunk(url: string): Promise<string[]> {
+  const markdown = await scrapeMarkdown(url);
+  return chunkMarkdown(stripBoilerplate(markdown));
+}
+
+export interface UrlPreview {
+  chunkCount: number;
+  preview: string;
+}
+
+/** Sitemap bulunamayan tek sayfalık akışta, kullanıcı onaylamadan önce içeriği göstermek için tarar (henüz kaydetmez/vektörlemez). */
+export async function previewSinglePage(url: string): Promise<UrlPreview> {
+  const chunks = await scrapeAndChunk(url);
+  return { chunkCount: chunks.length, preview: chunks[0]?.slice(0, 280) ?? "" };
+}
+
+/** Kullanıcının sitemap listesinden seçtiği (ya da tek sayfalık onaydan gelen) URL'ler taranır; hepsi tek bir `source` altında toplanır, her chunk kendi sayfasının URL'ini taşır. */
+async function ingestSelectedPages(accountId: string, source: ProductSource, urls: string[]): Promise<number> {
+  if (urls.length === 0) throw new Error("Taranacak sayfa seçilmedi.");
+
+  const items: ChunkItem[] = [];
+  for (const pageUrl of urls) {
+    const chunks = await scrapeAndChunk(pageUrl);
+    for (const content of chunks) items.push({ content, sourceUrl: pageUrl });
+  }
+  return writeChunks(accountId, source, items);
 }
 
 async function ingestFileSource(accountId: string, source: ProductSource, buffer: Buffer): Promise<number> {
   const { extractChunksFromFile } = await import("./file-ingest");
   const chunks = await extractChunksFromFile(source.fileName ?? "dosya", buffer);
-  return writeChunks(accountId, source, chunks);
+  const sourceUrl = `file:${source.fileName ?? source.id}`;
+  return writeChunks(
+    accountId,
+    source,
+    chunks.map((content) => ({ content, sourceUrl }))
+  );
 }
 
 export type IngestResult = { source: ProductSource } & (
@@ -130,11 +161,6 @@ async function recordIngestResult(source: ProductSource, run: () => Promise<numb
   }
 }
 
-/** `ingestSource`'u (URL tarama) çalıştırıp sonucu (başarı/hata) `product_sources`'a da yazar. */
-export async function ingestSourceAndRecordStatus(accountId: string, source: ProductSource): Promise<IngestResult> {
-  return recordIngestResult(source, () => ingestSource(accountId, source));
-}
-
 /** `ingestFileSource`'u (yüklenen dosya) çalıştırıp sonucu (başarı/hata) `product_sources`'a da yazar. */
 export async function ingestFileSourceAndRecordStatus(
   accountId: string,
@@ -142,6 +168,39 @@ export async function ingestFileSourceAndRecordStatus(
   buffer: Buffer
 ): Promise<IngestResult> {
   return recordIngestResult(source, () => ingestFileSource(accountId, source, buffer));
+}
+
+/** Sitemap'ten seçilen (ya da tek sayfalık onaydan gelen) sayfa listesini tarayıp sonucu `product_sources`'a yazar. */
+export async function ingestSelectedPagesAndRecordStatus(
+  accountId: string,
+  source: ProductSource,
+  urls: string[]
+): Promise<IngestResult> {
+  return recordIngestResult(source, () => ingestSelectedPages(accountId, source, urls));
+}
+
+/**
+ * Bir kaynağın daha önce hangi sayfalarla dolduğunu, o kaynağın mevcut
+ * chunk'larındaki `source_url` değerlerinden (distinct) çıkarır. Sitemap'ten
+ * çoklu sayfa seçilmiş bir kaynak "Yeniden Tara"ndığında aynı sayfa listesiyle
+ * tekrar taransın diye — ayrıca bu listeyi tutan ayrı bir sütun/migration
+ * gerekmiyor. Hiç chunk yoksa (ör. ilk tarama başarısız olmuş) kaynağın kendi
+ * `url`'ine geri düşer.
+ */
+async function resolveSourcePageUrls(source: ProductSource): Promise<string[]> {
+  const { data } = await supabase.from("product_chunks").select("source_url").eq("source_id", source.id);
+  const urls = Array.from(new Set((data ?? []).map((r) => r.source_url).filter((u): u is string => !!u)));
+  if (urls.length > 0) return urls;
+  return source.url ? [source.url] : [];
+}
+
+/** "Yeniden Tara" — kaynağın (tek ya da sitemap'ten seçilmiş çoklu) sayfa listesini aynen tekrar tarar. */
+export async function rescrapeSource(accountId: string, source: ProductSource): Promise<IngestResult> {
+  const urls = await resolveSourcePageUrls(source);
+  if (urls.length === 0) {
+    return { source, ok: false, error: "Kaynağın taranacak bir URL'i yok." };
+  }
+  return ingestSelectedPagesAndRecordStatus(accountId, source, urls);
 }
 
 /** Bir hesabın tüm aktif URL kaynaklarını tarar (dosya kaynakları "yeniden taranamaz", atlanır). */
@@ -157,7 +216,7 @@ export async function ingestActiveSourcesForAccount(accountId: string): Promise<
 
   const results: IngestResult[] = [];
   for (const row of sources ?? []) {
-    results.push(await ingestSourceAndRecordStatus(accountId, toProductSource(row)));
+    results.push(await rescrapeSource(accountId, toProductSource(row)));
   }
   return results;
 }

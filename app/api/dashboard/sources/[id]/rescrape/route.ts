@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
-import { ingestSourceAndRecordStatus } from "@/lib/ingest";
+import { rescrapeSource } from "@/lib/ingest";
 import { logActivity } from "@/lib/activity-log";
 
 /**
@@ -27,7 +27,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Sadece URL kaynakları yeniden taranabilir." }, { status: 400 });
   }
 
-  const result = await ingestSourceAndRecordStatus(session.accountId, {
+  const result = await rescrapeSource(session.accountId, {
     id: source.id,
     url: source.url,
     label: source.label,
