@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionAccountId } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
 import { DEFAULT_SYSTEM_PROMPT } from "@/lib/claude";
-import { listPromptHistory } from "@/lib/prompt-history";
+import { listSavedPrompts } from "@/lib/prompt-library";
 import { PromptForm } from "../PromptForm";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +11,9 @@ export default async function DashboardPromptPage() {
   const accountId = await getSessionAccountId();
   if (!accountId) redirect("/");
 
-  const [{ data: account }, history] = await Promise.all([
+  const [{ data: account }, savedPrompts] = await Promise.all([
     supabase.from("accounts").select("custom_system_prompt").eq("id", accountId).single(),
-    listPromptHistory(accountId),
+    listSavedPrompts(accountId),
   ]);
 
   if (!account) redirect("/");
@@ -21,7 +21,11 @@ export default async function DashboardPromptPage() {
   return (
     <section>
       <h2 className="text-lg font-semibold">Sistem Promptu</h2>
-      <PromptForm initialCustomPrompt={account.custom_system_prompt} defaultPrompt={DEFAULT_SYSTEM_PROMPT} history={history} />
+      <PromptForm
+        initialCustomPrompt={account.custom_system_prompt}
+        defaultPrompt={DEFAULT_SYSTEM_PROMPT}
+        savedPrompts={savedPrompts}
+      />
     </section>
   );
 }
