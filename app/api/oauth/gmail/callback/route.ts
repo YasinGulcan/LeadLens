@@ -100,6 +100,7 @@ export async function GET(req: NextRequest) {
       encrypted_refresh_token: encryptedRefreshToken,
       scopes: tokens.scope ?? null,
       connected_at: new Date().toISOString(),
+      disconnected_at: null,
     });
     if (upsertError) {
       const message =
@@ -124,7 +125,12 @@ export async function GET(req: NextRequest) {
       accountId = existingConnection.account_id;
       const { error: updateError } = await supabase
         .from("gmail_connections")
-        .update({ encrypted_refresh_token: encryptedRefreshToken, scopes: tokens.scope ?? null, connected_at: new Date().toISOString() })
+        .update({
+          encrypted_refresh_token: encryptedRefreshToken,
+          scopes: tokens.scope ?? null,
+          connected_at: new Date().toISOString(),
+          disconnected_at: null,
+        })
         .eq("account_id", accountId);
       if (updateError) return errorRedirect(req, updateError.message);
 

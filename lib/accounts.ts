@@ -1,5 +1,8 @@
 import { supabase } from "./supabase";
 import type { GmailAccount } from "./gmail";
+import { generateInboundToken } from "./inbound-email";
+
+export type PrimaryLeadSource = "gmail" | "forwarding";
 
 export interface Account {
   id: string;
@@ -10,10 +13,12 @@ export interface Account {
   notificationEmail: string | null;
   /** Panelde düzenlenebilen, lead analiz asistanının sistem promptu — boş/null ise lib/claude.ts'teki varsayılan kullanılır. */
   customSystemPrompt: string | null;
+  inboundEmailToken: string | null;
+  primaryLeadSource: PrimaryLeadSource;
 }
 
 const ACCOUNT_COLUMNS =
-  "id, business_name, slug, lead_email_subjects, status, notification_email, custom_system_prompt";
+  "id, business_name, slug, lead_email_subjects, status, notification_email, custom_system_prompt, inbound_email_token, primary_lead_source";
 
 function toAccount(row: {
   id: string;
@@ -23,6 +28,8 @@ function toAccount(row: {
   status: string;
   notification_email: string | null;
   custom_system_prompt: string | null;
+  inbound_email_token: string | null;
+  primary_lead_source: string;
 }): Account {
   return {
     id: row.id,
@@ -32,7 +39,25 @@ function toAccount(row: {
     status: row.status,
     notificationEmail: row.notification_email,
     customSystemPrompt: row.custom_system_prompt,
+    inboundEmailToken: row.inbound_email_token,
+    primaryLeadSource: row.primary_lead_source === "forwarding" ? "forwarding" : "gmail",
   };
+}
+
+/** Hesabın yönlendirme adresi token'ı yoksa üretip kaydeder, varsa olduğu gibi döner — adres UI'da her zaman gösterilebilsin diye. */
+export async function getOrCreateInboundToken(accountId: string): Promise<string> {
+  const { data } = await supabase.from("accounts").select("inbound_email_token").eq("id", accountId).single();
+  if (data?.inbound_email_token) return data.inbound_email_token;
+
+  const token = generateInboundToken();
+  const { error } = await supabase.from("accounts").update({ inbound_email_token: token }).eq("id", accountId);
+  if (error) throw new Error(`Yönlendirme token'ı kaydedilemedi: ${error.message}`);
+  return token;
+}
+
+export async function setPrimaryLeadSource(accountId: string, source: PrimaryLeadSource): Promise<void> {
+  const { error } = await supabase.from("accounts").update({ primary_lead_source: source }).eq("id", accountId);
+  if (error) throw new Error(error.message);
 }
 
 export async function getAccountBySlug(slug: string): Promise<Account | null> {
@@ -53,7 +78,7 @@ export async function listAccounts(): Promise<Account[]> {
   return (data ?? []).map(toAccount);
 }
 
-/** Bir hesabın Gmail bağlantısını (varsa) çözer, `lib/gmail.ts` fonksiyonlarının beklediği şekle çevirir. */
+/** Bir hesabın Gmail bağlantısını (varsa VE erişimi kaldırılmamışsa) çözer, `lib/gmail.ts` fonksiyonlarının beklediği şekle çevirir. */
 export async function loadGmailAccount(accountId: string): Promise<GmailAccount | null> {
   const { data: acc, error: accError } = await supabase
     .from("accounts")
@@ -62,10 +87,13 @@ export async function loadGmailAccount(accountId: string): Promise<GmailAccount 
     .single();
   if (accError || !acc) return null;
 
+  // `disconnected_at` dolu satırlar kimlik/giriş için hâlâ geçerli (bkz.
+  // isAccountOwner) ama pipeline (okuma/gönderme) için "bağlantı yok" sayılır.
   const { data: connection, error: connError } = await supabase
     .from("gmail_connections")
     .select("encrypted_refresh_token")
     .eq("account_id", accountId)
+    .is("disconnected_at", null)
     .single();
   if (connError || !connection) return null;
 
@@ -99,6 +127,20 @@ export async function getAccountOwnerEmail(accountId: string): Promise<string | 
 export async function isAccountOwner(accountId: string, email: string): Promise<boolean> {
   const ownerEmail = await getAccountOwnerEmail(accountId);
   return ownerEmail !== null && ownerEmail === email;
+}
+
+/**
+ * Gmail erişimini "kaldırır" — satır silinmiyor (bkz. migration 0029): bağlı
+ * e-posta, hesabın giriş kimliği olarak kalmaya devam ediyor, sadece pipeline
+ * artık bu hesabı okumuyor/bu hesaptan göndermiyor. "Yeniden Bağla" (OAuth)
+ * bunu otomatik temizler.
+ */
+export async function disconnectGmail(accountId: string): Promise<void> {
+  const { error } = await supabase
+    .from("gmail_connections")
+    .update({ disconnected_at: new Date().toISOString() })
+    .eq("account_id", accountId);
+  if (error) throw new Error(error.message);
 }
 
 /**
