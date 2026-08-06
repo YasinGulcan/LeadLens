@@ -30,11 +30,48 @@ const FEATURES = [
   { title: "KVKK'ya Duyarlı", body: "Form sayfanızda hazır bir aydınlatma metni ve açık rıza kutusu ile başlarsınız." },
 ];
 
+/** Google'ın resmi çok renkli "G" amblemi — "___ ile devam et" düğmelerinde marka tanınırlığı için standart kullanım. */
+function GoogleLogo() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" className="shrink-0">
+      <path
+        fill="#4285F4"
+        d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"
+      />
+      <path
+        fill="#EA4335"
+        d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"
+      />
+    </svg>
+  );
+}
+
+/** Google'ın kendi marka kurallarına uygun, tanıdık "___ ile devam et" düğme stili — beyaz zemin, ince kenarlık, çok renkli "G". */
+function GoogleButton({ className = "" }: { className?: string }) {
+  return (
+    <a
+      href="/api/oauth/gmail/start"
+      className={`inline-flex items-center justify-center gap-3 rounded-md border border-neutral-300 bg-white px-5 py-3 text-sm font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50 hover:shadow-md dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 ${className}`}
+    >
+      <GoogleLogo />
+      Google ile Bağlan
+    </a>
+  );
+}
+
 /**
  * "Giriş Yap" ve "Kayıt Ol" ayrı görünse de ikisi de aynı tek akışa (Google
  * OAuth) çıkıyor — sistemde ayrı bir şifre/kayıt formu yok. Tıklayınca küçük
- * bir panelde gerçek CTA'yı ("Google ile Bağlan") gösteriyor. Native
- * <details>/<summary> kullanıldığı için client component gerekmiyor.
+ * bir panelde gerçek CTA'yı gösteriyor. Native <details>/<summary>
+ * kullanıldığı için client component gerekmiyor.
  */
 function AuthMenuButton({ label, className }: { label: string; className: string }) {
   return (
@@ -44,13 +81,10 @@ function AuthMenuButton({ label, className }: { label: string; className: string
       >
         {label}
       </summary>
-      <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border border-neutral-200 bg-white p-3 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
-        <a
-          href="/api/oauth/gmail/start"
-          className="flex items-center justify-center gap-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-        >
-          Google ile Bağlan
-        </a>
+      <div className="absolute right-0 z-10 mt-3 w-72 rounded-xl border border-neutral-200 bg-white p-4 shadow-xl dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="absolute -top-1.5 right-6 h-3 w-3 rotate-45 border-t border-l border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900" />
+        <p className="relative mb-3 text-xs text-neutral-500">Devam etmek için Google hesabınızla bağlanın</p>
+        <GoogleButton className="relative w-full" />
       </div>
     </details>
   );
@@ -108,12 +142,7 @@ export default async function HomePage({
           </p>
         )}
 
-        <a
-          href="/api/oauth/gmail/start"
-          className="mt-8 inline-flex items-center gap-2 rounded-md bg-neutral-900 px-5 py-3 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-        >
-          Google ile Bağlan
-        </a>
+        <GoogleButton className="mt-8" />
         <p className="mt-3 text-xs text-neutral-400">Ücretsiz başlayın — kredi kartı gerekmez.</p>
       </section>
 
@@ -158,12 +187,7 @@ export default async function HomePage({
             Google hesabınızla saniyeler içinde giriş yapın ya da yeni bir hesap oluşturun. Ayrı bir kullanıcı
             adı/şifre yok.
           </p>
-          <a
-            href="/api/oauth/gmail/start"
-            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-md bg-neutral-900 px-5 py-3 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-          >
-            Google ile Bağlan
-          </a>
+          <GoogleButton className="mt-6 w-full" />
           <p className="mt-3 text-xs text-neutral-400">
             Gmail hesabınızı bağlayarak hesabınızı oluşturur ya da mevcut hesabınıza giriş yaparsınız.
           </p>
