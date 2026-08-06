@@ -117,25 +117,38 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Firecrawl'ın 429 gövdesi "...please retry after 39s, resets at ..." biçiminde saniye veriyor — varsa onu, yoksa sabit bir bekleme kullanılır. */
+/** Bu hesabın Firecrawl planı çok düşük bir dakikalık limite sahip (gerçek kullanımda ~11 istek/dk'da tükendiği görüldü) — buna göre temkinli ayarlandı. */
+const MAX_RATE_LIMIT_WAIT_MS = 8000;
+
+/**
+ * Firecrawl'ın 429 gövdesi "...please retry after 39s, resets at ..."
+ * biçiminde saniye veriyor. Bu süre isteğin içinde beklenirse (limit dolmuşsa
+ * dakika sonuna kadar onlarca saniye olabiliyor) tek bir sayfa yüzünden tüm
+ * partinin `maxDuration=60` sınırını aşıp çökmesine yol açar. Bu yüzden
+ * yalnızca KISA beklemeler için retry yapılır; uzun bir bekleme gerekiyorsa
+ * hiç beklemeden vazgeçilir — o sayfa bu partide "başarısız" sayılır, bir
+ * sonraki parti (ayrı bir istek, aradan doğal olarak zaman geçmiş olur) yeni
+ * bir dakikalık bütçeyle devam eder.
+ */
 function rateLimitWaitMs(err: unknown): number | null {
   const status = (err as { status?: number } | null | undefined)?.status;
   const message = err instanceof Error ? err.message : String(err);
   if (status !== 429 && !/rate limit/i.test(message)) return null;
   const match = message.match(/retry after (\d+)s/i);
-  return match ? (Number(match[1]) + 1) * 1000 : 15000;
+  const waitMs = match ? (Number(match[1]) + 1) * 1000 : MAX_RATE_LIMIT_WAIT_MS;
+  return waitMs <= MAX_RATE_LIMIT_WAIT_MS ? waitMs : null;
 }
 
 /**
  * Sitemap'ten çok sayfa seçildiğinde Firecrawl'ın dakikalık rate limitine art
- * arda takılmamak için taramalar arasına küçük bir bekleme koyar. Değerler
- * (istek başı sabit bekleme + yeniden deneme sayısı) API route'undaki
- * `maxDuration = 60` sınırı içinde kalacak şekilde ayarlı — çok agresif bir
- * bekleme/retry, büyük bir sitemap seçiminde tüm isteğin zaman aşımına
- * uğramasına yol açar.
+ * arda takılmamak için taramalar arasına bir bekleme koyar. Değerler (istek
+ * başı bekleme + yeniden deneme sayısı), hem gözlemlenen düşük rate limite
+ * (~11 istek/dk) hem de API route'undaki `maxDuration = 60` sınırına göre
+ * ayarlı — çok agresif bir bekleme/retry, büyük bir sitemap seçiminde tüm
+ * isteğin zaman aşımına uğramasına yol açar.
  */
-const MULTI_PAGE_SCRAPE_DELAY_MS = 2000;
-const MAX_RATE_LIMIT_RETRIES = 2;
+const MULTI_PAGE_SCRAPE_DELAY_MS = 6000;
+const MAX_RATE_LIMIT_RETRIES = 1;
 
 async function scrapeAndChunk(url: string): Promise<string[]> {
   for (let attempt = 0; ; attempt++) {

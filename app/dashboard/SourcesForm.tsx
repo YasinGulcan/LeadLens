@@ -19,10 +19,12 @@ type Step =
   | { kind: "sitemap"; pages: SitemapPage[]; selected: Set<string> }
   | { kind: "single"; page: SinglePreview };
 
-// Bir istekte 99 sayfa taramak Vercel'in fonksiyon süresi sınırını (maxDuration=60)
+// Bir istekte çok sayfa taramak Vercel'in fonksiyon süresi sınırını (maxDuration=60)
 // aşıp yarım kalmış, JSON olmayan bir hata sayfasıyla çöküyordu. Seçilen sayfaları
-// bu boyutta partilere bölüp sırayla göndermek her isteği güvenle sınırın altında tutuyor.
-const BATCH_SIZE = 10;
+// bu boyutta partilere bölüp sırayla göndermek her isteği güvenle sınırın altında
+// tutuyor — bu hesabın Firecrawl planındaki çok düşük dakikalık limit (bkz.
+// lib/ingest.ts'teki sayfa-arası bekleme) yüzünden parti boyutu küçük tutuluyor.
+const BATCH_SIZE = 6;
 
 function chunkArray<T>(arr: T[], size: number): T[][] {
   const batches: T[][] = [];
