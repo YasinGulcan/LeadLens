@@ -6,7 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import { Sparkles } from "lucide-react";
 import { useConfirm } from "./useConfirm";
-import { Card, Button } from "@/components/ui";
+import { Button } from "@/components/ui";
 
 interface Draft {
   subject: string;
@@ -173,10 +173,10 @@ export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: s
   }
 
   return (
-    <Card className="p-6">
+    <div>
       <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Sparkles size={15} className="text-accent" />
+        <h3 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <Sparkles size={13} className="text-accent" />
           Hazır Yanıt Taslağı
         </h3>
         <Button variant="secondary" size="sm" disabled={generating} onClick={generateDraft}>
@@ -228,9 +228,9 @@ export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: s
         </div>
       )}
 
-      {message && <p className="mt-2 text-xs text-emerald-500 dark:text-emerald-400">{message}</p>}
-      {error && <p className="mt-2 text-xs text-red-500 dark:text-red-400">{error}</p>}
+      {message && <p className="mt-2 text-xs text-muted-foreground">{message}</p>}
+      {error && <p className="mt-2 text-xs text-red-400/80">{error}</p>}
       {dialog}
-    </Card>
+    </div>
   );
 }
