@@ -20,7 +20,7 @@ export default async function DashboardPromptPage() {
 
   return (
     <section>
-      <h2 className="text-lg font-semibold">Sistem Promptu</h2>
+      <h2 className="text-2xl font-bold text-foreground">Sistem Promptu</h2>
       <PromptForm
         initialCustomPrompt={account.custom_system_prompt}
         defaultPrompt={DEFAULT_SYSTEM_PROMPT}

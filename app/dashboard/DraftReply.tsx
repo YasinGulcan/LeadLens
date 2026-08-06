@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
+import { Sparkles } from "lucide-react";
 import { useConfirm } from "./useConfirm";
+import { Card, Button } from "@/components/ui";
 
 interface Draft {
   subject: string;
@@ -29,9 +31,7 @@ function ToolbarButton({
       aria-label={label}
       title={label}
       className={`rounded px-2 py-1 text-sm font-medium ${
-        active
-          ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
-          : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+        active ? "bg-accent text-white" : "text-muted-foreground hover:bg-surface-hover hover:text-foreground"
       }`}
     >
       {children}
@@ -41,7 +41,7 @@ function ToolbarButton({
 
 function Toolbar({ editor }: { editor: Editor }) {
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-neutral-200 px-2 py-1.5 dark:border-neutral-800">
+    <div className="flex flex-wrap items-center gap-1 border-b border-border px-2 py-1.5">
       <ToolbarButton label="Kalın" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}>
         <strong>K</strong>
       </ToolbarButton>
@@ -173,21 +173,19 @@ export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: s
   }
 
   return (
-    <div className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
+    <Card className="p-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Hazır Yanıt Taslağı</h3>
-        <button
-          type="button"
-          disabled={generating}
-          onClick={generateDraft}
-          className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
-        >
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <Sparkles size={15} className="text-accent" />
+          Hazır Yanıt Taslağı
+        </h3>
+        <Button variant="secondary" size="sm" disabled={generating} onClick={generateDraft}>
           {generating ? "Oluşturuluyor..." : draft ? "Yeniden Oluştur" : "Taslak Oluştur"}
-        </button>
+        </Button>
       </div>
 
       {!draft && !generating && (
-        <p className="mt-2 text-xs text-neutral-500">
+        <p className="mt-2 text-xs text-muted-foreground">
           Claude, bu lead&apos;in mesajı, site bulgusu ve önerilen ürüne dayanarak satış ekibi adına bir e-posta taslağı hazırlar.
         </p>
       )}
@@ -198,40 +196,31 @@ export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: s
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Konu"
-            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium dark:border-neutral-700 dark:bg-neutral-900"
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground focus:border-accent focus:outline-none"
           />
-          <div className="rounded-md border border-neutral-300 dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="rounded-md border border-border bg-background">
             {editor && <Toolbar editor={editor} />}
             <EditorContent editor={editor} />
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <button
-              type="button"
+            <Button
+              variant="primary"
               disabled={sending || !leadEmail}
               onClick={sendDraft}
               title={leadEmail ? undefined : "Bu lead için e-posta adresi kayıtlı değil"}
-              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-white dark:text-neutral-900"
             >
               {sending ? "Gönderiliyor..." : "Otomatik Gönder"}
-            </button>
-            <button
-              type="button"
-              onClick={copyToClipboard}
-              className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
-            >
+            </Button>
+            <Button variant="secondary" onClick={copyToClipboard}>
               Panoya Kopyala
-            </button>
-            <button
-              type="button"
-              onClick={closeDraft}
-              className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
-            >
+            </Button>
+            <Button variant="secondary" onClick={closeDraft}>
               Kapat
-            </button>
+            </Button>
           </div>
           {!leadEmail && (
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-muted-foreground">
               Bu lead formda e-posta paylaşmamış — &quot;Otomatik Gönder&quot; bu yüzden pasif. Taslağı kopyalayıp kendi e-posta
               istemcinizden gönderebilirsiniz.
             </p>
@@ -239,9 +228,9 @@ export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: s
         </div>
       )}
 
-      {message && <p className="mt-2 text-xs text-green-600 dark:text-green-400">{message}</p>}
-      {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {message && <p className="mt-2 text-xs text-emerald-500 dark:text-emerald-400">{message}</p>}
+      {error && <p className="mt-2 text-xs text-red-500 dark:text-red-400">{error}</p>}
       {dialog}
-    </div>
+    </Card>
   );
 }

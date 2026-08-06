@@ -31,10 +31,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       <DashboardSidebar businessName={account.business_name} email={session.email} leadCount={leadCount ?? 0} />
       <div className="min-w-0 flex-1 overflow-x-hidden">
-        <div className="border-b border-neutral-200 px-8 py-4 text-xs text-neutral-500 dark:border-neutral-800">
+        <div className="border-b border-border px-8 py-4 text-xs text-muted-foreground">
           Form adresi: /form/{account.slug}
         </div>
         <main className="px-8 py-8">{children}</main>

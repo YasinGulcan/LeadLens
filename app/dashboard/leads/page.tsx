@@ -33,8 +33,8 @@ export default async function DashboardLeadsPage() {
 
   return (
     <section>
-      <h2 className="text-lg font-semibold">Lead&apos;ler</h2>
-      <p className="mt-1 text-xs text-neutral-500">
+      <h2 className="text-2xl font-bold text-foreground">Lead&apos;ler</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
         Satırın solundaki ok ile geçmişi (zaman çizelgesi) görebilir, hatalı lead&apos;leri &quot;Yeniden Dene&quot; ile tekrar işleme
         alabilirsiniz.
         {!isOwner && " Lead silme sadece hesap sahibinde."}

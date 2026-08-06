@@ -19,7 +19,7 @@ export default async function DashboardSettingsPage() {
 
   return (
     <section>
-      <h2 className="text-lg font-semibold">Ayarlar</h2>
+      <h2 className="text-2xl font-bold text-foreground">Ayarlar</h2>
       <SettingsForm
         initialBusinessName={account.business_name}
         initialSlug={account.slug}

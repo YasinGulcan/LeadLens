@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "./useConfirm";
+import { Card, Button, Badge } from "@/components/ui";
 
 /** Sunucu beklenmedik şekilde çökerse (boş/HTML gövdeli 500 vb.) res.json() ham bir JS hatasıyla patlamasın diye. */
 async function safeJson(res: Response): Promise<{ error?: string }> {
@@ -118,18 +119,14 @@ export function TeamManager({
   return (
     <div>
       {pendingOwnerEmail && (
-        <div className="mt-3 flex items-center justify-between rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
+        <div className="mt-3 flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
           <span>
             <strong>{pendingOwnerEmail}</strong> adresine sahiplik devri gönderildi, kabul etmesi bekleniyor.
           </span>
           {isOwner && (
-            <button
-              onClick={handleCancelTransfer}
-              disabled={cancellingTransfer}
-              className="ml-3 rounded-md border border-amber-400 px-2 py-1 font-medium hover:bg-amber-100 disabled:opacity-50 dark:hover:bg-amber-900"
-            >
+            <Button variant="secondary" size="sm" onClick={handleCancelTransfer} disabled={cancellingTransfer} className="ml-3">
               {cancellingTransfer ? "İptal ediliyor..." : "İptal Et"}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -137,34 +134,30 @@ export function TeamManager({
       {isOwner ? (
         <form onSubmit={handleInvite} className="mt-3 flex flex-wrap items-end gap-2">
           <div>
-            <label className="block text-xs font-medium text-neutral-500">E-posta ile davet et</label>
+            <label className="block text-xs font-medium text-muted-foreground">E-posta ile davet et</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ekip-arkadasi@gmail.com"
-              className="mt-1 w-72 rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              className="mt-1 w-72 rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
               required
             />
           </div>
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-          >
+          <Button type="submit" variant="primary" disabled={pending}>
             {pending ? "Gönderiliyor..." : "Davet Et"}
-          </button>
+          </Button>
         </form>
       ) : (
-        <p className="mt-3 text-xs text-neutral-500">Sadece hesap sahibi yeni ekip üyesi davet edebilir.</p>
+        <p className="mt-3 text-xs text-muted-foreground">Sadece hesap sahibi yeni ekip üyesi davet edebilir.</p>
       )}
 
-      {message && <p className="mt-2 text-xs text-green-600 dark:text-green-400">{message}</p>}
-      {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {message && <p className="mt-2 text-xs text-emerald-500 dark:text-emerald-400">{message}</p>}
+      {error && <p className="mt-2 text-xs text-red-500 dark:text-red-400">{error}</p>}
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
+      <Card className="mt-4 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-neutral-50 text-left dark:bg-neutral-900">
+          <thead className="bg-surface-hover text-left text-muted-foreground">
             <tr>
               <th className="px-4 py-2 font-medium">E-posta</th>
               <th className="px-4 py-2 font-medium">Rol</th>
@@ -172,20 +165,24 @@ export function TeamManager({
               <th className="px-4 py-2 font-medium" />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {ownerEmail && (
-              <tr className="border-t border-neutral-200 dark:border-neutral-800">
-                <td className="px-4 py-2">{ownerEmail}</td>
-                <td className="px-4 py-2 text-neutral-500">Sahip</td>
-                <td className="px-4 py-2 text-neutral-500">—</td>
+              <tr>
+                <td className="px-4 py-2 text-foreground">{ownerEmail}</td>
+                <td className="px-4 py-2">
+                  <Badge variant="accent">Sahip</Badge>
+                </td>
+                <td className="px-4 py-2 text-muted-foreground">—</td>
                 <td className="px-4 py-2" />
               </tr>
             )}
             {members.map((m) => (
-              <tr key={m.id} className="border-t border-neutral-200 dark:border-neutral-800">
-                <td className="px-4 py-2">{m.email}</td>
-                <td className="px-4 py-2 text-neutral-500">Üye</td>
-                <td className="px-4 py-2 text-neutral-500">
+              <tr key={m.id}>
+                <td className="px-4 py-2 text-foreground">{m.email}</td>
+                <td className="px-4 py-2">
+                  <Badge variant="neutral">Üye</Badge>
+                </td>
+                <td className="px-4 py-2 text-muted-foreground">
                   {m.acceptedAt ? (
                     `Katıldı: ${new Date(m.acceptedAt).toLocaleString("tr-TR")}`
                   ) : (
@@ -197,21 +194,18 @@ export function TeamManager({
                 <td className="px-4 py-2">
                   {isOwner && (
                     <div className="flex items-center gap-2">
-                      <button
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => handleTransfer(m.id, m.email)}
                         disabled={transferringId === m.id || !!pendingOwnerEmail || !m.acceptedAt}
                         title={!m.acceptedAt ? "Sahiplik ancak daveti kabul edip en az bir kez giriş yapan üyelere devredilebilir." : undefined}
-                        className="rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
                       >
                         {transferringId === m.id ? "Gönderiliyor..." : "Sahipliği Devret"}
-                      </button>
-                      <button
-                        onClick={() => handleRemove(m.id, !!m.acceptedAt)}
-                        disabled={removingId === m.id}
-                        className="rounded-md border border-red-300 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
-                      >
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => handleRemove(m.id, !!m.acceptedAt)} disabled={removingId === m.id}>
                         {removingId === m.id ? "Çıkarılıyor..." : m.acceptedAt ? "Çıkar" : "Daveti İptal Et"}
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </td>
@@ -219,14 +213,14 @@ export function TeamManager({
             ))}
             {members.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-neutral-500">
+                <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
                   Henüz davet edilen ekip üyesi yok.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
-      </div>
+      </Card>
       {dialog}
     </div>
   );

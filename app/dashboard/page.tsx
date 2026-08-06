@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Inbox, CheckCircle2, Flame, Layers, ShieldCheck, Lock, Users, ArrowRight, Sparkles } from "lucide-react";
 import { getSessionInfo } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
-import { StatCard, ScoreBadge, PriorityTag, SectorTag, relativeTimeTr } from "./badges";
+import { relativeTimeTr } from "@/lib/format";
+import { Card, CardTitle, Badge, StatCard, ScoreCircle, Button } from "@/components/ui";
+import { ScoreDistributionChart, type ScoreBucket } from "./ScoreDistributionChart";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +23,8 @@ function median(values: number[]): number | null {
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
+
+const PRIORITY_VARIANT = { yüksek: "success", orta: "warning", düşük: "neutral" } as const;
 
 export default async function DashboardOverviewPage() {
   const session = await getSessionInfo();
@@ -48,110 +53,123 @@ export default async function DashboardOverviewPage() {
   const highPriorityThisMonth = thisMonthLeads.filter((l) => l.priority === "yüksek").length;
 
   const scores = leads.filter((l) => l.match_score != null).map((l) => Math.round(l.match_score! * 100));
-  const buckets = SCORE_BUCKETS.map((b) => ({
-    ...b,
+  const buckets: ScoreBucket[] = SCORE_BUCKETS.map((b) => ({
+    label: b.label,
     count: scores.filter((s) => s >= b.min && s <= b.max).length,
   }));
-  const maxBucketCount = Math.max(1, ...buckets.map((b) => b.count));
   const scoreMedian = median(scores);
 
   const setupComplete = !!connection && (activeSourceCount ?? 0) > 0;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <div>
-        <h2 className="text-2xl font-bold">Hoş geldiniz.</h2>
-        <p className="mt-1 text-sm text-neutral-500">
+        <h2 className="text-2xl font-bold text-foreground">Hoş geldiniz.</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           {setupComplete
             ? "Kurulum tamamlandı. Yeni gelen her form otomatik analiz ediliyor."
             : "Kurulum tamamlanmadı — henüz hiç lead analiz edilmeyecek."}
         </p>
         {!setupComplete && (
-          <Link
-            href={!connection ? "/dashboard/gmail" : "/dashboard/sources"}
-            className="mt-3 inline-block rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-          >
-            {!connection ? "Gmail'i Bağla" : "Ürün Kataloğu Ekle"}
+          <Link href={!connection ? "/dashboard/gmail" : "/dashboard/sources"}>
+            <Button variant="primary" className="mt-3">
+              {!connection ? "Gmail'i Bağla" : "Ürün Kataloğu Ekle"}
+            </Button>
           </Link>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Bu ay gelen" value={thisMonthLeads.length} hint="lead" />
-        <StatCard label="Analiz edildi" value={analyzedThisMonth} hint="bu ay" />
-        <StatCard label="Yüksek öncelik" value={highPriorityThisMonth} hint="skor 75+" />
-        <StatCard label="Toplam lead" value={totalLeadCount ?? 0} hint="tüm zamanlar" />
+        <StatCard icon={Inbox} label="Bu ay gelen" value={thisMonthLeads.length} hint="lead" />
+        <StatCard icon={CheckCircle2} label="Analiz edildi" value={analyzedThisMonth} hint="bu ay" />
+        <StatCard icon={Flame} label="Yüksek öncelik" value={highPriorityThisMonth} hint="bu ay" />
+        <StatCard icon={Layers} label="Toplam lead" value={totalLeadCount ?? 0} hint="tüm zamanlar" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section>
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Son leadler</h3>
-            <Link href="/dashboard/leads" className="text-xs text-blue-600 hover:underline dark:text-blue-400">
-              Tümü →
+        <div>
+          <div className="flex items-center justify-between px-1">
+            <CardTitle>Son leadler</CardTitle>
+            <Link href="/dashboard/leads" className="flex items-center gap-1 text-xs font-medium text-accent hover:underline">
+              Tümü <ArrowRight size={12} />
             </Link>
           </div>
-          <ul className="mt-3 divide-y divide-neutral-100 rounded-lg border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
+          <Card className="mt-3 divide-y divide-border overflow-hidden">
             {leads.slice(0, 5).map((lead) => (
-              <li key={lead.id} className="flex items-start gap-3 px-4 py-3">
-                <ScoreBadge score={lead.match_score} />
+              <Link
+                key={lead.id}
+                href={`/dashboard/leads/${lead.id}`}
+                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-hover"
+              >
+                <ScoreCircle score={lead.match_score} />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-sm font-medium">{lead.name ?? "İsimsiz"}</span>
-                    <SectorTag sector={lead.sector} />
-                    <PriorityTag priority={lead.priority} />
+                    <span className="text-sm font-medium text-foreground">{lead.name ?? "İsimsiz"}</span>
+                    {lead.sector && <Badge variant="neutral">{lead.sector}</Badge>}
+                    {lead.priority && <Badge variant={PRIORITY_VARIANT[lead.priority as keyof typeof PRIORITY_VARIANT] ?? "neutral"}>{lead.priority}</Badge>}
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-neutral-500">{lead.sales_note ?? lead.site_finding ?? "—"}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{lead.sales_note ?? lead.site_finding ?? "—"}</p>
                 </div>
-                <span className="shrink-0 text-xs text-neutral-400">{relativeTimeTr(lead.created_at)}</span>
-              </li>
+                <span className="shrink-0 text-xs text-muted-foreground">{relativeTimeTr(lead.created_at)}</span>
+              </Link>
             ))}
-            {leads.length === 0 && <li className="px-4 py-6 text-center text-sm text-neutral-500">Henüz lead yok.</li>}
-          </ul>
-        </section>
+            {leads.length === 0 && (
+              <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+                <Sparkles size={20} className="text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Henüz lead yok.</p>
+              </div>
+            )}
+          </Card>
+        </div>
 
-        <section>
-          <h3 className="text-sm font-semibold">Skor dağılımı</h3>
-          <div className="mt-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-            <div className="flex h-32 items-end gap-3">
-              {buckets.map((b) => (
-                <div key={b.label} className="flex flex-1 flex-col items-center gap-1.5">
-                  <span className="text-xs text-neutral-500">{b.count}</span>
-                  <div
-                    className="w-full rounded-t bg-neutral-800 dark:bg-neutral-200"
-                    style={{ height: `${Math.max(4, (b.count / maxBucketCount) * 100)}%` }}
-                  />
-                  <span className="text-[10px] text-neutral-400">{b.label}</span>
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 text-xs text-neutral-500">
-              Son 90 günde gelen {scores.length} gerçek lead&apos;in skor dağılımı.
-              {scoreMedian != null && ` Medyan: ${scoreMedian}.`}
-            </p>
-          </div>
-        </section>
+        <div>
+          <CardTitle className="px-1">Skor dağılımı</CardTitle>
+          <Card className="mt-3 p-4">
+            {scores.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+                <Layers size={20} className="text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Henüz analiz edilmiş lead yok.</p>
+                <p className="text-xs text-muted-foreground">Skor dağılımı, ilk lead&apos;leriniz analiz edildikçe burada görünecek.</p>
+              </div>
+            ) : (
+              <>
+                <ScoreDistributionChart buckets={buckets} />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Son 90 günde gelen {scores.length} gerçek lead&apos;in skor dağılımı.
+                  {scoreMedian != null && ` Medyan: ${scoreMedian}.`}
+                </p>
+              </>
+            )}
+          </Card>
+        </div>
       </div>
 
-      <section className="rounded-lg border border-neutral-200 p-5 dark:border-neutral-800">
-        <h3 className="text-sm font-semibold">Erişim ve Gizlilik</h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <div>
-            <p className="text-sm font-medium">Yalnızca belirlediğiniz başlıklar işlenir</p>
-            <p className="mt-1 text-xs text-neutral-500">
-              Gmail&apos;inizde filtrelerinizle eşleşmeyen hiçbir mail okunmaz/işlenmez.
-            </p>
-          </div>
-          <div>
-            <p className="text-sm font-medium">Bilgi tabanınız yalnızca sizin analizlerinizde kullanılır</p>
-            <p className="mt-1 text-xs text-neutral-500">Başka hesaplarla paylaşılmaz, model eğitiminde kullanılmaz.</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium">Davet etmediğiniz kimse hesabınıza erişemez</p>
-            <p className="mt-1 text-xs text-neutral-500">Silme işlemleri ve ekip yönetimi yalnızca hesap sahibinde.</p>
-          </div>
+      <div>
+        <CardTitle className="px-1">Erişim ve Gizlilik</CardTitle>
+        <div className="mt-3 grid gap-4 sm:grid-cols-3">
+          <Card className="p-5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
+              <ShieldCheck size={18} />
+            </span>
+            <p className="mt-3 text-sm font-medium text-foreground">Yalnızca belirlediğiniz başlıklar işlenir</p>
+            <p className="mt-1 text-xs text-muted-foreground">Gmail&apos;inizde filtrelerinizle eşleşmeyen hiçbir mail okunmaz/işlenmez.</p>
+          </Card>
+          <Card className="p-5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
+              <Lock size={18} />
+            </span>
+            <p className="mt-3 text-sm font-medium text-foreground">Bilgi tabanınız yalnızca sizin analizlerinizde kullanılır</p>
+            <p className="mt-1 text-xs text-muted-foreground">Başka hesaplarla paylaşılmaz, model eğitiminde kullanılmaz.</p>
+          </Card>
+          <Card className="p-5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
+              <Users size={18} />
+            </span>
+            <p className="mt-3 text-sm font-medium text-foreground">Davet etmediğiniz kimse hesabınıza erişemez</p>
+            <p className="mt-1 text-xs text-muted-foreground">Silme işlemleri ve ekip yönetimi yalnızca hesap sahibinde.</p>
+          </Card>
         </div>
-      </section>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { Mail, RefreshCw } from "lucide-react";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
+import { Card, Button } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -18,38 +20,51 @@ export default async function DashboardGmailPage() {
 
   return (
     <section>
-      <h2 className="text-lg font-semibold">Gmail Bağlantısı</h2>
-      {connection ? (
-        <p className="mt-2 text-sm">
-          Bağlı: <strong>{connection.connected_email}</strong>{" "}
-          <span className="text-neutral-500">({new Date(connection.connected_at).toLocaleString("tr-TR")})</span>
-        </p>
-      ) : (
-        <p className="mt-2 text-sm text-neutral-500">Henüz bağlı değil.</p>
-      )}
+      <h2 className="text-2xl font-bold text-foreground">Bağlantılar</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Lead yakalama ve rapor gönderimi bu Gmail bağlantısı üzerinden çalışır.</p>
 
-      {isOwner ? (
-        <a
-          href={`/api/oauth/gmail/start?accountId=${accountId}`}
-          className="mt-3 inline-block rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white dark:bg-white dark:text-neutral-900"
-        >
-          {connection ? "Yeniden Bağla" : "Gmail'i Bağla"}
-        </a>
-      ) : (
-        <p className="mt-3 text-xs text-neutral-500">Sadece hesap sahibi Gmail bağlantısını değiştirebilir.</p>
-      )}
+      <Card className="mt-4 max-w-xl p-6">
+        <div className="flex items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
+            <Mail size={18} />
+          </span>
+          <div className="min-w-0 flex-1">
+            {connection ? (
+              <>
+                <p className="truncate text-sm font-medium text-foreground">{connection.connected_email}</p>
+                <p className="text-xs text-muted-foreground">Bağlandı: {new Date(connection.connected_at).toLocaleString("tr-TR")}</p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Henüz bağlı değil.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 border-t border-border pt-4">
+          {isOwner ? (
+            <a href={`/api/oauth/gmail/start?accountId=${accountId}`}>
+              <Button variant="primary">
+                <RefreshCw size={14} />
+                {connection ? "Yeniden Bağla" : "Gmail'i Bağla"}
+              </Button>
+            </a>
+          ) : (
+            <p className="text-xs text-muted-foreground">Sadece hesap sahibi Gmail bağlantısını değiştirebilir.</p>
+          )}
+        </div>
+      </Card>
 
       {account && (
-        <p className="mt-6 text-xs text-neutral-500">
+        <p className="mt-4 text-xs text-muted-foreground">
           Lead e-postası başlıkları:{" "}
           {(account.lead_email_subjects as string[]).map((subject, i) => (
             <span key={subject}>
               {i > 0 && " veya "}
-              <code>{subject}</code>
+              <code className="rounded bg-surface-hover px-1 py-0.5">{subject}</code>
             </span>
           ))}{" "}
           — değiştirmek için{" "}
-          <a href="/dashboard/settings" className="text-blue-600 hover:underline dark:text-blue-400">
+          <a href="/dashboard/settings" className="text-accent hover:underline">
             Ayarlar
           </a>
           &apos;a bakın.

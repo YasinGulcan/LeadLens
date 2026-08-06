@@ -12,7 +12,7 @@ export function LogoutButton() {
   }
 
   return (
-    <button onClick={handleClick} className="text-sm text-neutral-500 hover:underline">
+    <button onClick={handleClick} className="text-sm text-muted-foreground hover:text-foreground hover:underline">
       Çıkış yap
     </button>
   );

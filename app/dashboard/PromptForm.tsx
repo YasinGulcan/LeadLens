@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "./useConfirm";
+import { Card, Button } from "@/components/ui";
 
 interface SavedPrompt {
   id: string;
@@ -105,12 +106,12 @@ export function PromptForm({
   }
 
   return (
-    <div className="mt-3 max-w-3xl space-y-3">
-      <p className="text-xs text-neutral-500">
+    <div className="mt-3 max-w-3xl space-y-4">
+      <p className="text-sm text-muted-foreground">
         Lead analiz asistanının (Claude) her yeni lead&apos;i değerlendirirken kullandığı ana talimat metni. Ürün
         önerisinin yapısı (alanlar) sabit kalır — burada değiştirdiğiniz, asistanın nasıl düşüneceği/hangi
         üsluba/önceliklere dikkat edeceğidir.{" "}
-        <strong>Şu an {usingCustom ? "kendi özel promptunuz" : "varsayılan prompt"}</strong> kullanılıyor.
+        <strong className="text-foreground">Şu an {usingCustom ? "kendi özel promptunuz" : "varsayılan prompt"}</strong> kullanılıyor.
       </p>
 
       <textarea
@@ -118,89 +119,63 @@ export function PromptForm({
         onChange={(e) => setValue(e.target.value)}
         rows={16}
         spellCheck={false}
-        className="w-full rounded-lg border border-neutral-300 bg-white p-3 font-mono text-xs leading-relaxed dark:border-neutral-700 dark:bg-neutral-900"
+        className="w-full rounded-lg border border-border bg-surface p-3 font-mono text-xs leading-relaxed text-foreground focus:border-accent focus:outline-none"
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => activate(value)}
-          className="rounded-md bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-        >
+        <Button variant="primary" disabled={pending} onClick={() => activate(value)}>
           {pending ? "İşleniyor..." : "Kaydet"}
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={handleReset}
-          className="rounded-md border border-neutral-300 px-4 py-2.5 text-sm font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
-        >
+        </Button>
+        <Button variant="secondary" disabled={pending} onClick={handleReset}>
           Varsayılana Sıfırla
-        </button>
+        </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
-        <span className="text-xs text-neutral-500">Mevcut aktif prompta dokunmadan, bu metni isimlendirip kütüphanenize ekleyin:</span>
+      <Card className="flex flex-wrap items-center gap-2 p-3">
+        <span className="text-xs text-muted-foreground">Mevcut aktif prompta dokunmadan, bu metni isimlendirip kütüphanenize ekleyin:</span>
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder="örn. Agresif Satış Üslubu"
-          className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+          maxLength={60}
+          className="min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
         />
-        <button
-          type="button"
-          disabled={pending || !newName.trim() || !value.trim()}
-          onClick={saveAs}
-          className="shrink-0 rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
-        >
+        <Button variant="secondary" disabled={pending || !newName.trim() || !value.trim()} onClick={saveAs}>
           Farklı Kaydet
-        </button>
-      </div>
+        </Button>
+      </Card>
 
       {(message || error) && (
-        <p className={`text-xs ${error ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
-          {error ?? message}
-        </p>
+        <p className={`text-xs ${error ? "text-red-500 dark:text-red-400" : "text-emerald-500 dark:text-emerald-400"}`}>{error ?? message}</p>
       )}
 
       {savedPrompts.length > 0 && (
-        <div className="rounded-lg border border-neutral-200 dark:border-neutral-800">
-          <p className="border-b border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-500 dark:border-neutral-800">
-            Kayıtlı Promptlarım
-          </p>
-          <ul className="max-h-72 divide-y divide-neutral-100 overflow-y-auto dark:divide-neutral-800">
+        <Card className="overflow-hidden">
+          <p className="border-b border-border px-3 py-2 text-xs font-medium text-muted-foreground">Kayıtlı Promptlarım</p>
+          <ul className="max-h-72 divide-y divide-border overflow-y-auto">
             {savedPrompts.map((entry) => (
               <li key={entry.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-xs">
-                <div className="min-w-0">
-                  <p className="font-medium text-neutral-800 dark:text-neutral-200">{entry.name}</p>
-                  <p className="text-neutral-400">{new Date(entry.createdAt).toLocaleString("tr-TR")}</p>
-                  <p className="mt-0.5 truncate text-neutral-600 dark:text-neutral-400" title={entry.promptText}>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-foreground" title={entry.name}>
+                    {entry.name}
+                  </p>
+                  <p className="text-muted-foreground">{new Date(entry.createdAt).toLocaleString("tr-TR")}</p>
+                  <p className="mt-0.5 truncate text-muted-foreground" title={entry.promptText}>
                     {entry.promptText}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => loadSavedPrompt(entry)}
-                    className="rounded-md border border-neutral-300 px-2.5 py-1.5 font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
-                  >
+                  <Button variant="secondary" size="sm" disabled={pending} onClick={() => loadSavedPrompt(entry)}>
                     Kullan
-                  </button>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => deleteSaved(entry)}
-                    className="rounded-md border border-red-300 px-2.5 py-1.5 font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
-                  >
+                  </Button>
+                  <Button variant="danger" size="sm" disabled={pending} onClick={() => deleteSaved(entry)}>
                     Sil
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}
           </ul>
-        </div>
+        </Card>
       )}
       {dialog}
     </div>

@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ScrapeStatusBadge } from "./badges";
+import { ScrapeStatusBadge } from "./StatusBadge";
 import { useConfirm } from "./useConfirm";
 
 export interface SourceRow {
@@ -170,9 +170,9 @@ export function SourcesTable({
 
   return (
     <Fragment>
-    <div className="overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
+    <div className="overflow-x-auto rounded-lg border border-border bg-surface">
       <table className="w-full text-sm">
-        <thead className="bg-neutral-50 text-left dark:bg-neutral-900">
+        <thead className="bg-surface-hover text-left text-muted-foreground">
           <tr>
             <th className="px-4 py-2 font-medium" />
             <th className="px-4 py-2 font-medium">Etiket</th>
@@ -191,12 +191,12 @@ export function SourcesTable({
             const chunkCount = chunkCountBySource[s.id] ?? 0;
             return (
               <Fragment key={s.id}>
-                <tr className="border-t border-neutral-200 dark:border-neutral-800">
+                <tr className="border-t border-border">
                   <td className="px-4 py-2">
                     {chunkCount > 0 && (
                       <button
                         onClick={() => toggle(s.id)}
-                        className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                        className="text-muted-foreground hover:text-foreground"
                         aria-label="Chunk'ları göster"
                       >
                         {isOpen ? "▾" : "▸"}
@@ -207,9 +207,9 @@ export function SourcesTable({
                   <td className="max-w-[240px] truncate px-4 py-2" title={displayName}>
                     {displayName}
                   </td>
-                  <td className="px-4 py-2 text-neutral-500">{s.source_type === "file" ? "Dosya" : "URL"}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{s.source_type === "file" ? "Dosya" : "URL"}</td>
                   <td className="px-4 py-2">{chunkCount}</td>
-                  <td className="px-4 py-2 text-neutral-500">
+                  <td className="px-4 py-2 text-muted-foreground">
                     {s.last_scraped_at ? new Date(s.last_scraped_at).toLocaleString("tr-TR") : "hiç"}
                   </td>
                   <td className="px-4 py-2">
@@ -229,7 +229,7 @@ export function SourcesTable({
                         <button
                           onClick={() => handleRescrape(s.id)}
                           disabled={rescrapingId === s.id}
-                          className="rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                          className="rounded-md border border-border bg-surface px-2 py-1 text-xs font-medium text-foreground hover:bg-surface-hover disabled:opacity-50"
                         >
                           {rescrapingId === s.id ? "Taranıyor..." : "Yeniden Tara"}
                         </button>
@@ -238,48 +238,48 @@ export function SourcesTable({
                         <button
                           onClick={() => handleDelete(s.id, s.label ?? displayName)}
                           disabled={deletingId === s.id}
-                          className="rounded-md border border-red-300 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
+                          className="rounded-md border border-red-500/30 px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-500/10 disabled:opacity-50 dark:text-red-400"
                         >
                           {deletingId === s.id ? "Siliniyor..." : "Sil"}
                         </button>
                       )}
                     </div>
-                    {error[s.id] && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error[s.id]}</p>}
-                    {rescrapeError[s.id] && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{rescrapeError[s.id]}</p>}
+                    {error[s.id] && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{error[s.id]}</p>}
+                    {rescrapeError[s.id] && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{rescrapeError[s.id]}</p>}
                   </td>
                 </tr>
                 {isOpen && (
-                  <tr className="border-t border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/50">
+                  <tr className="border-t border-border bg-surface-hover/60">
                     <td colSpan={8} className="px-4 py-3">
                       {loadingChunks === s.id ? (
-                        <p className="text-xs text-neutral-500">Yükleniyor...</p>
+                        <p className="text-xs text-muted-foreground">Yükleniyor...</p>
                       ) : chunksError[s.id] ? (
-                        <p className="text-xs text-red-600 dark:text-red-400">{chunksError[s.id]}</p>
+                        <p className="text-xs text-red-500 dark:text-red-400">{chunksError[s.id]}</p>
                       ) : (
                         <ol className="space-y-2 text-xs">
                           {(chunksById[s.id] ?? []).map((chunk, i) => (
-                            <li key={chunk.id} className="rounded-md border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-950">
-                              <span className="text-neutral-400">#{i + 1}</span>{" "}
+                            <li key={chunk.id} className="rounded-md border border-border bg-background p-2">
+                              <span className="text-muted-foreground">#{i + 1}</span>{" "}
                               {editingChunkId === chunk.id ? (
                                 <div className="mt-1">
                                   <textarea
                                     value={editDraft}
                                     onChange={(e) => setEditDraft(e.target.value)}
                                     rows={4}
-                                    className="w-full rounded-md border border-neutral-300 p-2 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+                                    className="w-full rounded-md border border-border bg-surface p-2 text-xs text-foreground focus:border-accent focus:outline-none"
                                   />
                                   <div className="mt-1 flex gap-2">
                                     <button
                                       onClick={() => saveEditChunk(s.id, chunk.id)}
                                       disabled={savingChunkId === chunk.id || !editDraft.trim()}
-                                      className="rounded-md bg-neutral-900 px-2 py-1 font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+                                      className="rounded-md bg-accent px-2 py-1 font-medium text-white hover:bg-accent-hover disabled:opacity-50"
                                     >
                                       {savingChunkId === chunk.id ? "Kaydediliyor..." : "Kaydet"}
                                     </button>
                                     <button
                                       onClick={cancelEditChunk}
                                       disabled={savingChunkId === chunk.id}
-                                      className="rounded-md border border-neutral-300 px-2 py-1 font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                                      className="rounded-md border border-border bg-surface px-2 py-1 font-medium text-foreground hover:bg-surface-hover disabled:opacity-50"
                                     >
                                       İptal
                                     </button>
@@ -287,11 +287,11 @@ export function SourcesTable({
                                 </div>
                               ) : (
                                 <>
-                                  <span className="text-neutral-700 dark:text-neutral-300">{chunk.content}</span>
+                                  <span className="text-foreground">{chunk.content}</span>
                                   <div className="mt-1 flex gap-2">
                                     <button
                                       onClick={() => startEditChunk(chunk)}
-                                      className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+                                      className="text-muted-foreground hover:text-foreground"
                                     >
                                       Düzenle
                                     </button>
@@ -299,7 +299,7 @@ export function SourcesTable({
                                       <button
                                         onClick={() => handleDeleteChunk(s.id, chunk.id)}
                                         disabled={deletingChunkId === chunk.id}
-                                        className="text-red-600 hover:text-red-800 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+                                        className="text-red-500 hover:text-red-600 disabled:opacity-50 dark:text-red-400"
                                       >
                                         {deletingChunkId === chunk.id ? "Siliniyor..." : "Sil"}
                                       </button>
@@ -308,7 +308,7 @@ export function SourcesTable({
                                 </>
                               )}
                               {chunkActionError[chunk.id] && (
-                                <p className="mt-1 text-red-600 dark:text-red-400">{chunkActionError[chunk.id]}</p>
+                                <p className="mt-1 text-red-500 dark:text-red-400">{chunkActionError[chunk.id]}</p>
                               )}
                             </li>
                           ))}
@@ -322,7 +322,7 @@ export function SourcesTable({
           })}
           {sources.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-4 py-6 text-center text-neutral-500">
+              <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
                 Henüz kaynak yok.
               </td>
             </tr>

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
+import { Card, Button } from "@/components/ui";
 
 function slugify(value: string): string {
   return value
@@ -69,51 +71,51 @@ export function SettingsForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-3 space-y-3">
+    <form onSubmit={handleSubmit} className="mt-4 max-w-lg space-y-5">
       <div>
-        <label className="block text-xs font-medium text-neutral-500">İşletme Adı</label>
+        <label className="block text-xs font-medium text-muted-foreground">İşletme Adı</label>
         <input
           value={businessName}
           onChange={(e) => setBusinessName(e.target.value)}
-          className="mt-1 w-full max-w-sm rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-neutral-500">Form Adresi (/form/…)</label>
+        <label className="block text-xs font-medium text-muted-foreground">Form Adresi (/form/…)</label>
         <input
           value={slug}
           onChange={(e) => setSlug(slugify(e.target.value))}
-          className="mt-1 w-full max-w-sm rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-neutral-500">Lead E-postası Başlıkları</label>
-        <p className="mt-1 text-xs text-neutral-500">
+        <label className="block text-xs font-medium text-muted-foreground">Lead E-postası Başlıkları</label>
+        <p className="mt-1 text-xs text-muted-foreground">
           Bağlı Gmail hesabınızda bu başlıklardan HERHANGİ biriyle gelen mailler lead olarak yakalanacak.
         </p>
 
-        <div className="mt-2 max-w-md rounded-lg border border-neutral-300 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+        <Card className="mt-2 p-3">
           {leadEmailSubjects.length > 0 ? (
             <ul className="mb-3 flex flex-wrap gap-2">
               {leadEmailSubjects.map((subject) => (
                 <li
                   key={subject}
-                  className="flex items-center gap-2 rounded-md border border-neutral-200 bg-neutral-100 py-1.5 pr-2 pl-3 text-sm dark:border-neutral-700 dark:bg-neutral-800"
+                  className="flex items-center gap-2 rounded-md border border-border bg-surface-hover py-1.5 pr-2 pl-3 text-sm text-foreground"
                 >
                   {subject}
                   <button
                     type="button"
                     onClick={() => removeSubject(subject)}
                     aria-label={`"${subject}" başlığını kaldır`}
-                    className="flex h-5 w-5 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-300 hover:text-neutral-900 dark:hover:bg-neutral-600 dark:hover:text-white"
+                    className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground hover:bg-surface hover:text-foreground"
                   >
-                    ×
+                    <X size={12} />
                   </button>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="mb-3 text-xs text-neutral-400">Henüz başlık eklenmedi.</p>
+            <p className="mb-3 text-xs text-muted-foreground">Henüz başlık eklenmedi.</p>
           )}
 
           <div className="flex gap-2">
@@ -127,23 +129,18 @@ export function SettingsForm({
                 }
               }}
               placeholder="Yeni başlık ekle ve Enter'a basın…"
-              className="w-full rounded-md border border-neutral-300 px-3 py-2.5 text-sm dark:border-neutral-700 dark:bg-neutral-950"
+              className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-accent focus:outline-none"
             />
-            <button
-              type="button"
-              onClick={addSubject}
-              disabled={!newSubject.trim()}
-              className="shrink-0 rounded-md bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40 dark:bg-white dark:text-neutral-900"
-            >
+            <Button type="button" variant="primary" disabled={!newSubject.trim()} onClick={addSubject} className="shrink-0">
               + Ekle
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-neutral-500">Bildirim E-postası (opsiyonel)</label>
-        <p className="mt-1 text-xs text-neutral-500">
+        <label className="block text-xs font-medium text-muted-foreground">Bildirim E-postası (opsiyonel)</label>
+        <p className="mt-1 text-xs text-muted-foreground">
           Analiz raporu buraya gönderilir. Boş bırakılırsa bağlı Gmail hesabınızın kendi adresine gider.
           (Form kopyası — lead&apos;in ilk yakalandığı e-posta — teknik nedenlerle her zaman bağlı hesabın
           kendi kutusuna gitmek zorunda, değiştirilemez.)
@@ -153,20 +150,16 @@ export function SettingsForm({
           value={notificationEmail}
           onChange={(e) => setNotificationEmail(e.target.value)}
           placeholder="ornek@gmail.com"
-          className="mt-1 w-full max-w-sm rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
         />
       </div>
 
-      {message && <p className="text-xs text-green-600 dark:text-green-400">{message}</p>}
-      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {message && <p className="text-xs text-emerald-500 dark:text-emerald-400">{message}</p>}
+      {error && <p className="text-xs text-red-500 dark:text-red-400">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
-      >
+      <Button type="submit" variant="primary" disabled={pending}>
         {pending ? "Kaydediliyor..." : "Kaydet"}
-      </button>
+      </Button>
     </form>
   );
 }

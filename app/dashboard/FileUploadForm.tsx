@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { UploadCloud } from "lucide-react";
 
 export function FileUploadForm() {
   const router = useRouter();
@@ -50,11 +51,11 @@ export function FileUploadForm() {
   return (
     <div className="mt-3">
       <div>
-        <label className="block text-xs font-medium text-neutral-500">Etiket (opsiyonel)</label>
+        <label className="block text-xs font-medium text-muted-foreground">Etiket (opsiyonel)</label>
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          className="mt-1 w-64 rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="mt-1 w-64 rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
         />
       </div>
 
@@ -66,18 +67,17 @@ export function FileUploadForm() {
         onDragLeave={() => setDragActive(false)}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`mt-2 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-6 text-center text-sm transition-colors ${
-          dragActive
-            ? "border-neutral-900 bg-neutral-50 dark:border-white dark:bg-neutral-900"
-            : "border-neutral-300 text-neutral-500 hover:border-neutral-400 dark:border-neutral-700 dark:hover:border-neutral-600"
+        className={`mt-2 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-6 text-center text-sm transition-colors ${
+          dragActive ? "border-accent bg-accent/5" : "border-border text-muted-foreground hover:border-border-subtle"
         }`}
       >
+        <UploadCloud size={20} className={dragActive ? "text-accent" : "text-muted-foreground"} />
         {pending ? (
           "Yükleniyor ve işleniyor..."
         ) : (
           <>
             <span>Dosyayı buraya sürükleyin ya da tıklayıp seçin</span>
-            <span className="mt-1 text-xs text-neutral-400">.csv, .xlsx, .pdf — en fazla 10 MB</span>
+            <span className="text-xs text-muted-foreground">.csv, .xlsx, .pdf — en fazla 10 MB</span>
           </>
         )}
         <input
@@ -90,8 +90,8 @@ export function FileUploadForm() {
         />
       </div>
 
-      {message && <p className="mt-2 text-xs text-green-600 dark:text-green-400">{message}</p>}
-      {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {message && <p className="mt-2 text-xs text-emerald-500 dark:text-emerald-400">{message}</p>}
+      {error && <p className="mt-2 text-xs text-red-500 dark:text-red-400">{error}</p>}
     </div>
   );
 }

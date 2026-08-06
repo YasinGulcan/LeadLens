@@ -143,8 +143,8 @@ export function SourcesForm() {
   if (step.kind === "sitemap") {
     const allSelected = step.selected.size === step.pages.length;
     return (
-      <div className="mt-3 max-w-2xl overflow-hidden rounded-lg border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-        <div className="border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
+      <div className="mt-3 max-w-2xl overflow-hidden rounded-lg border border-border bg-surface">
+        <div className="border-b border-border px-4 py-3">
           <p className="text-sm font-medium">
             {step.pages.length} sayfa bulundu — bilgi tabanına eklenecek sayfaları seçin.
           </p>
@@ -158,37 +158,37 @@ export function SourcesForm() {
                     : prev
                 )
               }
-              className="font-medium text-neutral-500 underline hover:text-neutral-900 dark:hover:text-neutral-200"
+              className="font-medium text-muted-foreground underline hover:text-foreground"
             >
               {allSelected ? "Seçimi kaldır" : "Tümünü seç"}
             </button>
-            <span className="rounded-full bg-neutral-100 px-2.5 py-1 font-medium text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+            <span className="rounded-full bg-accent/10 px-2.5 py-1 font-medium text-accent">
               {step.selected.size} / {step.pages.length} sayfa seçildi
             </span>
           </div>
         </div>
 
-        <ul className="max-h-80 divide-y divide-neutral-100 overflow-y-auto dark:divide-neutral-800">
+        <ul className="max-h-80 divide-y divide-border overflow-y-auto">
           {step.pages.map((page) => {
             const checked = step.selected.has(page.url);
             return (
               <li key={page.url}>
                 <label
-                  className={`flex cursor-pointer items-center gap-3 px-4 py-3 text-sm transition hover:bg-neutral-50 dark:hover:bg-neutral-800/60 ${
-                    checked ? "bg-neutral-50 dark:bg-neutral-800/40" : ""
+                  className={`flex cursor-pointer items-center gap-3 px-4 py-3 text-sm transition hover:bg-surface-hover ${
+                    checked ? "bg-surface-hover" : ""
                   }`}
                 >
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleSelected(page.url)}
-                    className="h-[18px] w-[18px] shrink-0 cursor-pointer accent-neutral-900 dark:accent-white"
+                    className="h-[18px] w-[18px] shrink-0 cursor-pointer accent-accent"
                   />
                   <span className="min-w-0 flex-1 truncate" title={page.url}>
                     {page.title ? (
                       <>
                         <span className="font-medium">{page.title}</span>{" "}
-                        <span className="text-neutral-400">— {page.url}</span>
+                        <span className="text-muted-foreground">— {page.url}</span>
                       </>
                     ) : (
                       page.url
@@ -200,12 +200,12 @@ export function SourcesForm() {
           })}
         </ul>
 
-        <div className="flex flex-wrap items-center gap-2 border-t border-neutral-200 px-4 py-3 dark:border-neutral-800">
+        <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
           <button
             type="button"
             disabled={submitting || step.selected.size === 0}
             onClick={() => handleConfirm(Array.from(step.selected))}
-            className="rounded-md bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+            className="rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
           >
             {submitting ? (progress ?? "Taranıyor...") : `Seçilenleri Tara ve Ekle (${step.selected.size})`}
           </button>
@@ -213,11 +213,11 @@ export function SourcesForm() {
             type="button"
             disabled={submitting}
             onClick={reset}
-            className="rounded-md border border-neutral-300 px-4 py-2.5 text-sm font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+            className="rounded-md border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground hover:bg-surface-hover disabled:opacity-50"
           >
             Vazgeç
           </button>
-          {error && <p className="w-full text-xs text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p className="w-full text-xs text-red-500 dark:text-red-400">{error}</p>}
         </div>
       </div>
     );
@@ -225,12 +225,12 @@ export function SourcesForm() {
 
   if (step.kind === "single") {
     return (
-      <div className="mt-3 rounded-md border border-neutral-200 p-3 dark:border-neutral-800">
+      <div className="mt-3 rounded-md border border-border bg-surface p-3">
         <p className="text-sm font-medium">Bu sitede sitemap bulunamadı, tek sayfa tarandı:</p>
-        <p className="mt-1 truncate text-xs text-neutral-500" title={step.page.url}>
+        <p className="mt-1 truncate text-xs text-muted-foreground" title={step.page.url}>
           {step.page.url}
         </p>
-        <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
+        <p className="mt-2 text-xs text-muted-foreground">
           {step.page.chunkCount} parça bulundu. Önizleme: “{step.page.preview}…”
         </p>
         <p className="mt-2 text-sm font-medium">Bu sayfa bilgi tabanına eklensin mi?</p>
@@ -239,7 +239,7 @@ export function SourcesForm() {
             type="button"
             disabled={submitting}
             onClick={() => handleConfirm([step.page.url])}
-            className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+            className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
           >
             {submitting ? "Ekleniyor..." : "Evet, Ekle"}
           </button>
@@ -247,12 +247,12 @@ export function SourcesForm() {
             type="button"
             disabled={submitting}
             onClick={reset}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+            className="rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground hover:bg-surface-hover disabled:opacity-50"
           >
             Vazgeç
           </button>
         </div>
-        {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mt-2 text-xs text-red-500 dark:text-red-400">{error}</p>}
       </div>
     );
   }
@@ -260,32 +260,32 @@ export function SourcesForm() {
   return (
     <form onSubmit={handleDiscover} className="mt-3 flex flex-wrap items-end gap-2">
       <div>
-        <label className="block text-xs font-medium text-neutral-500">URL</label>
+        <label className="block text-xs font-medium text-muted-foreground">URL</label>
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://ornek.com/urunler"
-          className="mt-1 w-72 rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="mt-1 w-72 rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
           required
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-neutral-500">Etiket (opsiyonel)</label>
+        <label className="block text-xs font-medium text-muted-foreground">Etiket (opsiyonel)</label>
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          className="mt-1 w-40 rounded-md border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="mt-1 w-40 rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
         />
       </div>
       <button
         type="submit"
         disabled={discovering}
-        className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+        className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
       >
         {discovering ? "Sayfalar getiriliyor..." : "Sayfaları Getir"}
       </button>
-      {message && <p className="w-full text-xs text-green-600 dark:text-green-400">{message}</p>}
-      {error && <p className="w-full text-xs text-red-600 dark:text-red-400">{error}</p>}
+      {message && <p className="w-full text-xs text-emerald-500 dark:text-emerald-400">{message}</p>}
+      {error && <p className="w-full text-xs text-red-500 dark:text-red-400">{error}</p>}
     </form>
   );
 }

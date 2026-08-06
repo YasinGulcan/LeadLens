@@ -31,24 +31,24 @@ export default async function DashboardSourcesPage() {
 
   return (
     <section>
-      <h2 className="text-lg font-semibold">Ürün Kataloğu</h2>
-      <p className="mt-1 text-xs text-neutral-500">
+      <h2 className="text-2xl font-bold text-foreground">Bilgi Tabanı</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
         URL ekleyerek site taratabilir ya da bir dosya (CSV/Excel/PDF) yükleyebilirsiniz — ikisi de hemen işlenip embed edilir.
         {!isOwner && " Kaynak/chunk silme sadece hesap sahibinde."}
       </p>
 
-      <div className="mt-3 grid gap-6 sm:grid-cols-2">
+      <div className="mt-4 grid gap-6 sm:grid-cols-2">
         <div>
-          <h3 className="text-sm font-medium text-neutral-500">URL&apos;den Tara</h3>
+          <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">URL&apos;den Tara</h3>
           <SourcesForm />
         </div>
         <div>
-          <h3 className="text-sm font-medium text-neutral-500">Dosya Yükle</h3>
+          <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Dosya Yükle</h3>
           <FileUploadForm />
         </div>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-8">
         <SourcesTable sources={sources ?? []} chunkCountBySource={Object.fromEntries(chunkCountBySource)} canDelete={isOwner} />
       </div>
     </section>
