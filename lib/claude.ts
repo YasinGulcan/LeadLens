@@ -3,15 +3,56 @@ import { z } from "zod";
 import type { MatchedChunk } from "./match";
 import { RANK_TIER_LABEL, type RankTier } from "./rank-tier";
 
-export const AnalysisSchema = z.object({
+const SubScoreSchema = z.object({
+  score: z.number().min(0).max(100),
+  reason: z.string(),
+});
+
+const ScoreBreakdownSchema = z.object({
+  fit: SubScoreSchema,
+  intent: SubScoreSchema,
+  value: SubScoreSchema,
+  alignment: SubScoreSchema,
+});
+
+export type ScoreBreakdown = z.infer<typeof ScoreBreakdownSchema>;
+
+/**
+ * Genel skor, Claude'un ayrıca üretmesi yerine bu 4 alt skorun ağırlıklı
+ * ortalamasından HESAPLANIR (bkz. computeOverallScore) — modele hem "genel
+ * bir skor ver" hem "4 ayrı skor ver" dedirtmek tutarsızlığa yol açabiliyordu
+ * (ikisi birbirini tutmayabiliyordu). Ağırlıklar:
+ * - fit (ICP uyumu) %35 — en güçlü dönüşüm sinyali: doğru profile mi satıyoruz.
+ * - intent (niyet gücü) %30 — şu an satın almaya ne kadar yakın/istekli.
+ * - value (talep değeri) %20 — bu erken aşamada genelde daha zayıf/dolaylı bir sinyal.
+ * - alignment (sektör/coğrafya/segment aidiyeti) %15 — çoğunlukla bir ön filtre, skor sürücüsü değil.
+ */
+export const SCORE_WEIGHTS = { fit: 0.35, intent: 0.3, value: 0.2, alignment: 0.15 } as const;
+
+export function computeOverallScore(breakdown: ScoreBreakdown): number {
+  const weighted =
+    breakdown.fit.score * SCORE_WEIGHTS.fit +
+    breakdown.intent.score * SCORE_WEIGHTS.intent +
+    breakdown.value.score * SCORE_WEIGHTS.value +
+    breakdown.alignment.score * SCORE_WEIGHTS.alignment;
+  return Math.round(weighted) / 100;
+}
+
+// Claude'un tool_use ile döndürdüğü ham çıktı — eslesme_skoru burada YOK,
+// AnalysisSchema'da computeOverallScore ile eklenir (bkz. analyzeLead sonu).
+const ClaudeOutputSchema = z.object({
   sektor: z.string(),
   site_bulgusu: z.string(),
   onerilen_urun: z.string(),
-  eslesme_skoru: z.number().min(0).max(1),
+  score_breakdown: ScoreBreakdownSchema,
   gerekce: z.string(),
   oncelik: z.enum(["düşük", "orta", "yüksek"]),
   satis_notu: z.string(),
   netlestirici_soru: z.string(),
+});
+
+export const AnalysisSchema = ClaudeOutputSchema.extend({
+  eslesme_skoru: z.number().min(0).max(1),
 });
 
 export type LeadAnalysis = z.infer<typeof AnalysisSchema>;
@@ -94,7 +135,7 @@ export async function analyzeLead(params: {
     messages: [
       {
         role: "user",
-        content: `Müşteri sitesi özeti:\n${params.siteSummary}\n\nMüşteri mesajı:\n${params.message || "(yok)"}${hasRealMessage ? "" : "\n(Not: mesaj boş veya bilgi taşımıyor, karar için siteye ağırlık ver.)"}${visibilityBlock}\n\nİlgili ürün bilgisi parçaları:\n${context}\n\nBu bilgilere dayanarak sektörü, sitenin bağımsız teşhisini (site_bulgusu), en uygun ürünü/hizmeti, eşleşme skorunu (0-1), gerekçeni, önceliği, satış ekibi için bir açılış notu ve bir netleştirici soru belirle.`,
+        content: `Müşteri sitesi özeti:\n${params.siteSummary}\n\nMüşteri mesajı:\n${params.message || "(yok)"}${hasRealMessage ? "" : "\n(Not: mesaj boş veya bilgi taşımıyor, karar için siteye ağırlık ver.)"}${visibilityBlock}\n\nİlgili ürün bilgisi parçaları:\n${context}\n\nBu bilgilere dayanarak sektörü, sitenin bağımsız teşhisini (site_bulgusu), en uygun ürünü/hizmeti, dört ayrı boyutta skor kırılımını, gerekçeni, önceliği, satış ekibi için bir açılış notu ve bir netleştirici soru belirle.`,
       },
     ],
     tools: [
@@ -125,7 +166,51 @@ export async function analyzeLead(params: {
                 "Önerilen ürün/hizmetin adı — sadece verilen parçalarda geçen gerçek bir ürün/hizmet. " +
                 'Anlamlı bir eşleşme yoksa (müşteri mesajı belirsiz, site alakasız vb.) "Net bir eşleşme bulunamadı" yaz, İngilizce placeholder/token kullanma.',
             },
-            eslesme_skoru: { type: "number", description: "0 ile 1 arasında eşleşme skoru" },
+            score_breakdown: {
+              type: "object",
+              description: "Genel skorun 4 ayrı boyuttaki kırılımı — her biri 0-100 arası, birbirinden bağımsız değerlendirilir.",
+              properties: {
+                fit: {
+                  type: "object",
+                  description:
+                    'İhtimal uyumu — lead, ideal müşteri profiline (sektör, işletme büyüklüğü, ürün bilgi tabanındaki hedef kitle) ne kadar uyuyor.',
+                  properties: {
+                    score: { type: "number", description: "0-100 arası uyum skoru" },
+                    reason: { type: "string", description: "1-2 cümlelik somut gerekçe — site/mesaj içeriğine dayan, uydurma." },
+                  },
+                  required: ["score", "reason"],
+                },
+                intent: {
+                  type: "object",
+                  description: "Niyet gücü — müşteri mesajındaki satın alma niyetinin gücü/aciliyeti (belirsiz/genel bir mesaj düşük, somut ve acil bir talep yüksek puanlanır).",
+                  properties: {
+                    score: { type: "number", description: "0-100 arası niyet skoru" },
+                    reason: { type: "string", description: "1-2 cümlelik somut gerekçe." },
+                  },
+                  required: ["score", "reason"],
+                },
+                value: {
+                  type: "object",
+                  description:
+                    "Talepteki değer — talebin potansiyel ticari değeri; mesajda/sitede bütçe, hacim, kapsam gibi somut değer sinyalleri varsa yüksek, sadece genel bir bilgi talebiyse düşük.",
+                  properties: {
+                    score: { type: "number", description: "0-100 arası değer skoru" },
+                    reason: { type: "string", description: "1-2 cümlelik somut gerekçe." },
+                  },
+                  required: ["score", "reason"],
+                },
+                alignment: {
+                  type: "object",
+                  description: "Aidiyet — lead'in sektör/coğrafya/ürün segmentinin, sunulan ürün/hizmet kataloğuyla ne kadar örtüştüğü.",
+                  properties: {
+                    score: { type: "number", description: "0-100 arası aidiyet skoru" },
+                    reason: { type: "string", description: "1-2 cümlelik somut gerekçe." },
+                  },
+                  required: ["score", "reason"],
+                },
+              },
+              required: ["fit", "intent", "value", "alignment"],
+            },
             gerekce: { type: "string", description: "Önerinin kısa gerekçesi (1-3 cümle)" },
             oncelik: { type: "string", enum: ["düşük", "orta", "yüksek"] },
             satis_notu: {
@@ -145,16 +230,7 @@ export async function analyzeLead(params: {
                 "için kritik. Eşleşme zaten çok netse (skor yüksekse) bile makul bir keşif sorusu öner.",
             },
           },
-          required: [
-            "sektor",
-            "site_bulgusu",
-            "onerilen_urun",
-            "eslesme_skoru",
-            "gerekce",
-            "oncelik",
-            "satis_notu",
-            "netlestirici_soru",
-          ],
+          required: ["sektor", "site_bulgusu", "onerilen_urun", "score_breakdown", "gerekce", "oncelik", "satis_notu", "netlestirici_soru"],
         },
       },
     ],
@@ -166,5 +242,86 @@ export async function analyzeLead(params: {
     throw new Error("Claude yapılandırılmış çıktı üretmedi.");
   }
 
-  return AnalysisSchema.parse(toolUse.input);
+  const parsed = ClaudeOutputSchema.parse(toolUse.input);
+  return AnalysisSchema.parse({ ...parsed, eslesme_skoru: computeOverallScore(parsed.score_breakdown) });
+}
+
+const DRAFT_TOOL_NAME = "report_draft_reply";
+
+const DraftReplySchema = z.object({
+  subject: z.string(),
+  body_html: z.string(),
+});
+
+export type DraftReply = z.infer<typeof DraftReplySchema>;
+
+/**
+ * Lead detay sayfasındaki "Taslak Oluştur" butonuyla, kullanıcı isteyince
+ * (otomatik değil — bkz. app/dashboard/DraftReply.tsx'teki gerekçe) satış
+ * ekibi adına hazır bir e-posta taslağı üretir. Ayrı, sabit bir sistem
+ * promptu kullanır — hesabın "Sistem Promptu" sekmesindeki özelleştirmeye
+ * bilinçli olarak bağlı değil, çünkü buradaki çıktı (konu+gövde HTML) analiz
+ * şemasından tamamen farklı ve serbest biçimli; iki farklı amacı aynı
+ * promptla yönetmek ikisini de zayıflatır.
+ */
+export async function generateDraftReply(params: {
+  businessName: string;
+  leadName: string | null;
+  leadMessage: string | null;
+  siteFinding: string | null;
+  recommendedProduct: string | null;
+  salesNote: string | null;
+  sector: string | null;
+}): Promise<DraftReply> {
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-5",
+    max_tokens: 1024,
+    system:
+      "Sen bir satış temsilcisi adına, potansiyel müşteriye gönderilecek bir ilk yanıt e-postası taslağı yazan " +
+      "bir asistansın. Türkçe, profesyonel ama sıcak/samimi bir üslup kullan. Kısa ve öz ol (3-5 kısa paragraf). " +
+      "Sadece sana verilen bilgilere dayan, uydurma fiyat/özellik/taahhüt verme. Gövdeyi basit HTML ile yaz — " +
+      "yalnızca <p>, <strong>, <em>, <u>, <ul>, <li> etiketlerini kullan, karmaşık layout/stil ekleme. " +
+      "Müşterinin adını biliyorsan hitapta kullan, bilmiyorsan nötr bir selamlama kullan (örn. 'Merhaba,'). " +
+      "E-postayı işletmenin adına, imza olmadan (satış temsilcisi kendi adını ekleyecek) yaz.",
+    messages: [
+      {
+        role: "user",
+        content:
+          `İşletme: ${params.businessName}\n` +
+          `Müşteri adı: ${params.leadName ?? "(bilinmiyor)"}\n` +
+          `Müşteri mesajı: ${params.leadMessage || "(yok)"}\n` +
+          `Sektör: ${params.sector ?? "(bilinmiyor)"}\n` +
+          `Site bulgusu: ${params.siteFinding ?? "(yok)"}\n` +
+          `Önerilen ürün/hizmet: ${params.recommendedProduct ?? "(yok)"}\n` +
+          `Satış notu (önerilen aksiyon): ${params.salesNote ?? "(yok)"}\n\n` +
+          "Bu bilgilere dayanarak, satış ekibinin bu müşteriye göndereceği ilk yanıt e-postasının konu satırını " +
+          "ve gövdesini (HTML) üret. Satış notundaki önerilen aksiyonla tutarlı olsun.",
+      },
+    ],
+    tools: [
+      {
+        name: DRAFT_TOOL_NAME,
+        description: "E-posta taslağını yapılandırılmış olarak döndürür.",
+        input_schema: {
+          type: "object",
+          properties: {
+            subject: { type: "string", description: "E-postanın konu satırı — kısa, spesifik, spam gibi görünmeyen." },
+            body_html: {
+              type: "string",
+              description: "E-postanın gövdesi, basit HTML (<p>, <strong>, <em>, <u>, <ul>, <li>) ile.",
+            },
+          },
+          required: ["subject", "body_html"],
+        },
+      },
+    ],
+    tool_choice: { type: "tool", name: DRAFT_TOOL_NAME },
+  });
+
+  const toolUse = response.content.find((block) => block.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Claude yapılandırılmış çıktı üretmedi.");
+  }
+
+  return DraftReplySchema.parse(toolUse.input);
 }

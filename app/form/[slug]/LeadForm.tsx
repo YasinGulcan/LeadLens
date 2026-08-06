@@ -29,6 +29,7 @@ export function LeadForm({ accountSlug }: { accountSlug: string }) {
       accountSlug,
       name: formData.get("name"),
       phone: formData.get("phone"),
+      email: formData.get("email"),
       websiteUrl: formData.get("websiteUrl"),
       message: formData.get("message"),
       consentGiven: true,
@@ -90,6 +91,14 @@ export function LeadForm({ accountSlug }: { accountSlug: string }) {
             <input
               name="phone"
               type="tel"
+              className="rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            E-posta
+            <input
+              name="email"
+              type="email"
               className="rounded-md border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
             />
           </label>

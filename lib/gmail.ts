@@ -41,6 +41,7 @@ function getClientForAccount(account: GmailAccount): gmail_v1.Gmail {
 export interface FormSubmission {
   name: string;
   phone: string;
+  email: string;
   websiteUrl: string;
   message: string;
   consentGivenAt: string;
@@ -164,6 +165,17 @@ async function sendMultipartEmailTo(account: GmailAccount, to: string, subject: 
   await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
 }
 
+/** Lead detay sayfasındaki "Otomatik Gönder" — kullanıcının düzenlediği taslağı, bağlı Gmail hesabından lead'in kendi adresine gönderir. */
+export async function sendDraftReplyEmail(account: GmailAccount, to: string, subject: string, bodyHtml: string): Promise<void> {
+  const text = bodyHtml
+    .replace(/<\/(p|li|div)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  await sendMultipartEmailTo(account, to, subject, text, bodyHtml);
+}
+
 /**
  * Form gönderimini simüle eden e-postayı gönderir. `text/plain` bölümü
  * `fetchUnprocessedLeadEmails`'in ayrıştırdığı sabit şablon (satır satır
@@ -178,6 +190,7 @@ export async function sendFormSubmissionEmail(account: GmailAccount, submission:
   const text = [
     `İsim: ${submission.name}`,
     `Telefon: ${submission.phone}`,
+    `E-posta: ${submission.email}`,
     `Website: ${submission.websiteUrl}`,
     `Mesaj: ${submission.message}`,
     `Onay: ${submission.consentGivenAt}`,
@@ -192,6 +205,10 @@ export async function sendFormSubmissionEmail(account: GmailAccount, submission:
         <tr>
           <td style="padding:6px 0; color:#6b7280; width:120px;">Telefon</td>
           <td style="padding:6px 0;">${escapeHtml(submission.phone || "—")}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0; color:#6b7280;">E-posta</td>
+          <td style="padding:6px 0;">${escapeHtml(submission.email || "—")}</td>
         </tr>
         <tr>
           <td style="padding:6px 0; color:#6b7280;">Website</td>
@@ -401,6 +418,7 @@ export interface ParsedLeadEmail {
   gmailMessageId: string;
   name: string | null;
   phone: string | null;
+  email: string | null;
   websiteUrl: string | null;
   message: string | null;
   consentGivenAt: string | null;
@@ -466,6 +484,7 @@ export async function fetchUnprocessedLeadEmails(account: GmailAccount): Promise
       gmailMessageId: ref.id,
       name: extractField(body, "İsim"),
       phone: extractField(body, "Telefon"),
+      email: extractField(body, "E-posta"),
       websiteUrl: extractField(body, "Website"),
       message: extractField(body, "Mesaj"),
       consentGivenAt: extractField(body, "Onay"),

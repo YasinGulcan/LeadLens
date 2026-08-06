@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
   const accountSlug = typeof body?.accountSlug === "string" ? body.accountSlug.trim() : "";
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
+  const email = typeof body?.email === "string" ? body.email.trim() : "";
   const websiteUrl = typeof body?.websiteUrl === "string" ? body.websiteUrl.trim() : "";
   const message = typeof body?.message === "string" ? body.message.trim() : "";
   const consentGiven = body?.consentGiven === true;
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
     await sendFormSubmissionEmail(account, {
       name,
       phone,
+      email,
       websiteUrl,
       message,
       consentGivenAt: new Date().toISOString(),
