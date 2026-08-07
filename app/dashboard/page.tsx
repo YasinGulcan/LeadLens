@@ -6,7 +6,8 @@ import { supabase } from "@/lib/supabase";
 import { relativeTimeTr } from "@/lib/format";
 import { Card, CardTitle, Badge, StatCard, ScoreCircle } from "@/components/ui";
 import { ScoreDistributionChart, type ScoreBucket } from "./ScoreDistributionChart";
-import { SetupChecklist } from "./SetupChecklist";
+import { SetupBanner } from "./SetupBanner";
+import { getSetupStatus } from "@/lib/setup-checklist";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function DashboardOverviewPage() {
   const ninetyDaysAgo = new Date(new Date().getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
 
-  const [{ data: recentLeads }, { count: totalLeadCount }] = await Promise.all([
+  const [{ data: recentLeads }, { count: totalLeadCount }, setupStatus] = await Promise.all([
     supabase
       .from("leads")
       .select("id, name, sector, priority, status, match_score, sales_note, site_finding, created_at")
@@ -44,6 +45,7 @@ export default async function DashboardOverviewPage() {
       .order("created_at", { ascending: false })
       .limit(200),
     supabase.from("leads").select("id", { count: "exact", head: true }).eq("account_id", accountId),
+    getSetupStatus(accountId),
   ]);
 
   const leads = recentLeads ?? [];
@@ -64,7 +66,7 @@ export default async function DashboardOverviewPage() {
         <h2 className="text-2xl font-bold text-foreground">Hoş geldiniz.</h2>
       </div>
 
-      <SetupChecklist accountId={accountId} />
+      <SetupBanner status={setupStatus} />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard icon={Inbox} label="Bu ay gelen" value={thisMonthLeads.length} hint="lead" />

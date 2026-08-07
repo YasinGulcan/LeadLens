@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
 import { acceptTeamMembership, isAccountOwner, isAuthorizedForAccount } from "@/lib/accounts";
+import { getSetupStatus } from "@/lib/setup-checklist";
 import { supabase } from "@/lib/supabase";
 import { DashboardSidebar } from "./DashboardSidebar";
 
@@ -11,9 +12,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) redirect("/");
   const { accountId } = session;
 
-  const [{ data: account }, { count: leadCount }] = await Promise.all([
+  const [{ data: account }, { count: leadCount }, setupStatus] = await Promise.all([
     supabase.from("accounts").select("business_name, slug, onboarded_at").eq("id", accountId).single(),
     supabase.from("leads").select("id", { count: "exact", head: true }).eq("account_id", accountId),
+    getSetupStatus(accountId),
   ]);
   if (!account) redirect("/");
   // Oturum çerezi 30 gün geçerli kalabiliyor — ekipten çıkarıldıktan sonra
@@ -32,7 +34,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen bg-background">
-      <DashboardSidebar businessName={account.business_name} email={session.email} leadCount={leadCount ?? 0} />
+      <DashboardSidebar
+        businessName={account.business_name}
+        email={session.email}
+        leadCount={leadCount ?? 0}
+        setupProgress={setupStatus.requiredDone ? null : { completed: setupStatus.completedCount, total: setupStatus.totalCount }}
+      />
       <div className="min-w-0 flex-1 overflow-x-hidden">
         <div className="border-b border-border px-8 py-4 text-xs text-muted-foreground">
           Form adresi: /form/{account.slug}
