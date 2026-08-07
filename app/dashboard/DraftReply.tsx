@@ -13,6 +13,13 @@ interface Draft {
   bodyHtml: string;
 }
 
+type DraftTone = "resmi" | "samimi" | "teknik";
+const TONES: { value: DraftTone; label: string }[] = [
+  { value: "resmi", label: "Resmi" },
+  { value: "samimi", label: "Samimi" },
+  { value: "teknik", label: "Teknik" },
+];
+
 function ToolbarButton({
   active,
   onClick,
@@ -78,6 +85,7 @@ function Toolbar({ editor }: { editor: Editor }) {
  */
 export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: string | null }) {
   const { confirm, dialog } = useConfirm();
+  const [tone, setTone] = useState<DraftTone>("samimi");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [subject, setSubject] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -108,7 +116,11 @@ export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: s
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch(`/api/dashboard/leads/${leadId}/draft`, { method: "POST" });
+      const res = await fetch(`/api/dashboard/leads/${leadId}/draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tone }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Bilinmeyen hata");
       setDraft({ subject: data.subject, bodyHtml: data.bodyHtml });
@@ -174,14 +186,30 @@ export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: s
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           <Sparkles size={13} className="text-accent" />
           Hazır Yanıt Taslağı
         </h3>
-        <Button variant="secondary" size="sm" disabled={generating} onClick={generateDraft}>
-          {generating ? "Oluşturuluyor..." : draft ? "Yeniden Oluştur" : "Taslak Oluştur"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5 rounded-md border border-border bg-surface p-0.5">
+            {TONES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setTone(t.value)}
+                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                  tone === t.value ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <Button variant="secondary" size="sm" disabled={generating} onClick={generateDraft}>
+            {generating ? "Oluşturuluyor..." : draft ? "Yeniden Oluştur" : "Taslak Oluştur"}
+          </Button>
+        </div>
       </div>
 
       {!draft && !generating && (

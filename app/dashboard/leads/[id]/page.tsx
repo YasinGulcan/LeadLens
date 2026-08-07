@@ -12,6 +12,7 @@ import { isSalesStatus } from "@/lib/lead-status";
 import { Card } from "@/components/ui";
 import { QuickActions } from "./QuickActions";
 import { NotesPanel, type LeadNote } from "./NotesPanel";
+import { DeepAnalysis, type DeepAnalysisData } from "./DeepAnalysis";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     supabase
       .from("leads")
       .select(
-        "id, account_id, name, phone, email, website_url, message, status, sales_status, priority, recommended_product, match_score, score_breakdown, reasoning, sales_note, site_finding, sector, clarifying_question, error_message, search_keyword, search_rank_position, ai_visibility_mentioned, created_at"
+        "id, account_id, name, phone, email, website_url, message, status, sales_status, priority, recommended_product, match_score, score_breakdown, reasoning, sales_note, site_finding, sector, clarifying_question, error_message, search_keyword, search_rank_position, ai_visibility_mentioned, deep_analysis, created_at"
       )
       .eq("id", id)
       .single(),
@@ -60,6 +61,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   if (!lead || lead.account_id !== session.accountId) notFound();
 
   const breakdown = lead.score_breakdown as ScoreBreakdownData | null;
+  const deepAnalysis = lead.deep_analysis as DeepAnalysisData | null;
   const salesStatus = isSalesStatus(lead.sales_status) ? lead.sales_status : "yeni";
   const hasAnalysisNotes = lead.sector || lead.site_finding || lead.sales_note || lead.recommended_product || lead.search_keyword;
   const notes: LeadNote[] = (notesData ?? []).map((n) => ({
@@ -142,7 +144,8 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               {lead.sector && <Field label="Sektör" value={lead.sector} />}
               {lead.recommended_product && <Field label="Önerilen Ürün" value={lead.recommended_product} />}
               {lead.site_finding && <Field label="Site Bulgusu" value={lead.site_finding} />}
-              {lead.sales_note && <Field label="Arama Öncesi Not" value={lead.sales_note} />}
+              {/* Derinlemesine analiz varsa "Fırsat Analizi" bunun yerini alıyor (aynı bilgiyi genişletiyor) — tekrar göstermiyoruz. */}
+              {lead.sales_note && !deepAnalysis && <Field label="Arama Öncesi Not" value={lead.sales_note} />}
             </div>
 
             {lead.clarifying_question && (
@@ -168,6 +171,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             )}
           </div>
         )}
+
+        {/* Derinlemesine analiz */}
+        <div className="px-6 py-5">
+          <DeepAnalysis leadId={lead.id} initialData={deepAnalysis} />
+        </div>
 
         {/* Hazır yanıt taslağı */}
         <div className="px-6 py-5">

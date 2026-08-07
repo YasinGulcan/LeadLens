@@ -257,6 +257,152 @@ export async function analyzeLead(params: {
   return AnalysisSchema.parse({ ...parsed, eslesme_skoru: computeOverallScore(parsed.score_breakdown) });
 }
 
+const DEEP_ANALYSIS_TOOL_NAME = "report_deep_analysis";
+
+const DeepAnalysisSchema = z.object({
+  site_findings: z.array(z.string()).min(3).max(6),
+  opportunity_headline: z.string(),
+  opportunity_body: z.string(),
+  confidence_note: z.string(),
+  matched_services: z.array(z.object({ name: z.string(), reason: z.string() })).max(5),
+  pricing_hint: z.string(),
+  first_call_questions: z.array(z.string()).min(1).max(3),
+  watch_out: z.array(z.string()).min(1).max(2),
+});
+
+export type DeepAnalysis = z.infer<typeof DeepAnalysisSchema>;
+
+/**
+ * Lead detay sayfasındaki "Derinlemesine Analiz Oluştur" — kullanıcı isteyince
+ * (otomatik pipeline'ın parçası değil, maliyet nedeniyle — bkz. DeepAnalysis.tsx)
+ * `analyzeLead`'in ürettiği temel analizi zenginleştiren, tek seferlik ek bir
+ * rapor üretir. `matchedChunks` bu çağrı için ÜCRETSİZ tekrar hesaplanır
+ * (lib/match.ts sadece embedding+pgvector, LLM çağrısı yok) — böylece
+ * "Eşleşen Hizmetler" gerçek RAG verisinden geliyor, uydurulmuyor.
+ */
+export async function generateDeepAnalysis(params: {
+  siteSummary: string | null;
+  message: string | null;
+  matchedChunks: MatchedChunk[];
+  recommendedProduct: string | null;
+  sector: string | null;
+  siteFinding: string | null;
+  salesNote: string | null;
+}): Promise<DeepAnalysis> {
+  const context = params.matchedChunks
+    .map((c, i) => `[Parça ${i + 1} — ${c.sourceUrl} — benzerlik: ${c.similarity.toFixed(2)}]\n${c.content}`)
+    .join("\n\n");
+
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-5",
+    max_tokens: 2048,
+    system:
+      "Sen bir satış öncesi analiz asistanısın, bir lead için zaten yapılmış temel analizi (sektör/site bulgusu/" +
+      "önerilen ürün) daha zengin, satış ekibinin görüşme öncesi kullanacağı bir rapora dönüştürüyorsun. " +
+      "Türkçe yaz. Sadece sana verilen site özeti, müşteri mesajı ve ürün bilgisi parçalarına dayan — hiçbir " +
+      "rakam, referans, vaka çalışması veya özellik uydurma. Emin olmadığın bir şeyi confidence_note alanında " +
+      "dürüstçe belirt; süslü ama uydurma bir 'risk skoru' üretme, gerçek bir varsayım/belirsizlik yoksa bunu da " +
+      "dürüstçe söyle. pricing_hint her zaman 'yaklaşık' ifadesiyle, kademeli ve kesin taahhüt içermeyen bir " +
+      "aralık olmalı.",
+    messages: [
+      {
+        role: "user",
+        content:
+          `Müşteri sitesi özeti:\n${params.siteSummary || "(yok)"}\n\n` +
+          `Müşteri mesajı:\n${params.message || "(yok)"}\n\n` +
+          `Sektör: ${params.sector ?? "(bilinmiyor)"}\n` +
+          `Mevcut site bulgusu: ${params.siteFinding ?? "(yok)"}\n` +
+          `Mevcut önerilen ürün: ${params.recommendedProduct ?? "(yok)"}\n` +
+          `Mevcut arama öncesi not: ${params.salesNote ?? "(yok)"}\n\n` +
+          `İlgili ürün bilgisi parçaları:\n${context || "(eşleşen ürün bilgisi bulunamadı)"}\n\n` +
+          "Bu bilgilere dayanarak: sitenin somut bulgularını madde madde listele, bir fırsat analizi (başlık + " +
+          "1-2 paragraf) yaz, analizinin güvenilirliği hakkında dürüst bir not düş, eşleşen ürün bilgisi " +
+          "parçalarından en alakalı 3-5 hizmeti gerekçesiyle listele, kaba/yaklaşık bir fiyat ipucu ver, ilk " +
+          "görüşmede sorulacak en fazla 3 soru ve dikkat edilmesi gereken 1-2 nokta belirle.",
+      },
+    ],
+    tools: [
+      {
+        name: DEEP_ANALYSIS_TOOL_NAME,
+        description: "Zenginleştirilmiş lead analiz raporunu yapılandırılmış olarak döndürür.",
+        input_schema: {
+          type: "object",
+          properties: {
+            site_findings: {
+              type: "array",
+              items: { type: "string" },
+              description:
+                "Site taramasından çıkan 3-6 somut, kısa madde — örn. '220 araçlık filo, dört depo'. " +
+                "Genel/soyut ifadeler değil, içerikte gerçekten geçen somut gözlemler olmalı.",
+            },
+            opportunity_headline: {
+              type: "string",
+              description: "Fırsatı özetleyen tek, çarpıcı cümle — örn. 'Talep hazır, hedef net — asıl sorun görünürlük.'",
+            },
+            opportunity_body: {
+              type: "string",
+              description: "opportunity_headline'ı açan 1-2 paragraf — neden bu bir fırsat, hangi somut sinyallere dayanıyor.",
+            },
+            confidence_note: {
+              type: "string",
+              description:
+                "Bu analizdeki gerçek belirsizlikleri/doğrulanmamış varsayımları dürüstçe belirten 1-2 cümle " +
+                "(örn. 'Filo büyüklüğü site metninden çıkarım, doğrulanmadı — taahhüt öncesi teyit edilmeli.'). " +
+                "Gerçekten belirsizlik yoksa bunu da dürüstçe yaz, uydurma bir kaygı üretme.",
+            },
+            matched_services: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string", description: "Verilen ürün bilgisi parçalarında geçen gerçek hizmet/ürün adı." },
+                  reason: { type: "string", description: "Bu hizmetin neden eşleştiğine dair tek cümlelik somut gerekçe." },
+                },
+                required: ["name", "reason"],
+              },
+              description: "İlgili ürün bilgisi parçalarından en alakalı en fazla 5 hizmet, gerekçesiyle.",
+            },
+            pricing_hint: {
+              type: "string",
+              description:
+                "Eşleşen hizmetlerden ve bütçe/hacim sinyallerinden çıkan kaba, kademeli bir fiyat aralığı — " +
+                "her zaman 'yaklaşık' ifadesiyle, kesin taahhüt değil. Yeterli sinyal yoksa dürüstçe belirt.",
+            },
+            first_call_questions: {
+              type: "array",
+              items: { type: "string" },
+              description: "Satış ekibinin ilk görüşmede netleştirmesi gereken en fazla 3 soru.",
+            },
+            watch_out: {
+              type: "array",
+              items: { type: "string" },
+              description: "Eksik bilgi veya çelişkili sinyal gibi, satış ekibinin dikkat etmesi gereken 1-2 kısa uyarı.",
+            },
+          },
+          required: [
+            "site_findings",
+            "opportunity_headline",
+            "opportunity_body",
+            "confidence_note",
+            "matched_services",
+            "pricing_hint",
+            "first_call_questions",
+            "watch_out",
+          ],
+        },
+      },
+    ],
+    tool_choice: { type: "tool", name: DEEP_ANALYSIS_TOOL_NAME },
+  });
+
+  const toolUse = response.content.find((block) => block.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Claude yapılandırılmış çıktı üretmedi.");
+  }
+
+  return DeepAnalysisSchema.parse(toolUse.input);
+}
+
 const DRAFT_TOOL_NAME = "report_draft_reply";
 
 const DraftReplySchema = z.object({
@@ -265,6 +411,14 @@ const DraftReplySchema = z.object({
 });
 
 export type DraftReply = z.infer<typeof DraftReplySchema>;
+
+export type DraftTone = "resmi" | "samimi" | "teknik";
+
+const DRAFT_TONE_INSTRUCTION: Record<DraftTone, string> = {
+  resmi: "Resmi ve kurumsal bir üslup kullan — mesafeli ama saygılı, 'siz' hitabı, gündelik ifadelerden kaçın.",
+  samimi: "Profesyonel ama sıcak/samimi bir üslup kullan — mesafeli değil, gerçek bir insan yazıyormuş gibi.",
+  teknik: "Teknik ve doğrudan bir üslup kullan — küçük sohbet/nezaket cümlelerini minimumda tut, somut özelliklere/kapsama odaklan.",
+};
 
 /**
  * Lead detay sayfasındaki "Taslak Oluştur" butonuyla, kullanıcı isteyince
@@ -283,13 +437,16 @@ export async function generateDraftReply(params: {
   recommendedProduct: string | null;
   salesNote: string | null;
   sector: string | null;
+  /** Varsayılan "samimi" — önceki (ton seçicisiz) davranışla aynı. */
+  tone?: DraftTone;
 }): Promise<DraftReply> {
+  const tone = params.tone ?? "samimi";
   const response = await getClient().messages.create({
     model: "claude-sonnet-5",
     max_tokens: 1024,
     system:
       "Sen bir satış temsilcisi adına, potansiyel müşteriye gönderilecek bir ilk yanıt e-postası taslağı yazan " +
-      "bir asistansın. Türkçe, profesyonel ama sıcak/samimi bir üslup kullan. Kısa ve öz ol (3-5 kısa paragraf). " +
+      `bir asistansın. Türkçe yaz. ${DRAFT_TONE_INSTRUCTION[tone]} Kısa ve öz ol (3-5 kısa paragraf). ` +
       "Sadece sana verilen bilgilere dayan, uydurma fiyat/özellik/taahhüt verme. Gövdeyi basit HTML ile yaz — " +
       "yalnızca <p>, <strong>, <em>, <u>, <ul>, <li> etiketlerini kullan, karmaşık layout/stil ekleme. " +
       "Müşterinin adını biliyorsan hitapta kullan, bilmiyorsan nötr bir selamlama kullan (örn. 'Merhaba,'). " +

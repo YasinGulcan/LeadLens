@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { getAccountById } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
-import { generateDraftReply } from "@/lib/claude";
+import { generateDraftReply, type DraftTone } from "@/lib/claude";
+
+const DRAFT_TONES: readonly DraftTone[] = ["resmi", "samimi", "teknik"];
 
 /** Lead detay sayfasındaki "Taslak Oluştur" — istendiğinde (otomatik değil) bir e-posta taslağı üretir, hiçbir şey kaydetmez. */
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSessionInfo();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const body = await req.json().catch(() => null);
+  const toneRaw = typeof body?.tone === "string" ? body.tone : "";
+  const tone: DraftTone | undefined = DRAFT_TONES.includes(toneRaw as DraftTone) ? (toneRaw as DraftTone) : undefined;
 
   const { data: lead } = await supabase
     .from("leads")
@@ -32,6 +37,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       recommendedProduct: lead.recommended_product,
       salesNote: lead.sales_note,
       sector: lead.sector,
+      tone,
     });
     return NextResponse.json({ ok: true, subject: draft.subject, bodyHtml: draft.body_html });
   } catch (err) {
