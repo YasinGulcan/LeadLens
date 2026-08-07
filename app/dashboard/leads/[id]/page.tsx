@@ -1,35 +1,25 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { ArrowLeft, Phone, Mail, Globe, Clock, AlertCircle, Search } from "lucide-react";
+import { ArrowLeft, Phone, Mail, Globe, Clock, AlertCircle } from "lucide-react";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { ScoreBreakdown, type ScoreBreakdownData } from "../../ScoreBreakdown";
 import { DraftReply } from "../../DraftReply";
 import { StatusSelect } from "../../StatusSelect";
-import { RANK_TIER_LABEL, rankTier } from "@/lib/rank-tier";
 import { isSalesStatus } from "@/lib/lead-status";
 import { Card } from "@/components/ui";
 import { QuickActions } from "./QuickActions";
 import { NotesPanel, type LeadNote } from "./NotesPanel";
 import { DeepAnalysis, type DeepAnalysisData } from "./DeepAnalysis";
 import { ActivityHistory, type HistoryEntry } from "./ActivityHistory";
+import { AnalysisSummary } from "./AnalysisSummary";
 
 export const dynamic = "force-dynamic";
 
 /** Bölüm başlığı — kart genelindeki tutarlı, tek gri tonlu tipografi hiyerarşisi. */
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <h3 className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{children}</h3>;
-}
-
-/** "Etiket: değer" satırı — vurgu bold yerine sadece daha açık (foreground) renkle. */
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <p className="text-sm">
-      <span className="text-muted-foreground">{label}: </span>
-      <span className="text-foreground">{value}</span>
-    </p>
-  );
 }
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -64,7 +54,6 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const breakdown = lead.score_breakdown as ScoreBreakdownData | null;
   const deepAnalysis = lead.deep_analysis as DeepAnalysisData | null;
   const salesStatus = isSalesStatus(lead.sales_status) ? lead.sales_status : "yeni";
-  const hasAnalysisNotes = lead.sector || lead.site_finding || lead.sales_note || lead.recommended_product || lead.search_keyword;
   const notes: LeadNote[] = (notesData ?? []).map((n) => ({
     id: n.id,
     authorEmail: n.author_email,
@@ -143,42 +132,6 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           )
         )}
 
-        {/* Analiz notları (+ netleştirici soru + arama görünürlüğü) */}
-        {hasAnalysisNotes && (
-          <div className="px-6 py-5">
-            <SectionLabel>Analiz Notları</SectionLabel>
-            <div className="space-y-1.5">
-              {lead.sector && <Field label="Sektör" value={lead.sector} />}
-              {lead.recommended_product && <Field label="Önerilen Ürün" value={lead.recommended_product} />}
-              {lead.site_finding && <Field label="Site Bulgusu" value={lead.site_finding} />}
-              {/* Derinlemesine analiz varsa "Fırsat Analizi" bunun yerini alıyor (aynı bilgiyi genişletiyor) — tekrar göstermiyoruz. */}
-              {lead.sales_note && !deepAnalysis && <Field label="Arama Öncesi Not" value={lead.sales_note} />}
-            </div>
-
-            {lead.clarifying_question && (
-              <div className="mt-4">
-                <span className="text-sm text-muted-foreground">Netleştirici Soru: </span>
-                <span className="text-sm text-foreground">{lead.clarifying_question}</span>
-              </div>
-            )}
-
-            {lead.search_keyword && (
-              <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
-                <Search size={13} className="mt-0.5 shrink-0" />
-                <div>
-                  <p>
-                    &quot;{lead.search_keyword}&quot; için — Web araması görünürlüğü:{" "}
-                    <span className="text-foreground">{RANK_TIER_LABEL[rankTier(lead.search_rank_position)]}</span>; AI görünürlüğü:{" "}
-                    <span className="text-foreground">
-                      {lead.ai_visibility_mentioned == null ? "kontrol edilemedi" : lead.ai_visibility_mentioned ? "marka geçti" : "marka geçmedi"}
-                    </span>
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Derinlemesine analiz */}
         <div className="px-6 py-5">
           <DeepAnalysis leadId={lead.id} initialData={deepAnalysis} />
@@ -192,6 +145,17 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
       <div className="space-y-6 lg:sticky lg:top-8">
         <QuickActions phone={lead.phone} email={lead.email} websiteUrl={lead.website_url} />
+        <AnalysisSummary
+          sector={lead.sector}
+          recommendedProduct={lead.recommended_product}
+          siteFinding={lead.site_finding}
+          salesNote={lead.sales_note}
+          showSalesNote={!deepAnalysis}
+          clarifyingQuestion={lead.clarifying_question}
+          searchKeyword={lead.search_keyword}
+          searchRankPosition={lead.search_rank_position}
+          aiVisibilityMentioned={lead.ai_visibility_mentioned}
+        />
         <NotesPanel leadId={lead.id} notes={notes} currentEmail={session.email} isOwner={isOwner} />
         <ActivityHistory history={historyEntries} />
       </div>
