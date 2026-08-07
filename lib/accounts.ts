@@ -3,6 +3,7 @@ import type { GmailAccount } from "./gmail";
 import { generateInboundToken } from "./inbound-email";
 
 export type PrimaryLeadSource = "gmail" | "forwarding";
+export type TeamSize = "solo" | "2-5" | "6-20" | "20+";
 
 export interface Account {
   id: string;
@@ -15,10 +16,14 @@ export interface Account {
   customSystemPrompt: string | null;
   inboundEmailToken: string | null;
   primaryLeadSource: PrimaryLeadSource;
+  /** LeadLens'i kullanan İŞLETMENİN kendi sektörü — leads.sector (analiz edilen MÜŞTERİNİN sektörü) ile karıştırılmamalı, ayrı bir kavram. */
+  businessSector: string | null;
+  websiteUrl: string | null;
+  teamSize: TeamSize | null;
 }
 
 const ACCOUNT_COLUMNS =
-  "id, business_name, slug, lead_email_subjects, status, notification_email, custom_system_prompt, inbound_email_token, primary_lead_source";
+  "id, business_name, slug, lead_email_subjects, status, notification_email, custom_system_prompt, inbound_email_token, primary_lead_source, business_sector, website_url, team_size";
 
 function toAccount(row: {
   id: string;
@@ -30,6 +35,9 @@ function toAccount(row: {
   custom_system_prompt: string | null;
   inbound_email_token: string | null;
   primary_lead_source: string;
+  business_sector: string | null;
+  website_url: string | null;
+  team_size: string | null;
 }): Account {
   return {
     id: row.id,
@@ -41,6 +49,9 @@ function toAccount(row: {
     customSystemPrompt: row.custom_system_prompt,
     inboundEmailToken: row.inbound_email_token,
     primaryLeadSource: row.primary_lead_source === "forwarding" ? "forwarding" : "gmail",
+    businessSector: row.business_sector,
+    websiteUrl: row.website_url,
+    teamSize: (["solo", "2-5", "6-20", "20+"] as const).includes(row.team_size as TeamSize) ? (row.team_size as TeamSize) : null,
   };
 }
 
