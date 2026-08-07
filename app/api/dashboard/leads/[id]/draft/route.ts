@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: lead } = await supabase
     .from("leads")
-    .select("account_id, name, message, site_finding, recommended_product, sales_note, sector")
+    .select("account_id, name, message, site_finding, recommended_product, sales_note, sector, deep_analysis")
     .eq("id", id)
     .single();
   if (!lead || lead.account_id !== session.accountId) {
@@ -27,6 +27,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const account = await getAccountById(session.accountId);
   if (!account) return NextResponse.json({ error: "Hesap bulunamadı." }, { status: 404 });
+
+  const matchedServices = (lead.deep_analysis as { matched_services?: { name: string; reason: string }[] } | null)?.matched_services;
 
   try {
     const draft = await generateDraftReply({
@@ -38,6 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       salesNote: lead.sales_note,
       sector: lead.sector,
       tone,
+      matchedServices,
     });
     return NextResponse.json({ ok: true, subject: draft.subject, bodyHtml: draft.body_html });
   } catch (err) {

@@ -443,8 +443,16 @@ export async function generateDraftReply(params: {
   sector: string | null;
   /** Varsayılan "samimi" — önceki (ton seçicisiz) davranışla aynı. */
   tone?: DraftTone;
+  /** Derinlemesine Analiz üretilmişse (bkz. generateDeepAnalysis) eşleşen hizmetler — yoksa taslak tek recommendedProduct'a dayanır. */
+  matchedServices?: { name: string; reason: string }[];
 }): Promise<DraftReply> {
   const tone = params.tone ?? "samimi";
+  const matchedServicesBlock =
+    params.matchedServices && params.matchedServices.length > 0
+      ? `\n\nEşleşen hizmetler (uygunsa birden fazlasından bahsedebilirsin, hepsini sığdırmaya zorlama):\n${params.matchedServices
+          .map((s) => `- ${s.name}: ${s.reason}`)
+          .join("\n")}`
+      : "";
   const response = await getClient().messages.create({
     model: "claude-sonnet-5",
     max_tokens: 1024,
@@ -465,7 +473,7 @@ export async function generateDraftReply(params: {
           `Sektör: ${params.sector ?? "(bilinmiyor)"}\n` +
           `Site bulgusu: ${params.siteFinding ?? "(yok)"}\n` +
           `Önerilen ürün/hizmet: ${params.recommendedProduct ?? "(yok)"}\n` +
-          `Satış notu (önerilen aksiyon): ${params.salesNote ?? "(yok)"}\n\n` +
+          `Satış notu (önerilen aksiyon): ${params.salesNote ?? "(yok)"}${matchedServicesBlock}\n\n` +
           "Bu bilgilere dayanarak, satış ekibinin bu müşteriye göndereceği ilk yanıt e-postasının konu satırını " +
           "ve gövdesini (HTML) üret. Satış notundaki önerilen aksiyonla tutarlı olsun.",
       },
