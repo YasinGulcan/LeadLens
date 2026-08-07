@@ -147,7 +147,6 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       <div className="space-y-6 lg:sticky lg:top-8">
         <QuickActions
           leadId={lead.id}
-          phone={lead.phone}
           email={lead.email}
           websiteUrl={lead.website_url}
           assignedTo={lead.assigned_to}
