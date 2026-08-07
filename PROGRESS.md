@@ -4,6 +4,8 @@ Bu dosya oturumlar arası ilerleme takibi içindir. Yeni bir Claude Code oturumu
 
 ## Güncel Durum (son güncelleme: 2026-08-07)
 
+**2026-08-07 eklentisi — Lead detayında "Analiz Notları" → "Özet" olarak sağ sütuna taşındı (Oturum 19):** Sidebar dengesini iyileştirmeye devam edildi (Oturum 17'deki İşlem Geçmişi taşımasının devamı) — Sektör/Önerilen Ürün/Site Bulgusu/Netleştirici Soru/arama görünürlüğü artık `AnalysisSummary.tsx` ile sağ sütunda, Hızlı Aksiyonlar'ın altında bir "Özet" kartı. Görüşme Hazırlığı ve Eşleşen Hizmetler bilinçli olarak ana sütunda bırakıldı (Derinlemesine Analiz'in tek parça anlatı akışını bölmemek için) — kullanıcıyla bu ayrım netleşti.
+
 **2026-08-07 eklentisi — Hazır Yanıt Taslağı artık Eşleşen Hizmetler'i biliyor (Oturum 18):** Kullanıcı Derinlemesine Analiz'deki "Eşleşen Hizmetler" listesine bakıp taslağa da eklenip eklenemeyeceğini sordu — `generateDraftReply` opsiyonel bir `matchedServices` parametresi aldı, Derinlemesine Analiz üretilmişse taslak artık tek `recommended_product` yerine birden fazla ilgili hizmetten bahsedebiliyor (yoksa eski davranış aynen korunuyor). Gerçek bir Claude çağrısıyla doğrulandı: taslak 4 eşleşen hizmetin hepsinden doğal şekilde bahsetti.
 
 **2026-08-07 eklentisi — Lead detayında İşlem Geçmişi sağ sütuna taşındı (Oturum 17):** Derinlemesine Analiz eklenince ana kart sağ sütuna göre çok uzadı; İşlem Geçmişi (Notlar'la aynı avatar/zaman-çizelgesi görsel dilinde olduğu için doğal bir aday) ayrı bir `ActivityHistory.tsx` component'ine çıkarılıp sağ sütuna, Notlar'ın altına taşındı. Görüşme Hazırlığı ise bilinçli olarak ana sütunda bırakıldı — Derinlemesine Analiz'in tek parça okuma akışını bölmemek ve dar (320px) sidebar'da metin yoğun kartların sıkışmaması için.
