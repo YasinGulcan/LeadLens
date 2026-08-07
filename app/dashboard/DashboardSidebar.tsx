@@ -78,10 +78,6 @@ export function DashboardSidebar({
       </div>
 
       <nav className="flex-1 space-y-0.5 px-3">
-        <p className="px-3.5 pb-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">Kurulum</p>
-        <NavLink item={setupItem} isActive={pathname.startsWith("/dashboard/setup")} />
-        <div className="my-2 border-t border-border" />
-
         {items.map((item) => (
           <NavLink
             key={item.href}
@@ -89,6 +85,10 @@ export function DashboardSidebar({
             isActive={item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href)}
           />
         ))}
+
+        <div className="my-2 border-t border-border" />
+        <p className="px-3.5 pb-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">Kurulum</p>
+        <NavLink item={setupItem} isActive={pathname.startsWith("/dashboard/setup")} />
       </nav>
 
       <div className="m-3 rounded-lg border border-border bg-surface-hover/50 p-3">
