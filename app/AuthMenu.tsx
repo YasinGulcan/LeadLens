@@ -10,13 +10,13 @@ const PANELS: { key: Exclude<OpenPanel, null>; label: string; hint: string; vari
   {
     key: "login",
     label: "Giriş Yap",
-    hint: "Devam etmek için Google hesabınızla bağlanın",
+    hint: "Google ile devam edin",
     variant: "secondary",
   },
   {
     key: "signup",
     label: "Kayıt Ol",
-    hint: "Google hesabınızla saniyeler içinde bir hesap oluşturun",
+    hint: "Google ile ücretsiz başlayın",
     variant: "primary",
   },
 ];
@@ -64,12 +64,12 @@ export function AuthMenu() {
       {PANELS.map((panel) => (
         <div
           key={panel.key}
-          className={`absolute right-0 top-full z-10 mt-3 w-72 origin-top-right rounded-xl border border-border bg-surface p-4 shadow-xl transition ${
+          className={`absolute right-0 top-full z-30 mt-3 w-72 origin-top-right rounded-xl border border-border bg-surface p-3 shadow-xl transition ${
             open === panel.key ? "scale-100 opacity-100" : "pointer-events-none scale-95 opacity-0"
           }`}
         >
           <div className="absolute -top-1.5 right-6 h-3 w-3 rotate-45 border-t border-l border-border bg-surface" />
-          <p className="relative mb-3 text-xs text-muted-foreground">{panel.hint}</p>
+          <p className="relative mb-2 whitespace-nowrap text-xs text-muted-foreground">{panel.hint}</p>
           <GoogleButton className="relative w-full" />
         </div>
       ))}

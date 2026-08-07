@@ -33,20 +33,27 @@ export function LandingProductPreview() {
 
       {/* Kart içeriği */}
       <div className="p-6 text-left">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h3 className="text-lg font-bold text-foreground">Ayşe Yılmaz</h3>
-          <Badge variant="accent">Görüşme Ayarlandı</Badge>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Phone size={12} /> 0532 xxx xx xx
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-hover text-sm font-semibold text-muted-foreground">
+            AY
           </span>
-          <span className="flex items-center gap-1">
-            <Mail size={12} /> ayse@ornek.com
-          </span>
-          <span className="flex items-center gap-1">
-            <Globe size={12} /> ornekfirma.com
-          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h3 className="text-lg font-bold text-foreground">Ayşe Yılmaz</h3>
+              <Badge variant="accent">Görüşme Ayarlandı</Badge>
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Phone size={12} /> 0532 xxx xx xx
+              </span>
+              <span className="flex items-center gap-1">
+                <Mail size={12} /> ayse@ornek.com
+              </span>
+              <span className="flex items-center gap-1">
+                <Globe size={12} /> ornekfirma.com
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="mt-5 flex items-center gap-4 border-t border-border pt-5">

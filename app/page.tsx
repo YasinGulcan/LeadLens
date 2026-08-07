@@ -34,21 +34,25 @@ const FEATURES = [
     icon: Gauge,
     title: "Otomatik Skor",
     body: "Her lead; ihtimal uyumu, niyet gücü, talepteki değer ve aciliyet olmak üzere 4 ayrı boyutta puanlanır.",
+    featured: true,
   },
   {
     icon: Layers,
     title: "Ürün Eşleştirme",
     body: "Sitenizden veya yüklediğiniz dosyalardan taranan bilgi tabanınızla, müşteri talebine en uygun ürün/hizmet otomatik önerilir.",
+    featured: false,
   },
   {
     icon: Eye,
     title: "AI Görünürlük Kontrolü",
     body: "Sitenizin gerçek bir web aramasında ve yapay zeka sonuçlarında ne kadar görünür olduğu ölçülüp rapora eklenir.",
+    featured: false,
   },
   {
     icon: Mail,
     title: "Hazır Yanıt Taslağı",
     body: "İsterseniz, satış ekibiniz adına düzenlenebilir bir e-posta taslağı üretilir — tek tıkla kopyalanır ya da gönderilir.",
+    featured: false,
   },
 ];
 
@@ -69,6 +73,11 @@ const TRUST_ITEMS = [
     body: "Silme işlemleri ve ekip yönetimi yalnızca hesap sahibinde.",
   },
 ];
+
+/** Bölüm başlıklarının üstündeki küçük vurgu etiketi — tipografi hiyerarşisine bir kademe daha ekler. */
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs font-semibold tracking-wider text-accent uppercase">{children}</p>;
+}
 
 export default async function HomePage({
   searchParams,
@@ -99,12 +108,12 @@ export default async function HomePage({
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="mx-auto flex w-full max-w-3xl flex-col items-center px-6 pt-14 pb-10 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+      {/* Hero — dropdown'ın (AuthMenu) en uzun hâlde bile başlığa değmemesi için üstte bilinçli olarak geniş boşluk bırakılıyor */}
+      <section className="mx-auto flex w-full max-w-3xl flex-col items-center px-6 pt-28 pb-10 text-center sm:pt-32">
+        <h1 className="text-4xl leading-[1.1] font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
           Gelen lead&apos;leriniz, siz bakmadan önce analiz edilsin.
         </h1>
-        <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
+        <p className="mt-6 max-w-xl text-base text-muted-foreground sm:text-lg">
           Web formunuzdan gelen her başvuru otomatik olarak ürün bilgi tabanınızla eşleştirilir, yapay zekayla
           puanlanır ve ekibinize hazır bir rapor olarak gelir.
         </p>
@@ -121,15 +130,18 @@ export default async function HomePage({
       </section>
 
       {/* Ürün görseli */}
-      <section className="mx-auto flex w-full max-w-5xl justify-center px-6 pb-20">
+      <section className="mx-auto flex w-full max-w-5xl justify-center px-6 pt-4 pb-24">
         <LandingProductPreview />
       </section>
 
       {/* Nasıl çalışır */}
-      <section className="border-t border-border py-16">
+      <section className="bg-surface py-20 sm:py-24">
         <div className="mx-auto w-full max-w-5xl px-6">
-          <h2 className="text-center text-2xl font-bold text-foreground">Nasıl çalışır</h2>
-          <div className="mt-10 grid gap-10 sm:grid-cols-3">
+          <div className="text-center">
+            <Eyebrow>Süreç</Eyebrow>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Nasıl çalışır</h2>
+          </div>
+          <div className="mt-12 grid gap-10 sm:grid-cols-3">
             {STEPS.map((step, i) => {
               const Icon = step.icon;
               return (
@@ -150,18 +162,32 @@ export default async function HomePage({
       </section>
 
       {/* Özellikler */}
-      <section className="border-t border-border py-16">
+      <section className="bg-background py-20 sm:py-24">
         <div className="mx-auto w-full max-w-5xl px-6">
-          <h2 className="text-center text-2xl font-bold text-foreground">Neler sunuyor</h2>
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="text-center">
+            <Eyebrow>Özellikler</Eyebrow>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Neler sunuyor</h2>
+          </div>
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((feature) => {
               const Icon = feature.icon;
               return (
-                <Card key={feature.title} className="p-5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
+                <Card
+                  key={feature.title}
+                  className={`p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${
+                    feature.featured
+                      ? "border-accent/30 shadow-md shadow-accent/5 hover:border-accent/50"
+                      : "hover:border-border-subtle"
+                  }`}
+                >
+                  <span
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg text-accent ${
+                      feature.featured ? "bg-accent/15" : "bg-accent/10"
+                    }`}
+                  >
                     <Icon size={18} />
                   </span>
-                  <h3 className="mt-3 font-semibold text-foreground">{feature.title}</h3>
+                  <h3 className="mt-3.5 text-[15px] font-semibold text-foreground">{feature.title}</h3>
                   <p className="mt-1.5 text-sm text-muted-foreground">{feature.body}</p>
                 </Card>
               );
@@ -171,14 +197,20 @@ export default async function HomePage({
       </section>
 
       {/* Erişim ve Gizlilik */}
-      <section className="border-t border-border py-16">
+      <section className="bg-surface py-20 sm:py-24">
         <div className="mx-auto w-full max-w-5xl px-6">
-          <h2 className="text-center text-2xl font-bold text-foreground">Erişim ve Gizlilik</h2>
-          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          <div className="text-center">
+            <Eyebrow>Güvenlik</Eyebrow>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Erişim ve Gizlilik</h2>
+          </div>
+          <div className="mt-12 grid gap-4 sm:grid-cols-3">
             {TRUST_ITEMS.map((item) => {
               const Icon = item.icon;
               return (
-                <Card key={item.title} className="p-5">
+                <Card
+                  key={item.title}
+                  className="p-5 transition-all duration-200 hover:-translate-y-1 hover:border-border-subtle hover:shadow-lg"
+                >
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
                     <Icon size={18} />
                   </span>
@@ -192,8 +224,8 @@ export default async function HomePage({
       </section>
 
       {/* Giriş alanı */}
-      <section className="border-t border-border py-16">
-        <div className="mx-auto flex w-full max-w-md flex-col items-center rounded-xl border border-border bg-surface px-8 py-10 text-center">
+      <section className="bg-background py-20 sm:py-24">
+        <div className="mx-auto flex w-full max-w-md flex-col items-center rounded-xl border border-accent/20 bg-surface px-8 py-10 text-center shadow-2xl shadow-accent/5">
           <h2 className="text-xl font-bold text-foreground">Hemen başlayın</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Google hesabınızla saniyeler içinde giriş yapın ya da yeni bir hesap oluşturun. Ayrı bir kullanıcı
@@ -206,7 +238,7 @@ export default async function HomePage({
         </div>
       </section>
 
-      <footer className="mt-auto border-t border-border py-8">
+      <footer className="mt-auto border-t border-border bg-surface py-8">
         <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-3 px-6 text-xs text-muted-foreground sm:flex-row sm:justify-between">
           <span>© {new Date().getFullYear()} LeadLens</span>
           <div className="flex gap-4">
