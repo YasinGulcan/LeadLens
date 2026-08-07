@@ -29,9 +29,10 @@ const TEAM_SIZES: { value: string; label: string }[] = [
 ];
 
 function inputClass(hasError: boolean): string {
-  return `mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm text-foreground focus:outline-none ${
-    hasError ? "border-red-500/50 focus:border-red-500" : "border-border focus:border-accent"
-  }`;
+  const base = "mt-1 w-full rounded-md border bg-surface px-3 py-2 text-sm text-foreground transition-colors focus:outline-none focus:ring-2";
+  return hasError
+    ? `${base} border-danger/50 hover:border-danger/70 focus:border-danger focus:ring-danger/20`
+    : `${base} border-border hover:border-border-subtle focus:border-accent focus:ring-accent/20`;
 }
 
 export function OnboardingForm() {
@@ -78,10 +79,11 @@ export function OnboardingForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="mt-6">
+      <div className="space-y-5">
       <div>
         <label className="block text-sm font-medium text-foreground">
-          Şirket / İşletme Adı <span className="text-red-500/80">*</span>
+          Şirket / İşletme Adı <span className="text-danger/50">*</span>
         </label>
         <input
           autoFocus
@@ -95,7 +97,7 @@ export function OnboardingForm() {
 
       <div>
         <label className="block text-sm font-medium text-foreground">
-          Sektör <span className="text-red-500/80">*</span>
+          Sektör <span className="text-danger/50">*</span>
         </label>
         <select value={sector} onChange={(e) => setSector(e.target.value)} className={inputClass(!!sectorError)}>
           <option value="">Seçin…</option>
@@ -138,18 +140,20 @@ export function OnboardingForm() {
           ))}
         </select>
       </div>
+      </div>
 
-      {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
-
-      <Button type="submit" variant="primary" disabled={pending} className="w-full justify-center">
-        {pending ? (
-          <>
-            <Loader2 size={15} className="animate-spin" /> Kaydediliyor...
-          </>
-        ) : (
-          "Hesabı Oluştur"
-        )}
-      </Button>
+      <div className="mt-8">
+        {error && <p className="mb-3 text-sm text-red-500 dark:text-red-400">{error}</p>}
+        <Button type="submit" variant="primary" disabled={pending} className="w-full justify-center py-3">
+          {pending ? (
+            <>
+              <Loader2 size={15} className="animate-spin" /> Kaydediliyor...
+            </>
+          ) : (
+            "Hesabı Oluştur"
+          )}
+        </Button>
+      </div>
     </form>
   );
 }

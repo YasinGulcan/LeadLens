@@ -22,7 +22,7 @@ export default async function OnboardingPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16">
-      <Card className="w-full max-w-md p-8">
+      <Card className="w-full max-w-md p-8 shadow-2xl">
         <h1 className="text-2xl font-bold text-foreground">Hesabınızı kuralım</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
           Bu bilgiler analizlerinizi daha isabetli hale getirmemize yardımcı olur.
