@@ -12,7 +12,7 @@ const ScoreBreakdownSchema = z.object({
   fit: SubScoreSchema,
   intent: SubScoreSchema,
   value: SubScoreSchema,
-  alignment: SubScoreSchema,
+  urgency: SubScoreSchema,
 });
 
 export type ScoreBreakdown = z.infer<typeof ScoreBreakdownSchema>;
@@ -23,18 +23,21 @@ export type ScoreBreakdown = z.infer<typeof ScoreBreakdownSchema>;
  * bir skor ver" hem "4 ayrı skor ver" dedirtmek tutarsızlığa yol açabiliyordu
  * (ikisi birbirini tutmayabiliyordu). Ağırlıklar:
  * - fit (ICP uyumu) %35 — en güçlü dönüşüm sinyali: doğru profile mi satıyoruz.
- * - intent (niyet gücü) %30 — şu an satın almaya ne kadar yakın/istekli.
+ * - intent (niyet gücü) %30 — satın alma isteğinin/kararlılığının gücü, ZAMANDAN bağımsız.
  * - value (talep değeri) %20 — bu erken aşamada genelde daha zayıf/dolaylı bir sinyal.
- * - alignment (sektör/coğrafya/segment aidiyeti) %15 — çoğunlukla bir ön filtre, skor sürücüsü değil.
+ * - urgency (aciliyet) %15 — talebin ne kadar ZAMANA duyarlı olduğu; çoğunlukla bir
+ *   ince ayar sinyali, skor sürücüsü değil. intent'ten kasıtlı olarak ayrı tutuluyor
+ *   (biri "ne kadar istiyor", diğeri "ne kadar hemen istiyor") — ikisi karışmasın diye
+ *   prompt'ta da ayrı ayrı tarif ediliyor.
  */
-export const SCORE_WEIGHTS = { fit: 0.35, intent: 0.3, value: 0.2, alignment: 0.15 } as const;
+export const SCORE_WEIGHTS = { fit: 0.35, intent: 0.3, value: 0.2, urgency: 0.15 } as const;
 
 export function computeOverallScore(breakdown: ScoreBreakdown): number {
   const weighted =
     breakdown.fit.score * SCORE_WEIGHTS.fit +
     breakdown.intent.score * SCORE_WEIGHTS.intent +
     breakdown.value.score * SCORE_WEIGHTS.value +
-    breakdown.alignment.score * SCORE_WEIGHTS.alignment;
+    breakdown.urgency.score * SCORE_WEIGHTS.urgency;
   return Math.round(weighted) / 100;
 }
 
@@ -182,7 +185,11 @@ export async function analyzeLead(params: {
                 },
                 intent: {
                   type: "object",
-                  description: "Niyet gücü — müşteri mesajındaki satın alma niyetinin gücü/aciliyeti (belirsiz/genel bir mesaj düşük, somut ve acil bir talep yüksek puanlanır).",
+                  description:
+                    "Niyet gücü — müşterinin satın alma isteğinin/kararlılığının ne kadar güçlü ve somut olduğu " +
+                    "(belirsiz/genel bir mesaj düşük, net bir ihtiyaç/karar ifadesi yüksek puanlanır). " +
+                    "ZAMANLAMAYI (ne kadar acele ettiğini) değerlendirme — o ayrı bir boyut (urgency), burada " +
+                    "sadece isteğin gücüne/kararlılığına odaklan.",
                   properties: {
                     score: { type: "number", description: "0-100 arası niyet skoru" },
                     reason: { type: "string", description: "1-2 cümlelik somut gerekçe." },
@@ -199,17 +206,21 @@ export async function analyzeLead(params: {
                   },
                   required: ["score", "reason"],
                 },
-                alignment: {
+                urgency: {
                   type: "object",
-                  description: "Aidiyet — lead'in sektör/coğrafya/ürün segmentinin, sunulan ürün/hizmet kataloğuyla ne kadar örtüştüğü.",
+                  description:
+                    "Aciliyet — talebin ne kadar ZAMANA duyarlı/kısa vadeli olduğu; müşteri mesajında zaman " +
+                    "baskısı, bir krizin/kaybın tetiklediği bir ihtiyaç, 'hemen/bu hafta/acil' gibi somut zaman " +
+                    "ifadeleri varsa yüksek puanla, 'ileride değerlendiririz' havası veya zaman belirtilmemişse " +
+                    "düşük puanla. Müşterinin NE KADAR istediğini değil (o intent'in işi), NE ZAMAN istediğini değerlendir.",
                   properties: {
-                    score: { type: "number", description: "0-100 arası aidiyet skoru" },
+                    score: { type: "number", description: "0-100 arası aciliyet skoru" },
                     reason: { type: "string", description: "1-2 cümlelik somut gerekçe." },
                   },
                   required: ["score", "reason"],
                 },
               },
-              required: ["fit", "intent", "value", "alignment"],
+              required: ["fit", "intent", "value", "urgency"],
             },
             gerekce: { type: "string", description: "Önerinin kısa gerekçesi (1-3 cümle)" },
             oncelik: { type: "string", enum: ["düşük", "orta", "yüksek"] },

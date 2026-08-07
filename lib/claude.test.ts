@@ -5,7 +5,7 @@ const VALID_SCORE_BREAKDOWN = {
   fit: { score: 85, reason: "İşletme, ürün bilgi tabanındaki hedef kitleyle (KOBİ e-ticaret) birebir örtüşüyor." },
   intent: { score: 70, reason: "Mesajda somut bir talep var ama zaman çerçevesi belirtilmemiş." },
   value: { score: 60, reason: "Bütçe/hacim bilgisi paylaşılmamış, orta ölçekli bir site olduğu gözlemleniyor." },
-  alignment: { score: 90, reason: "Sektör ve segment, sunulan hizmetlerle tam uyumlu." },
+  urgency: { score: 90, reason: "Mesajda 'bu hafta içinde çözülmesi lazım' gibi net bir zaman baskısı var." },
 };
 
 const VALID_ANALYSIS = {
@@ -64,7 +64,7 @@ describe("AnalysisSchema (Claude yapılandırılmış çıktı sözleşmesi)", (
 
 describe("computeOverallScore (skor kırılımından ağırlıklı genel skor)", () => {
   it("ağırlıkların toplamı 1'dir", () => {
-    const total = SCORE_WEIGHTS.fit + SCORE_WEIGHTS.intent + SCORE_WEIGHTS.value + SCORE_WEIGHTS.alignment;
+    const total = SCORE_WEIGHTS.fit + SCORE_WEIGHTS.intent + SCORE_WEIGHTS.value + SCORE_WEIGHTS.urgency;
     expect(total).toBeCloseTo(1);
   });
 
@@ -73,7 +73,7 @@ describe("computeOverallScore (skor kırılımından ağırlıklı genel skor)",
       fit: { score: 80, reason: "" },
       intent: { score: 80, reason: "" },
       value: { score: 80, reason: "" },
-      alignment: { score: 80, reason: "" },
+      urgency: { score: 80, reason: "" },
     };
     expect(computeOverallScore(breakdown)).toBeCloseTo(0.8);
   });
@@ -84,7 +84,7 @@ describe("computeOverallScore (skor kırılımından ağırlıklı genel skor)",
       fit: { score: 100, reason: "" },
       intent: { score: 0, reason: "" },
       value: { score: 0, reason: "" },
-      alignment: { score: 0, reason: "" },
+      urgency: { score: 0, reason: "" },
     };
     expect(computeOverallScore(breakdown)).toBeCloseTo(0.35);
   });

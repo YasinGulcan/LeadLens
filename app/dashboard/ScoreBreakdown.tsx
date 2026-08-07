@@ -7,14 +7,14 @@ export interface ScoreBreakdownData {
   fit: SubScore;
   intent: SubScore;
   value: SubScore;
-  alignment: SubScore;
+  urgency: SubScore;
 }
 
 const METRICS: { key: keyof ScoreBreakdownData; label: string; description: string }[] = [
   { key: "fit", label: "İhtimal Uyumu", description: "İdeal müşteri profiline ne kadar uyuyor" },
-  { key: "intent", label: "Niyet Gücü", description: "Satın alma niyetinin gücü/aciliyeti" },
+  { key: "intent", label: "Niyet Gücü", description: "Satın alma isteğinin/kararlılığının gücü" },
   { key: "value", label: "Talepteki Değer", description: "Talebin potansiyel ticari değeri" },
-  { key: "alignment", label: "Aidiyet", description: "Sektör/coğrafya/segment uygunluğu" },
+  { key: "urgency", label: "Aciliyet", description: "Talebin ne kadar acil/kısa vadede çözülmesi gerekiyor" },
 ];
 
 /**
