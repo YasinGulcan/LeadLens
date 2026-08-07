@@ -1,12 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Trophy, Clock, Inbox, ListChecks, StickyNote, RefreshCcw } from "lucide-react";
+import { ArrowLeft, Trophy, Clock, Inbox, ListChecks } from "lucide-react";
 import { getSessionInfo } from "@/lib/account-session";
 import { getAccountOwnerEmail, isActiveAccountPerson } from "@/lib/accounts";
 import { getMemberProfileData } from "@/lib/member-profile";
 import { supabase } from "@/lib/supabase";
 import { Card, CardTitle, StatCard, Badge, ScoreBadge } from "@/components/ui";
 import { SALES_STATUS_LABEL, SALES_STATUS_BADGE_CLASS } from "@/lib/lead-status";
+import { ActivityFeed } from "./ActivityFeed";
 
 export const dynamic = "force-dynamic";
 
@@ -96,23 +97,7 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
 
         <div>
           <CardTitle className="px-1">Son Aktiviteler</CardTitle>
-          <Card className="mt-3 divide-y divide-border overflow-hidden">
-            {activity.map((a) => (
-              <div key={`${a.type}-${a.id}`} className="flex items-start gap-3 px-4 py-3">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-hover text-muted-foreground">
-                  {a.type === "note" ? <StickyNote size={12} /> : <RefreshCcw size={12} />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <Link href={`/dashboard/leads/${a.leadId}`} className="text-sm font-medium text-foreground hover:text-accent hover:underline">
-                    {a.leadName ?? "İsimsiz lead"}
-                  </Link>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{a.detail}</p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground/70">{new Date(a.createdAt).toLocaleString("tr-TR")}</p>
-                </div>
-              </div>
-            ))}
-            {activity.length === 0 && <div className="px-4 py-8 text-center text-sm text-muted-foreground">Henüz aktivite yok.</div>}
-          </Card>
+          <ActivityFeed activity={activity} />
         </div>
       </div>
     </div>
