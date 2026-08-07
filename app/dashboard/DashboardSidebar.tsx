@@ -92,8 +92,14 @@ export function DashboardSidebar({
       </nav>
 
       <div className="m-3 rounded-lg border border-border bg-surface-hover/50 p-3">
-        <p className="truncate text-sm font-medium text-foreground">{businessName}</p>
-        <p className="truncate text-xs text-muted-foreground">{email}</p>
+        <Link
+          href={`/dashboard/team/${encodeURIComponent(email)}`}
+          className="-m-1 block rounded-md p-1 transition-colors hover:bg-surface-hover"
+          title="Profilim"
+        >
+          <p className="truncate text-sm font-medium text-foreground">{businessName}</p>
+          <p className="truncate text-xs text-muted-foreground">{email}</p>
+        </Link>
         <div className="mt-2 border-t border-border pt-2">
           <LogoutButton />
         </div>

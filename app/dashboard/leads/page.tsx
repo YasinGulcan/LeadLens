@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
-import { isAccountOwner } from "@/lib/accounts";
+import { isAccountOwner, listAssignableMembers } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { LeadsTable, type HistoryEntry, type LeadRow } from "../LeadsTable";
 
@@ -11,17 +11,18 @@ export default async function DashboardLeadsPage() {
   if (!session) redirect("/");
   const { accountId } = session;
 
-  const [{ data: leads }, { data: history }, isOwner] = await Promise.all([
+  const [{ data: leads }, { data: history }, isOwner, assignableMembers] = await Promise.all([
     supabase
       .from("leads")
       .select(
-        "id, name, phone, website_url, status, priority, recommended_product, match_score, reasoning, sales_note, site_finding, sector, clarifying_question, error_message, sales_feedback, search_keyword, search_rank_position, search_checked_count, ai_visibility_mentioned, ai_visibility_note, created_at"
+        "id, name, phone, website_url, status, priority, recommended_product, match_score, reasoning, sales_note, site_finding, sector, clarifying_question, error_message, sales_feedback, search_keyword, search_rank_position, search_checked_count, ai_visibility_mentioned, ai_visibility_note, assigned_to, created_at"
       )
       .eq("account_id", accountId)
       .order("created_at", { ascending: false })
       .limit(50),
     supabase.from("lead_status_history").select("id, lead_id, status, detail, created_at").order("created_at", { ascending: true }),
     isAccountOwner(accountId, session.email),
+    listAssignableMembers(accountId),
   ]);
 
   const leadIds = new Set((leads ?? []).map((l) => l.id));
@@ -39,7 +40,13 @@ export default async function DashboardLeadsPage() {
         alabilirsiniz.
         {!isOwner && " Lead silme sadece hesap sahibinde."}
       </p>
-      <LeadsTable leads={(leads ?? []) as LeadRow[]} historyByLeadId={historyByLeadId} canDelete={isOwner} />
+      <LeadsTable
+        leads={(leads ?? []) as LeadRow[]}
+        historyByLeadId={historyByLeadId}
+        canDelete={isOwner}
+        assignableMembers={assignableMembers}
+        currentEmail={session.email}
+      />
     </section>
   );
 }

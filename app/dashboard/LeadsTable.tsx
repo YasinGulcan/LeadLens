@@ -3,11 +3,12 @@
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, ChevronDown, Search, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ChevronRight, ChevronDown, Search, ThumbsUp, ThumbsDown, UserRound } from "lucide-react";
 import { StatusBadge } from "./StatusBadge";
 import { RANK_TIER_LABEL, rankTier } from "@/lib/rank-tier";
 import { useConfirm } from "./useConfirm";
 import { Card, Badge, ScoreBadge, Button } from "@/components/ui";
+import type { AssignableMember } from "@/lib/accounts";
 
 type SortKey = "name" | "match_score" | "priority" | "status" | "created_at";
 type SortDir = "asc" | "desc";
@@ -86,6 +87,7 @@ export interface LeadRow {
   search_rank_position: number | null;
   ai_visibility_mentioned: boolean | null;
   ai_visibility_note: string | null;
+  assigned_to: string | null;
   created_at: string;
 }
 
@@ -100,10 +102,14 @@ export function LeadsTable({
   leads,
   historyByLeadId,
   canDelete,
+  assignableMembers,
+  currentEmail,
 }: {
   leads: LeadRow[];
   historyByLeadId: Record<string, HistoryEntry[]>;
   canDelete: boolean;
+  assignableMembers: AssignableMember[];
+  currentEmail: string;
 }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -115,6 +121,7 @@ export function LeadsTable({
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [query, setQuery] = useState("");
+  const [assignedFilter, setAssignedFilter] = useState("all"); // "all" | "me" | <email>
   const { confirm, dialog } = useConfirm();
 
   function handleSort(key: SortKey) {
@@ -127,14 +134,21 @@ export function LeadsTable({
   }
 
   const filteredLeads = useMemo(() => {
+    let result = leads;
+    if (assignedFilter === "me") {
+      result = result.filter((l) => l.assigned_to === currentEmail);
+    } else if (assignedFilter !== "all") {
+      result = result.filter((l) => l.assigned_to === assignedFilter);
+    }
+
     const q = query.trim().toLocaleLowerCase("tr");
-    if (!q) return leads;
-    return leads.filter((l) =>
+    if (!q) return result;
+    return result.filter((l) =>
       [l.name, l.phone, l.website_url, l.recommended_product, l.sector, l.status].some((field) =>
         field?.toLocaleLowerCase("tr").includes(q)
       )
     );
-  }, [leads, query]);
+  }, [leads, query, assignedFilter, currentEmail]);
 
   const sortedLeads = useMemo(() => {
     if (!sortKey) return filteredLeads;
@@ -218,7 +232,21 @@ export function LeadsTable({
             className="w-full rounded-md border border-border bg-surface py-2 pr-3 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none"
           />
         </div>
-        {query && (
+        <select
+          value={assignedFilter}
+          onChange={(e) => setAssignedFilter(e.target.value)}
+          aria-label="Atanan kişiye göre filtrele"
+          className="shrink-0 rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
+        >
+          <option value="all">Tümü</option>
+          <option value="me">Bana Atananlar</option>
+          {assignableMembers.map((m) => (
+            <option key={m.email} value={m.email}>
+              {m.email}
+            </option>
+          ))}
+        </select>
+        {(query || assignedFilter !== "all") && (
           <span className="shrink-0 text-xs text-muted-foreground">
             {filteredLeads.length} / {leads.length} sonuç
           </span>
@@ -235,6 +263,7 @@ export function LeadsTable({
               <th className="px-4 py-2.5 font-medium">Önerilen Ürün</th>
               <SortHeader label="Skor" sortKey="match_score" activeKey={sortKey} activeDir={sortDir} onSort={handleSort} />
               <SortHeader label="Öncelik" sortKey="priority" activeKey={sortKey} activeDir={sortDir} onSort={handleSort} />
+              <th className="px-4 py-2.5 font-medium">Atanan</th>
               <SortHeader label="Durum" sortKey="status" activeKey={sortKey} activeDir={sortDir} onSort={handleSort} />
               <SortHeader label="Oluşturulma" sortKey="created_at" activeKey={sortKey} activeDir={sortDir} onSort={handleSort} />
               <th className="px-4 py-2.5 font-medium" />
@@ -275,6 +304,20 @@ export function LeadsTable({
                       )}
                     </td>
                     <td className="px-4 py-2.5">
+                      {l.assigned_to ? (
+                        <span
+                          className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 text-[11px] font-semibold text-accent"
+                          title={l.assigned_to}
+                        >
+                          {l.assigned_to[0]!.toUpperCase()}
+                        </span>
+                      ) : (
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground" title="Atanmamış">
+                          <UserRound size={12} />
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
                       <StatusBadge status={l.status} />
                     </td>
                     <td className="px-4 py-2.5 text-muted-foreground">{new Date(l.created_at).toLocaleString("tr-TR")}</td>
@@ -301,7 +344,7 @@ export function LeadsTable({
                   </tr>
                   {isOpen && (
                     <tr className="bg-surface-hover/40">
-                      <td colSpan={10} className="px-4 py-3">
+                      <td colSpan={11} className="px-4 py-3">
                         {retryError[l.id] && <p className="mb-2 text-xs text-red-500 dark:text-red-400">{retryError[l.id]}</p>}
                         {l.error_message && (
                           <p className="mb-2 text-xs text-red-500 dark:text-red-400">
@@ -397,7 +440,7 @@ export function LeadsTable({
             })}
             {sortedLeads.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
                   {leads.length === 0
                     ? "Henüz lead yok — form doldurulup Gmail üzerinden işlendiğinde burada görünecek."
                     : "Aramanızla eşleşen lead bulunamadı."}

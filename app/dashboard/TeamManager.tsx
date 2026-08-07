@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "./useConfirm";
 import { Card, Button, Badge } from "@/components/ui";
@@ -168,7 +169,11 @@ export function TeamManager({
           <tbody className="divide-y divide-border">
             {ownerEmail && (
               <tr>
-                <td className="px-4 py-2 text-foreground">{ownerEmail}</td>
+                <td className="px-4 py-2 text-foreground">
+                  <Link href={`/dashboard/team/${encodeURIComponent(ownerEmail)}`} className="hover:text-accent hover:underline">
+                    {ownerEmail}
+                  </Link>
+                </td>
                 <td className="px-4 py-2">
                   <Badge variant="accent">Sahip</Badge>
                 </td>
@@ -178,7 +183,15 @@ export function TeamManager({
             )}
             {members.map((m) => (
               <tr key={m.id}>
-                <td className="px-4 py-2 text-foreground">{m.email}</td>
+                <td className="px-4 py-2 text-foreground">
+                  {m.acceptedAt ? (
+                    <Link href={`/dashboard/team/${encodeURIComponent(m.email)}`} className="hover:text-accent hover:underline">
+                      {m.email}
+                    </Link>
+                  ) : (
+                    m.email
+                  )}
+                </td>
                 <td className="px-4 py-2">
                   <Badge variant="neutral">Üye</Badge>
                 </td>

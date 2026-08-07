@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { ArrowLeft, Phone, Mail, Globe, Clock, AlertCircle } from "lucide-react";
 import { getSessionInfo } from "@/lib/account-session";
-import { isAccountOwner } from "@/lib/accounts";
+import { isAccountOwner, listAssignableMembers } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { ScoreBreakdown, type ScoreBreakdownData } from "../../ScoreBreakdown";
 import { DraftReply } from "../../DraftReply";
@@ -28,11 +28,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
   const { id } = await params;
 
-  const [{ data: lead }, { data: history }, { data: notesData }, isOwner] = await Promise.all([
+  const [{ data: lead }, { data: history }, { data: notesData }, isOwner, assignableMembers] = await Promise.all([
     supabase
       .from("leads")
       .select(
-        "id, account_id, name, phone, email, website_url, message, status, sales_status, priority, recommended_product, match_score, score_breakdown, reasoning, sales_note, site_finding, sector, clarifying_question, error_message, search_keyword, search_rank_position, ai_visibility_mentioned, deep_analysis, created_at"
+        "id, account_id, name, phone, email, website_url, message, status, sales_status, priority, recommended_product, match_score, score_breakdown, reasoning, sales_note, site_finding, sector, clarifying_question, error_message, search_keyword, search_rank_position, ai_visibility_mentioned, deep_analysis, assigned_to, created_at"
       )
       .eq("id", id)
       .single(),
@@ -47,6 +47,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       .eq("lead_id", id)
       .order("created_at", { ascending: false }),
     isAccountOwner(session.accountId, session.email),
+    listAssignableMembers(session.accountId),
   ]);
 
   if (!lead || lead.account_id !== session.accountId) notFound();
@@ -144,7 +145,15 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       </Card>
 
       <div className="space-y-6 lg:sticky lg:top-8">
-        <QuickActions phone={lead.phone} email={lead.email} websiteUrl={lead.website_url} />
+        <QuickActions
+          leadId={lead.id}
+          phone={lead.phone}
+          email={lead.email}
+          websiteUrl={lead.website_url}
+          assignedTo={lead.assigned_to}
+          assignableMembers={assignableMembers}
+          currentEmail={session.email}
+        />
         <AnalysisSummary
           sector={lead.sector}
           recommendedProduct={lead.recommended_product}

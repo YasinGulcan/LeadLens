@@ -183,6 +183,28 @@ export async function listTeamMembers(accountId: string): Promise<TeamMember[]> 
     .map((row) => ({ id: row.id, email: row.email, invitedAt: row.invited_at, acceptedAt: row.accepted_at }));
 }
 
+export interface AssignableMember {
+  email: string;
+  isOwner: boolean;
+}
+
+/** "Ekip Üyesine Ata" dropdown'ı ve profil linkleri için: sahip + daveti kabul etmiş üyeler — bekleyen (henüz hiç giriş yapmamış) davetler hariç. */
+export async function listAssignableMembers(accountId: string): Promise<AssignableMember[]> {
+  const [ownerEmail, members] = await Promise.all([getAccountOwnerEmail(accountId), listTeamMembers(accountId)]);
+  const result: AssignableMember[] = [];
+  if (ownerEmail) result.push({ email: ownerEmail, isOwner: true });
+  for (const m of members) {
+    if (m.acceptedAt) result.push({ email: m.email, isOwner: false });
+  }
+  return result;
+}
+
+/** Bu e-posta hesabın sahibi ya da daveti kabul etmiş bir üyesi mi — `isAuthorizedForAccount`'tan farkı, bekleyen davetleri saymaması (lead atama ve profil sayfası erişimi bunu gerektiriyor, ikisi de gerçekten giriş yapmış birini işaret etmeli). */
+export async function isActiveAccountPerson(accountId: string, email: string): Promise<boolean> {
+  const members = await listAssignableMembers(accountId);
+  return members.some((m) => m.email === email);
+}
+
 /** Rapor/form maillerinde Cc'ye eklenecek üye listesi — sadece daveti kabul edip en az bir kez giriş yapmış üyeler (bkz. accepted_at). Henüz kabul etmemiş biri gerçek lead verisini görmemeli. */
 async function listTeamMemberEmails(accountId: string): Promise<string[]> {
   const { data } = await supabase
