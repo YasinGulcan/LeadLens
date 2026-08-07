@@ -4,8 +4,9 @@ import { Inbox, CheckCircle2, Flame, Layers, ShieldCheck, Lock, Users, ArrowRigh
 import { getSessionInfo } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
 import { relativeTimeTr } from "@/lib/format";
-import { Card, CardTitle, Badge, StatCard, ScoreCircle, Button } from "@/components/ui";
+import { Card, CardTitle, Badge, StatCard, ScoreCircle } from "@/components/ui";
 import { ScoreDistributionChart, type ScoreBucket } from "./ScoreDistributionChart";
+import { SetupChecklist } from "./SetupChecklist";
 
 export const dynamic = "force-dynamic";
 
@@ -34,9 +35,7 @@ export default async function DashboardOverviewPage() {
   const ninetyDaysAgo = new Date(new Date().getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
 
-  const [{ data: connection }, { count: activeSourceCount }, { data: recentLeads }, { count: totalLeadCount }] = await Promise.all([
-    supabase.from("gmail_connections").select("connected_email").eq("account_id", accountId).maybeSingle(),
-    supabase.from("product_sources").select("id", { count: "exact", head: true }).eq("account_id", accountId).eq("active", true),
+  const [{ data: recentLeads }, { count: totalLeadCount }] = await Promise.all([
     supabase
       .from("leads")
       .select("id, name, sector, priority, status, match_score, sales_note, site_finding, created_at")
@@ -59,25 +58,13 @@ export default async function DashboardOverviewPage() {
   }));
   const scoreMedian = median(scores);
 
-  const setupComplete = !!connection && (activeSourceCount ?? 0) > 0;
-
   return (
     <div className="space-y-8">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Hoş geldiniz.</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {setupComplete
-            ? "Kurulum tamamlandı. Yeni gelen her form otomatik analiz ediliyor."
-            : "Kurulum tamamlanmadı — henüz hiç lead analiz edilmeyecek."}
-        </p>
-        {!setupComplete && (
-          <Link href={!connection ? "/dashboard/gmail" : "/dashboard/sources"}>
-            <Button variant="primary" className="mt-3">
-              {!connection ? "Gmail'i Bağla" : "Ürün Kataloğu Ekle"}
-            </Button>
-          </Link>
-        )}
       </div>
+
+      <SetupChecklist accountId={accountId} />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard icon={Inbox} label="Bu ay gelen" value={thisMonthLeads.length} hint="lead" />
