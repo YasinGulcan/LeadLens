@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { ArrowLeft, Phone, Mail, Globe, Clock, AlertCircle, Search } from "lucide-react";
 import { getSessionInfo } from "@/lib/account-session";
+import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { ScoreBreakdown, type ScoreBreakdownData } from "../../ScoreBreakdown";
 import { DraftReply } from "../../DraftReply";
@@ -9,6 +10,8 @@ import { StatusSelect } from "../../StatusSelect";
 import { RANK_TIER_LABEL, rankTier } from "@/lib/rank-tier";
 import { isSalesStatus } from "@/lib/lead-status";
 import { Card } from "@/components/ui";
+import { QuickActions } from "./QuickActions";
+import { NotesPanel, type LeadNote } from "./NotesPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +36,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
   const { id } = await params;
 
-  const [{ data: lead }, { data: history }] = await Promise.all([
+  const [{ data: lead }, { data: history }, { data: notesData }, isOwner] = await Promise.all([
     supabase
       .from("leads")
       .select(
@@ -46,6 +49,12 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       .select("id, detail, actor_email, created_at")
       .eq("lead_id", id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("lead_notes")
+      .select("id, author_email, content, created_at")
+      .eq("lead_id", id)
+      .order("created_at", { ascending: false }),
+    isAccountOwner(session.accountId, session.email),
   ]);
 
   if (!lead || lead.account_id !== session.accountId) notFound();
@@ -53,13 +62,20 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const breakdown = lead.score_breakdown as ScoreBreakdownData | null;
   const salesStatus = isSalesStatus(lead.sales_status) ? lead.sales_status : "yeni";
   const hasAnalysisNotes = lead.sector || lead.site_finding || lead.sales_note || lead.recommended_product || lead.search_keyword;
+  const notes: LeadNote[] = (notesData ?? []).map((n) => ({
+    id: n.id,
+    authorEmail: n.author_email,
+    content: n.content,
+    createdAt: n.created_at,
+  }));
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-6xl">
       <Link href="/dashboard/leads" className="mb-4 flex items-center gap-1 text-xs font-medium text-accent hover:underline">
         <ArrowLeft size={12} /> Leadler
       </Link>
 
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
       <Card className="divide-y divide-border/70 overflow-hidden">
         {/* Müşteri bilgisi + durum */}
         <div className="px-6 py-5">
@@ -181,6 +197,12 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           </div>
         )}
       </Card>
+
+      <div className="space-y-6 lg:sticky lg:top-8">
+        <QuickActions phone={lead.phone} email={lead.email} websiteUrl={lead.website_url} />
+        <NotesPanel leadId={lead.id} notes={notes} currentEmail={session.email} isOwner={isOwner} />
+      </div>
+      </div>
     </div>
   );
 }
