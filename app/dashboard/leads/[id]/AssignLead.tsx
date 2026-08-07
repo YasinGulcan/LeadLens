@@ -57,9 +57,11 @@ export function AssignLead({
         aria-label="Ekip üyesine ata"
         className="w-full cursor-pointer appearance-none bg-transparent font-medium text-foreground focus:outline-none disabled:opacity-60"
       >
-        <option value="">Ekip üyesine ata</option>
+        <option value="" className="bg-surface text-foreground">
+          Ekip üyesine ata
+        </option>
         {members.map((m) => (
-          <option key={m.email} value={m.email}>
+          <option key={m.email} value={m.email} className="bg-surface text-foreground">
             {m.email === currentEmail ? `${m.email} (Sen)` : m.email}
             {m.isOwner ? " · Sahip" : ""}
           </option>

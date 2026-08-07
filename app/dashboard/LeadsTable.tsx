@@ -238,10 +238,14 @@ export function LeadsTable({
           aria-label="Atanan kişiye göre filtrele"
           className="shrink-0 rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
         >
-          <option value="all">Tümü</option>
-          <option value="me">Bana Atananlar</option>
+          <option value="all" className="bg-surface text-foreground">
+            Tümü
+          </option>
+          <option value="me" className="bg-surface text-foreground">
+            Bana Atananlar
+          </option>
           {assignableMembers.map((m) => (
-            <option key={m.email} value={m.email}>
+            <option key={m.email} value={m.email} className="bg-surface text-foreground">
               {m.email}
             </option>
           ))}
