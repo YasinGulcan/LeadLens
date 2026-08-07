@@ -81,9 +81,9 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ connectError?: string }>;
+  searchParams: Promise<{ connectError?: string; accountDeleted?: string }>;
 }) {
-  const { connectError } = await searchParams;
+  const { connectError, accountDeleted } = await searchParams;
 
   const session = await getSessionInfo();
   if (session) {
@@ -114,6 +114,12 @@ export default async function HomePage({
           <p className="mt-6 flex items-start gap-2 rounded-md border border-red-500/20 bg-red-500/10 px-4 py-3 text-left text-sm text-red-600 dark:text-red-400">
             <AlertCircle size={16} className="mt-0.5 shrink-0" />
             {connectError}
+          </p>
+        )}
+
+        {accountDeleted && (
+          <p className="mt-6 rounded-md border border-border bg-surface px-4 py-3 text-sm text-foreground">
+            Hesabınız silindi.
           </p>
         )}
 
