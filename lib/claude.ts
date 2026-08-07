@@ -295,7 +295,7 @@ export async function generateDeepAnalysis(params: {
 
   const response = await getClient().messages.create({
     model: "claude-sonnet-5",
-    max_tokens: 2048,
+    max_tokens: 4096,
     system:
       "Sen bir satış öncesi analiz asistanısın, bir lead için zaten yapılmış temel analizi (sektör/site bulgusu/" +
       "önerilen ürün) daha zengin, satış ekibinin görüşme öncesi kullanacağı bir rapora dönüştürüyorsun. " +
@@ -394,6 +394,10 @@ export async function generateDeepAnalysis(params: {
     ],
     tool_choice: { type: "tool", name: DEEP_ANALYSIS_TOOL_NAME },
   });
+
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("Claude'un yanıtı max_tokens sınırında kesildi — analiz eksik kaldı, tekrar deneyin.");
+  }
 
   const toolUse = response.content.find((block) => block.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
