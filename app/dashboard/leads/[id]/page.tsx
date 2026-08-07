@@ -13,6 +13,7 @@ import { Card } from "@/components/ui";
 import { QuickActions } from "./QuickActions";
 import { NotesPanel, type LeadNote } from "./NotesPanel";
 import { DeepAnalysis, type DeepAnalysisData } from "./DeepAnalysis";
+import { ActivityHistory, type HistoryEntry } from "./ActivityHistory";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,12 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     authorEmail: n.author_email,
     content: n.content,
     createdAt: n.created_at,
+  }));
+  const historyEntries: HistoryEntry[] = (history ?? []).map((h) => ({
+    id: h.id,
+    detail: h.detail,
+    actorEmail: h.actor_email,
+    createdAt: h.created_at,
   }));
 
   return (
@@ -181,34 +188,12 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         <div className="px-6 py-5">
           <DraftReply leadId={lead.id} leadEmail={lead.email} />
         </div>
-
-        {/* İşlem geçmişi */}
-        {history && history.length > 0 && (
-          <div className="px-6 py-5">
-            <SectionLabel>İşlem Geçmişi</SectionLabel>
-            <ol className="space-y-3">
-              {history.map((h) => (
-                <li key={h.id} className="flex items-start gap-3 text-xs">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-hover text-[10px] font-semibold text-muted-foreground">
-                    {h.actor_email ? h.actor_email[0]!.toUpperCase() : "S"}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-foreground">
-                      <span className="text-muted-foreground">{h.actor_email ?? "Sistem"} — </span>
-                      {h.detail}
-                    </p>
-                    <p className="mt-0.5 text-muted-foreground">{new Date(h.created_at).toLocaleString("tr-TR")}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
       </Card>
 
       <div className="space-y-6 lg:sticky lg:top-8">
         <QuickActions phone={lead.phone} email={lead.email} websiteUrl={lead.website_url} />
         <NotesPanel leadId={lead.id} notes={notes} currentEmail={session.email} isOwner={isOwner} />
+        <ActivityHistory history={historyEntries} />
       </div>
       </div>
     </div>
