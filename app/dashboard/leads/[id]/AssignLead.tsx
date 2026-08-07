@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserRound, ChevronDown } from "lucide-react";
+import { UserRound } from "lucide-react";
 import type { AssignableMember } from "@/lib/accounts";
 
 /** Lead detayı "Hızlı Aksiyonlar" içindeki atama kontrolü — StatusSelect'teki "rozet aynı zamanda select" deseninin aynısı. */
@@ -67,7 +67,6 @@ export function AssignLead({
           </option>
         ))}
       </select>
-      <ChevronDown size={13} className="pointer-events-none shrink-0 text-muted-foreground" />
     </div>
   );
 }
