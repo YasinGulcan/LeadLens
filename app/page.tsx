@@ -2,8 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FileText, Sparkles, Send, Gauge, Layers, Eye, Mail, ShieldCheck, Lock, Users, AlertCircle } from "lucide-react";
 import { getSessionInfo } from "@/lib/account-session";
-import { isAuthorizedForAccount } from "@/lib/accounts";
-import { supabase } from "@/lib/supabase";
+import { resolveAuthenticatedDestination } from "@/lib/auth-redirect";
 import { Card } from "@/components/ui";
 import { GoogleButton } from "./GoogleButton";
 import { AuthMenu } from "./AuthMenu";
@@ -88,15 +87,8 @@ export default async function HomePage({
 
   const session = await getSessionInfo();
   if (session) {
-    const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", session.accountId).single();
-    // Hesap hâlâ varsa VE bu e-posta hâlâ yetkiliyse yönlendir; hesap
-    // silinmişse ya da (ör. ekipten çıkarıldıysa) artık yetkili değilse
-    // hiçbir yere yönlendirmeden burada normal giriş ekranını göster —
-    // aksi halde /dashboard'un/onboarding'in kendi kontrolüyle sonsuz
-    // yönlendirme döngüsü oluşur.
-    if (account && (await isAuthorizedForAccount(session.accountId, session.email))) {
-      redirect(account.onboarded_at ? "/dashboard" : "/onboarding");
-    }
+    const destination = await resolveAuthenticatedDestination(session);
+    if (destination) redirect(destination);
   }
 
   return (
