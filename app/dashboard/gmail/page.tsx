@@ -16,7 +16,11 @@ export default async function DashboardGmailPage({ searchParams }: { searchParam
 
   const [{ data: connection }, { data: account }, isOwner, inboundToken] = await Promise.all([
     supabase.from("gmail_connections").select("connected_email, connected_at, disconnected_at").eq("account_id", accountId).maybeSingle(),
-    supabase.from("accounts").select("lead_email_subjects, slug, primary_lead_source").eq("id", accountId).single(),
+    supabase
+      .from("accounts")
+      .select("lead_email_subjects, slug, primary_lead_source, inbound_last_received_at")
+      .eq("id", accountId)
+      .single(),
     isAccountOwner(accountId, session.email),
     getOrCreateInboundToken(accountId),
   ]);
@@ -35,14 +39,7 @@ export default async function DashboardGmailPage({ searchParams }: { searchParam
       )}
 
       <div className="mt-4">
-        <MailSourceContent
-          accountId={accountId}
-          isOwner={isOwner}
-          connection={connection}
-          account={account}
-          inboundAddress={inboundAddress}
-          returnTo="/dashboard/gmail"
-        />
+        <MailSourceContent accountId={accountId} isOwner={isOwner} connection={connection} account={account} inboundAddress={inboundAddress} />
       </div>
     </section>
   );

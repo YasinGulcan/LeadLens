@@ -505,3 +505,66 @@ export async function generateDraftReply(params: {
 
   return DraftReplySchema.parse(toolUse.input);
 }
+
+const EXTRACT_FIELDS_TOOL_NAME = "report_lead_fields";
+
+const LeadEmailFieldsSchema = z.object({
+  name: z.string(),
+  phone: z.string(),
+  email: z.string(),
+  website_url: z.string(),
+  message: z.string(),
+});
+
+export type LeadEmailFields = z.infer<typeof LeadEmailFieldsSchema>;
+
+/**
+ * "Yönlendirme Adresi" (bkz. app/api/inbound-email) — Gmail akışının aksine
+ * burada bizim kontrolümüzde olmayan, üçüncü parti bir form aracının
+ * (Contact Form 7, WPForms, HubSpot, Typeform vb.) kendi bildirim maili
+ * geliyor; format aracına göre değişiyor, sabit "Etiket: değer" şablonuyla
+ * (bkz. lib/gmail.ts#extractField) ayrıştırılamaz. Claude'a serbest formatlı
+ * gövdeyi verip alanları çıkarttırıyoruz — bulunamayan alan için boş string
+ * döndürmesi isteniyor (kodun geri kalanındaki diğer Claude şemalarıyla aynı
+ * "uydurma, dürüstçe boş/placeholder bırak" konvansiyonu, null JSON tipi değil).
+ */
+export async function extractLeadFieldsFromEmail(params: { subject: string; body: string }): Promise<LeadEmailFields> {
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-5",
+    max_tokens: 512,
+    system:
+      "Sana üçüncü parti bir web formu aracının (Contact Form 7, WPForms, HubSpot, Typeform vb.) gönderdiği bir " +
+      "bildirim e-postası veriliyor — bizim ürettiğimiz bir mail DEĞİL, formatı bilinmiyor, HTML/düz metin karışık " +
+      "olabilir, gereksiz imza/altbilgi/tekrar içerebilir. Görevin: bu e-postadan, bir potansiyel müşterinin " +
+      "doldurduğu form verisini çıkarmak. Sadece e-postada AÇIKÇA yazan bilgiyi çıkar, hiçbir alanı uydurma ya da " +
+      "tahmin etme — bulamadığın alan için boş string döndür. website_url için müşterinin/firmanın kendi web " +
+      "sitesini ara (form aracının kendi domain'i, reklam/altbilgi linki değil). email için müşterinin kendi " +
+      "adresini ara (formu gönderen aracın/sistemin kendi 'from' adresini değil).",
+    messages: [{ role: "user", content: `Konu: ${params.subject}\n\nGövde:\n${params.body}` }],
+    tools: [
+      {
+        name: EXTRACT_FIELDS_TOOL_NAME,
+        description: "E-postadan çıkarılan form/lead alanlarını döndürür.",
+        input_schema: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "Formu dolduran kişinin adı, bulunamazsa boş string." },
+            phone: { type: "string", description: "Telefon numarası, bulunamazsa boş string." },
+            email: { type: "string", description: "Müşterinin e-posta adresi, bulunamazsa boş string." },
+            website_url: { type: "string", description: "Müşterinin/firmanın web sitesi adresi, bulunamazsa boş string." },
+            message: { type: "string", description: "Müşterinin form üzerinden yazdığı asıl mesaj/talep metni, bulunamazsa boş string." },
+          },
+          required: ["name", "phone", "email", "website_url", "message"],
+        },
+      },
+    ],
+    tool_choice: { type: "tool", name: EXTRACT_FIELDS_TOOL_NAME },
+  });
+
+  const toolUse = response.content.find((block) => block.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("Claude yapılandırılmış çıktı üretmedi.");
+  }
+
+  return LeadEmailFieldsSchema.parse(toolUse.input);
+}

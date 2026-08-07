@@ -32,7 +32,7 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
       supabase.from("gmail_connections").select("connected_email, connected_at, disconnected_at").eq("account_id", accountId).maybeSingle(),
       supabase
         .from("accounts")
-        .select("business_name, slug, lead_email_subjects, primary_lead_source, business_sector, website_url, team_size")
+        .select("business_name, slug, lead_email_subjects, primary_lead_source, inbound_last_received_at, business_sector, website_url, team_size")
         .eq("id", accountId)
         .single(),
       isAccountOwner(accountId, session.email),

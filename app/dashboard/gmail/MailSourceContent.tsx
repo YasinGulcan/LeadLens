@@ -1,5 +1,7 @@
 import { Mail, RefreshCw, Check, X, Inbox } from "lucide-react";
+import { relativeTimeTr } from "@/lib/format";
 import { Card, Badge, Button } from "@/components/ui";
+import { INBOUND_EMAIL_ENABLED } from "@/lib/inbound-email";
 import { DisconnectGmailButton } from "./DisconnectGmailButton";
 import { CopyAddressButton } from "./CopyAddressButton";
 import { SetupGuideTabs } from "./SetupGuideTabs";
@@ -21,6 +23,7 @@ export interface MailSourceConnection {
 export interface MailSourceAccount {
   lead_email_subjects: string[];
   primary_lead_source: string;
+  inbound_last_received_at: string | null;
 }
 
 /** `/dashboard/gmail` sayfası ve Kurulum Paneli'nin "Mail Kaynağını Bağla" adımı tarafından paylaşılıyor. */
@@ -128,8 +131,8 @@ export function MailSourceContent({
                 </p>
               </div>
             </div>
-            <Badge variant="warning" className="shrink-0">
-              Yakında
+            <Badge variant="accent" className="shrink-0">
+              Aktif
             </Badge>
           </div>
 
@@ -142,11 +145,14 @@ export function MailSourceContent({
                 <CopyAddressButton address={inboundAddress} />
               </div>
               <div className="mt-2 flex items-center gap-2">
-                <Badge variant="warning">Henüz mail alınmadı</Badge>
+                {account?.inbound_last_received_at ? (
+                  <Badge variant="success">Son mail: {relativeTimeTr(account.inbound_last_received_at)}</Badge>
+                ) : (
+                  <Badge variant="neutral">Henüz mail alınmadı</Badge>
+                )}
               </div>
               <p className="mt-2 text-xs text-muted-foreground/80">
-                Bu özellik yakında aktif olacak — şu an bu adrese gönderilen mailler işlenmiyor. Aşağıdaki kurulum adımlarını şimdiden
-                inceleyebilir, adres hazır olduğunda ekleyebilirsiniz.
+                Formunuzdan bu adrese Bcc/CC ile gönderilen bir kopya otomatik olarak lead&apos;e dönüştürülür.
               </p>
             </div>
           )}
@@ -164,7 +170,7 @@ export function MailSourceContent({
 
           {isOwner && (
             <div className="mt-4 border-t border-border pt-4">
-              <PrimarySourceButton isPrimary={isForwardingPrimary} disabled />
+              <PrimarySourceButton isPrimary={isForwardingPrimary} disabled={!INBOUND_EMAIL_ENABLED} />
             </div>
           )}
         </Card>

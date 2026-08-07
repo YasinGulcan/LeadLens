@@ -71,6 +71,71 @@ export async function findRecentDuplicateLead(
   return match ? { id: match.id, status: match.status } : null;
 }
 
+export interface ParsedLeadSubmission {
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  websiteUrl: string | null;
+  message: string | null;
+  consentGivenAt: string | null;
+}
+
+/**
+ * Bir kaynaktan (Gmail mail ayrıştırma, Yönlendirme Adresi webhook'u — bkz.
+ * app/api/inbound-email) zaten çıkarılmış alanlardan gerçek bir lead yazar:
+ * yakın zamanda aynı website/telefonla tekrar gönderim varsa atlar, yoksa
+ * `leads` + `lead_status_history`'e yazar. Kaynaklar arasında ayrıştırma
+ * mantığı FARKLI (Gmail sabit şablon, inbound webhook serbest formatlı
+ * üçüncü parti mailler için Claude kullanıyor) ama bu son adım (dedupe +
+ * insert + geçmiş kaydı) ortak — kod tekrarı olmasın diye tek yerde.
+ */
+export async function createLeadFromSubmission(
+  accountId: string,
+  submission: ParsedLeadSubmission,
+  sourceDetail: string
+): Promise<{ outcome: "created" | "duplicate" | "error"; leadId?: string }> {
+  const duplicate = await findRecentDuplicateLead(accountId, submission.websiteUrl, submission.phone);
+  if (duplicate) {
+    await supabase.from("lead_status_history").insert({
+      lead_id: duplicate.id,
+      status: duplicate.status,
+      detail: `Aynı website/telefon için ${DUPLICATE_WINDOW_HOURS} saat içinde tekrar form gönderimi geldi — tarama/analiz/bildirim tekrar tetiklenmedi.`,
+    });
+    return { outcome: "duplicate", leadId: duplicate.id };
+  }
+
+  const status = submission.websiteUrl ? "new" : "error";
+
+  const { data: lead, error: insertError } = await supabase
+    .from("leads")
+    .insert({
+      account_id: accountId,
+      name: submission.name,
+      phone: submission.phone,
+      email: submission.email,
+      website_url: submission.websiteUrl,
+      message: submission.message,
+      status,
+      consent_given_at: submission.consentGivenAt,
+      error_message: submission.websiteUrl ? null : "website_url alanı ayrıştırılamadı",
+    })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    console.error(`Lead yazılamadı (${sourceDetail}):`, insertError.message);
+    return { outcome: "error" };
+  }
+
+  await supabase.from("lead_status_history").insert({
+    lead_id: lead.id,
+    status,
+    detail: status === "error" ? `${sourceDetail}: website_url eksik` : sourceDetail,
+  });
+
+  return { outcome: status === "new" ? "created" : "error", leadId: lead.id };
+}
+
 /** Gün 5-7: Gmail'deki işlenmemiş form maillerini okur, ayrıştırır, Supabase'e yazar. */
 export async function runFetchLeads(account: GmailAccount) {
   const emails = await fetchUnprocessedLeadEmails(account);
@@ -80,51 +145,23 @@ export async function runFetchLeads(account: GmailAccount) {
   let duplicates = 0;
 
   for (const email of emails) {
-    const duplicate = await findRecentDuplicateLead(account.id, email.websiteUrl, email.phone);
-    if (duplicate) {
-      await supabase.from("lead_status_history").insert({
-        lead_id: duplicate.id,
-        status: duplicate.status,
-        detail: `Aynı website/telefon için ${DUPLICATE_WINDOW_HOURS} saat içinde tekrar form gönderimi geldi — tarama/analiz/bildirim tekrar tetiklenmedi.`,
-      });
-      await markEmailProcessed(account, email.gmailMessageId);
-      duplicates++;
-      continue;
-    }
-
-    const status = email.websiteUrl ? "new" : "error";
-
-    const { data: lead, error: insertError } = await supabase
-      .from("leads")
-      .insert({
-        account_id: account.id,
+    const result = await createLeadFromSubmission(
+      account.id,
+      {
         name: email.name,
         phone: email.phone,
         email: email.email,
-        website_url: email.websiteUrl,
+        websiteUrl: email.websiteUrl,
         message: email.message,
-        status,
-        consent_given_at: email.consentGivenAt,
-        error_message: email.websiteUrl ? null : "website_url alanı ayrıştırılamadı",
-      })
-      .select("id")
-      .single();
-
-    if (insertError) {
-      console.error(`Lead yazılamadı (gmail id ${email.gmailMessageId}):`, insertError.message);
-      errors++;
-      continue;
-    }
-
-    await supabase.from("lead_status_history").insert({
-      lead_id: lead.id,
-      status,
-      detail: status === "error" ? "Gmail ayrıştırma: website_url eksik" : "Gmail'den alındı",
-    });
+        consentGivenAt: email.consentGivenAt,
+      },
+      "Gmail'den alındı"
+    );
 
     await markEmailProcessed(account, email.gmailMessageId);
 
-    if (status === "new") created++;
+    if (result.outcome === "created") created++;
+    else if (result.outcome === "duplicate") duplicates++;
     else errors++;
   }
 

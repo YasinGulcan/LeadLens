@@ -3,6 +3,7 @@ import { RANK_TIER_LABEL, rankTier } from "./rank-tier";
 
 let client: Resend | null = null;
 
+/** `/api/inbound-email` (Yönlendirme Adresi webhook'u) da aynı istemciyi paylaşır — ayrı bir Resend bağlantısı kurmaz. */
 export function getResendClient(): Resend {
   if (!client) {
     const apiKey = process.env.RESEND_API_KEY;
