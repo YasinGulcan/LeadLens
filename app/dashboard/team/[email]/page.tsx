@@ -69,10 +69,10 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
         <StatCard icon={Inbox} label="Açık / Devam Eden" value={stats.openCount} hint="lead" />
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <div>
+      <div className="mt-8 grid items-stretch gap-6 lg:grid-cols-2">
+        <div className="flex h-full flex-col">
           <CardTitle className="px-1">Atanan Leadler</CardTitle>
-          <Card className="mt-3 divide-y divide-border overflow-hidden">
+          <Card className="mt-3 flex-1 divide-y divide-border overflow-hidden">
             {assignedLeads.map((l) => (
               <Link
                 key={l.id}
@@ -95,7 +95,7 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
           </Card>
         </div>
 
-        <div>
+        <div className="flex h-full flex-col">
           <CardTitle className="px-1">Son Aktiviteler</CardTitle>
           <ActivityFeed activity={activity} />
         </div>

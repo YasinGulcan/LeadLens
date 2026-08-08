@@ -22,8 +22,8 @@ export function ActivityFeed({ activity }: { activity: MemberActivityEntry[] }) 
   const isExpanded = visibleCount > PAGE_SIZE;
 
   return (
-    <div>
-      <Card className="mt-3 divide-y divide-border overflow-hidden">
+    <div className="flex flex-1 flex-col">
+      <Card className="mt-3 flex-1 divide-y divide-border overflow-hidden">
         {visible.map((a) => (
           <div key={`${a.type}-${a.id}`} className="flex items-start gap-3 px-4 py-3">
             <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-hover text-muted-foreground">
