@@ -75,15 +75,15 @@ export default async function DashboardOverviewPage() {
         <StatCard icon={Layers} label="Toplam lead" value={totalLeadCount ?? 0} hint="tüm zamanlar" />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div>
+      <div className="grid items-stretch gap-6 lg:grid-cols-2">
+        <div className="flex h-full flex-col">
           <div className="flex items-center justify-between px-1">
             <CardTitle>Son leadler</CardTitle>
             <Link href="/dashboard/leads" className="flex items-center gap-1 text-xs font-medium text-accent hover:underline">
               Tümü <ArrowRight size={12} />
             </Link>
           </div>
-          <Card className="mt-3 divide-y divide-border overflow-hidden">
+          <Card className="mt-3 flex-1 divide-y divide-border overflow-hidden">
             {leads.slice(0, 5).map((lead) => (
               <Link
                 key={lead.id}
@@ -111,9 +111,9 @@ export default async function DashboardOverviewPage() {
           </Card>
         </div>
 
-        <div>
+        <div className="flex h-full flex-col">
           <CardTitle className="px-1">Skor dağılımı</CardTitle>
-          <Card className="mt-3 p-4">
+          <Card className="mt-3 flex-1 p-4">
             {scores.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
                 <Layers size={20} className="text-muted-foreground" />

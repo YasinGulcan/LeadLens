@@ -71,18 +71,18 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div>
+      <div className="grid items-stretch gap-6 lg:grid-cols-2">
+        <div className="flex h-full flex-col">
           <CardTitle className="px-1">Aylık lead hacmi</CardTitle>
-          <Card className="mt-3 p-4">
+          <Card className="mt-3 flex-1 p-4">
             <MonthlyVolumeChart data={data.monthlyVolume} />
             <p className="mt-2 text-xs text-muted-foreground">Son 12 ay, gerçek lead / elenen kırılımıyla.</p>
           </Card>
         </div>
 
-        <div>
+        <div className="flex h-full flex-col">
           <CardTitle className="px-1">Skor dağılımı</CardTitle>
-          <Card className="mt-3 p-4">
+          <Card className="mt-3 flex-1 p-4">
             {data.scoreCount === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
                 <p className="text-sm text-muted-foreground">Henüz yeterli veri yok.</p>
@@ -100,10 +100,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div>
+      <div className="grid items-stretch gap-6 lg:grid-cols-2">
+        <div className="flex h-full flex-col">
           <CardTitle className="px-1">Dönüşüm hunisi</CardTitle>
-          <Card className="mt-3 p-4">
+          <Card className="mt-3 flex-1 p-4">
             {hasLeads ? (
               <BarList items={data.funnel} emptyLabel="Henüz yeterli veri yok." />
             ) : (
@@ -112,9 +112,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           </Card>
         </div>
 
-        <div>
+        <div className="flex h-full flex-col">
           <CardTitle className="px-1">Sektör dağılımı</CardTitle>
-          <Card className="mt-3 p-4">
+          <Card className="mt-3 flex-1 p-4">
             <BarList items={data.sectorDistribution} emptyLabel="Henüz sektör verisi yok." />
             {data.sectorInsight && <p className="mt-4 text-xs text-muted-foreground">{data.sectorInsight}</p>}
           </Card>
