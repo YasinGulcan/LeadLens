@@ -1,20 +1,29 @@
 import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
+import { isPlatformAdmin } from "@/lib/platform-admin";
+import { getAllPricingPlans } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import { SettingsForm } from "../SettingsForm";
 import { DangerZone } from "./DangerZone";
+import { SettingsTabs } from "./SettingsTabs";
+import { PricingPlansAdmin } from "./PricingPlansAdmin";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardSettingsPage() {
+export default async function DashboardSettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const session = await getSessionInfo();
   if (!session) redirect("/");
   const { accountId } = session;
 
-  const [{ data: account }, isOwner] = await Promise.all([
+  const { tab } = await searchParams;
+  const showPricing = isPlatformAdmin(session.email);
+  const activeTab = tab === "fiyatlandirma" && showPricing ? "fiyatlandirma" : "genel";
+
+  const [{ data: account }, isOwner, pricingPlans] = await Promise.all([
     supabase.from("accounts").select("business_name, slug, lead_email_subjects, notification_email").eq("id", accountId).single(),
     isAccountOwner(accountId, session.email),
+    activeTab === "fiyatlandirma" ? getAllPricingPlans() : Promise.resolve(null),
   ]);
 
   if (!account) redirect("/");
@@ -32,22 +41,30 @@ export default async function DashboardSettingsPage() {
   return (
     <section>
       <h2 className="text-2xl font-bold text-foreground">Ayarlar</h2>
-      <SettingsForm
-        initialBusinessName={account.business_name}
-        initialSlug={account.slug}
-        initialLeadEmailSubjects={account.lead_email_subjects}
-        initialNotificationEmail={account.notification_email}
-      />
+      <SettingsTabs current={activeTab} showPricing={showPricing} />
 
-      {isOwner && deletionSummary && (
-        <div className="mt-12">
-          <DangerZone
-            businessName={account.business_name}
-            leadCount={deletionSummary.leadCount}
-            sourceCount={deletionSummary.sourceCount}
-            memberCount={deletionSummary.memberCount}
+      {activeTab === "fiyatlandirma" && pricingPlans ? (
+        <PricingPlansAdmin plans={pricingPlans} />
+      ) : (
+        <>
+          <SettingsForm
+            initialBusinessName={account.business_name}
+            initialSlug={account.slug}
+            initialLeadEmailSubjects={account.lead_email_subjects}
+            initialNotificationEmail={account.notification_email}
           />
-        </div>
+
+          {isOwner && deletionSummary && (
+            <div className="mt-12">
+              <DangerZone
+                businessName={account.business_name}
+                leadCount={deletionSummary.leadCount}
+                sourceCount={deletionSummary.sourceCount}
+                memberCount={deletionSummary.memberCount}
+              />
+            </div>
+          )}
+        </>
       )}
     </section>
   );

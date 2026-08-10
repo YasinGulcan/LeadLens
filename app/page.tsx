@@ -1,14 +1,27 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileText, Sparkles, Send, Gauge, Layers, Eye, Mail, ShieldCheck, Lock, Users, AlertCircle } from "lucide-react";
+import { FileText, Sparkles, Send, Gauge, Layers, Eye, Mail, ShieldCheck, Lock, Users, AlertCircle, Check } from "lucide-react";
 import { getSessionInfo } from "@/lib/account-session";
 import { resolveAuthenticatedDestination } from "@/lib/auth-redirect";
-import { Card } from "@/components/ui";
+import { getActivePricingPlans, type BillingPeriod } from "@/lib/pricing";
+import { Card, Button } from "@/components/ui";
 import { GoogleButton } from "./GoogleButton";
 import { AuthMenu } from "./AuthMenu";
 import { LandingProductPreview } from "./LandingProductPreview";
 
 export const dynamic = "force-dynamic";
+
+const BILLING_PERIOD_SHORT: Record<BillingPeriod, string> = { monthly: "ay", yearly: "yıl" };
+const CURRENCY_SYMBOL: Record<string, string> = { TRY: "₺", USD: "$", EUR: "€" };
+
+/** Platform admin'in Ayarlar > Fiyatlandırma sekmesinden yönettiği planlarda cta_type="contact" seçilirse buton bu adrese mailto: açar — ayrı bir env değişkeni açmadan PLATFORM_ADMIN_EMAILS'in ilk adresi kullanılıyor. */
+function firstPlatformAdminEmail(): string | null {
+  const list = (process.env.PLATFORM_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+  return list[0] ?? null;
+}
 
 const STEPS = [
   {
@@ -84,6 +97,8 @@ export default async function HomePage({
   searchParams: Promise<{ connectError?: string; accountDeleted?: string }>;
 }) {
   const { connectError, accountDeleted } = await searchParams;
+  const pricingPlans = await getActivePricingPlans();
+  const contactEmail = firstPlatformAdminEmail();
 
   const session = await getSessionInfo();
   if (session) {
@@ -199,6 +214,64 @@ export default async function HomePage({
           </div>
         </div>
       </section>
+
+      {/* Fiyatlandırma — platform admin Ayarlar > Fiyatlandırma'dan yönetir (bkz. lib/pricing.ts); hiç aktif plan yoksa bölüm hiç render edilmez. */}
+      {pricingPlans.length > 0 && (
+        <section className="border-t border-border bg-background py-16 sm:py-20">
+          <div className="mx-auto w-full max-w-5xl px-6">
+            <div className="text-center">
+              <Eyebrow>Fiyatlandırma</Eyebrow>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Size uygun planı seçin</h2>
+            </div>
+            <div
+              className={`mx-auto mt-12 grid max-w-4xl gap-5 ${
+                pricingPlans.length === 1 ? "max-w-sm" : pricingPlans.length === 2 ? "max-w-2xl sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"
+              }`}
+            >
+              {pricingPlans.map((plan) => {
+                const href = plan.ctaType === "contact" && contactEmail ? `mailto:${contactEmail}` : "/signup";
+                return (
+                  <Card
+                    key={plan.id}
+                    className={`relative flex flex-col p-6 ${
+                      plan.isFeatured ? "border-accent/40 shadow-lg shadow-accent/10" : ""
+                    }`}
+                  >
+                    {plan.isFeatured && (
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white">
+                        Önerilen
+                      </span>
+                    )}
+                    <h3 className="text-lg font-semibold text-foreground">{plan.name}</h3>
+                    <p className="mt-3 flex items-baseline gap-1.5">
+                      <span className="text-3xl font-bold text-foreground">
+                        {CURRENCY_SYMBOL[plan.currency] ?? ""}
+                        {plan.price}
+                      </span>
+                      <span className="text-sm text-muted-foreground">/ {BILLING_PERIOD_SHORT[plan.billingPeriod]}</span>
+                    </p>
+                    {plan.features.length > 0 && (
+                      <ul className="mt-5 flex-1 space-y-2.5">
+                        {plan.features.map((feature, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <Check size={15} className="mt-0.5 shrink-0 text-accent" />
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <Link href={href} className="mt-6 block">
+                      <Button variant={plan.isFeatured ? "primary" : "secondary"} className="w-full justify-center">
+                        {plan.ctaLabel}
+                      </Button>
+                    </Link>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Erişim ve Gizlilik + Giriş alanı — aynı yüzey (bg-surface) içinde tek bant: aralarına ayrı bir section
           (ve onun kendi py-20/24'ü) koymak, ikisi arasında neredeyse yarım ekranlık boş alana yol açıyordu. */}
