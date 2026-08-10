@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, ListChecks, Database, BarChart3, Link2, Users, Sparkles, Settings, Rocket } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface NavItem {
   href: string;
@@ -100,8 +101,9 @@ export function DashboardSidebar({
           <p className="truncate text-sm font-medium text-foreground">{businessName}</p>
           <p className="truncate text-xs text-muted-foreground">{email}</p>
         </Link>
-        <div className="mt-2 border-t border-border pt-2">
+        <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
           <LogoutButton />
+          <ThemeToggle />
         </div>
       </div>
     </aside>

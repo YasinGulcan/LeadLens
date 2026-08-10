@@ -1,6 +1,15 @@
 @import "tailwindcss";
 
 /*
+ * next-themes .dark sınıfını <html>'e ekleyip çıkarıyor; Tailwind v4'te
+ * dark: varsayılan olarak OS medya sorgusuna bakar, bu satır onu yerine
+ * bu sınıfa bakacak şekilde değiştiriyor — kod tabanındaki mevcut TÜM
+ * dark: kullanımları (Badge, StatusSelect, score-color.ts vb.) bu sayede
+ * tek tek dokunulmadan toggle ile doğru çalışmaya devam ediyor.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
  * Merkezi tasarım token'ları — panel genelinde (kartlar, badge'ler, butonlar)
  * tek kaynaktan renk kullanılsın diye. Koyu tema düz siyah değil, katmanlı:
  * background < surface < surface-hover, her biri bir önceki üzerinde hafif
@@ -45,17 +54,16 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #09090b;
-    --surface: #18181b;
-    --surface-hover: #27272a;
-    --border: #27272a;
-    --border-subtle: #3f3f46;
-    --foreground: #fafafa;
-    --muted: #a1a1aa;
-    --muted-foreground: #71717a;
-  }
+/* next-themes bu sınıfı <html>'e ekler — attribute="class" (bkz. app/layout.tsx). */
+.dark {
+  --background: #09090b;
+  --surface: #18181b;
+  --surface-hover: #27272a;
+  --border: #27272a;
+  --border-subtle: #3f3f46;
+  --foreground: #fafafa;
+  --muted: #a1a1aa;
+  --muted-foreground: #71717a;
 }
 
 body {

@@ -10,7 +10,7 @@ export default async function ConfirmSignupPage() {
     return (
       <main className="mx-auto max-w-md px-6 py-16 text-center">
         <h1 className="text-lg font-semibold">Oturum süresi doldu</h1>
-        <p className="mt-2 text-sm text-neutral-500">Lütfen ana sayfadan &quot;Google ile Bağlan&quot; ile tekrar deneyin.</p>
+        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">Lütfen ana sayfadan &quot;Google ile Bağlan&quot; ile tekrar deneyin.</p>
         <Link href="/" className="mt-4 inline-block text-sm text-blue-600 hover:underline dark:text-blue-400">
           Ana sayfaya dön
         </Link>
@@ -21,10 +21,10 @@ export default async function ConfirmSignupPage() {
   return (
     <main className="mx-auto max-w-md px-6 py-16 text-center">
       <h1 className="text-lg font-semibold">Yeni LeadLens hesabı oluştur</h1>
-      <p className="mt-3 text-sm text-neutral-500">
+      <p className="mt-3 text-sm text-neutral-500 dark:text-neutral-400">
         <strong>{pending.connectedEmail}</strong> için kayıtlı bir LeadLens hesabı ya da ekip daveti bulunamadı.
       </p>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
         Bu Gmail ile yeni ve bağımsız bir işletme hesabı oluşturmak istediğinize emin misiniz? Eğer buraya yanlışlıkla
         geldiyseniz (örneğin farklı bir hesaba davetli olmanız gerekiyorsa) &quot;Vazgeç&quot;e basıp doğru hesapla tekrar
         deneyin.

@@ -16,7 +16,7 @@ export default function PrivacyPage() {
         ← Ana sayfaya dön
       </Link>
       <h1 className="mt-4 text-2xl font-bold text-neutral-900 dark:text-white">Gizlilik Politikası</h1>
-      <p className="mt-1 text-xs text-neutral-500">Son güncelleme: 05.08.2026</p>
+      <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">Son güncelleme: 05.08.2026</p>
 
       <p className="mt-6">
         LeadLens (&quot;biz&quot;, &quot;hizmet&quot;), web sitenizden gelen form başvurularını Gmail
@@ -68,7 +68,7 @@ export default function PrivacyPage() {
         uygulamaya aktarımı, <strong>Google API Services User Data Policy</strong>&apos;ye (Sınırlı Kullanım
         şartları dahil) uygun olacaktır.
       </p>
-      <p className="mt-2 text-xs text-neutral-500">
+      <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
         LeadLens&apos;s use and transfer to any other app of information received from Google APIs will
         adhere to the{" "}
         <a

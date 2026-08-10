@@ -12,7 +12,7 @@ export default function TermsPage() {
         ← Ana sayfaya dön
       </Link>
       <h1 className="mt-4 text-2xl font-bold text-neutral-900 dark:text-white">Hizmet Şartları</h1>
-      <p className="mt-1 text-xs text-neutral-500">Son güncelleme: 05.08.2026</p>
+      <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">Son güncelleme: 05.08.2026</p>
 
       <h2 className="mt-8 text-lg font-semibold text-neutral-900 dark:text-white">Hizmetin Tanımı</h2>
       <p className="mt-2">
