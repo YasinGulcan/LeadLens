@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { isActiveAccountPerson } from "@/lib/accounts";
+import { createNotification } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 
 /** Lead detayındaki "Ekip Üyesine Ata" — herhangi bir ekip üyesi atayabilir/değiştirebilir (sales-status güncellemesiyle aynı yetki deseni). */
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Bu e-posta hesabın sahibi ya da daveti kabul etmiş bir üyesi değil." }, { status: 400 });
   }
 
-  const { data: lead } = await supabase.from("leads").select("account_id, status").eq("id", id).single();
+  const { data: lead } = await supabase.from("leads").select("account_id, status, name").eq("id", id).single();
   if (!lead || lead.account_id !== session.accountId) {
     return NextResponse.json({ error: "Bu lead size ait değil." }, { status: 403 });
   }
@@ -30,6 +31,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     detail,
     actor_email: session.email,
   });
+
+  // Sadece BAŞKASINA yeni bir atama yapıldığında bildirim gönder — kendine
+  // atama ve atamayı kaldırma (email === null) bildirim tetiklemez.
+  if (email !== null && email !== session.email) {
+    await createNotification(
+      session.accountId,
+      email,
+      `${session.email}, size bir lead atadı: ${lead.name ?? "İsimsiz"}`,
+      `/dashboard/leads/${id}`
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

@@ -2,8 +2,10 @@ import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
 import { acceptTeamMembership, isAccountOwner, isAuthorizedForAccount } from "@/lib/accounts";
 import { getSetupStatus } from "@/lib/setup-checklist";
+import { listNotifications, getUnreadNotificationCount } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 import { DashboardSidebar } from "./DashboardSidebar";
+import { NotificationBell } from "./NotificationBell";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +14,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) redirect("/");
   const { accountId } = session;
 
-  const [{ data: account }, { count: leadCount }, setupStatus] = await Promise.all([
+  const [{ data: account }, { count: leadCount }, setupStatus, notifications, unreadCount] = await Promise.all([
     supabase.from("accounts").select("business_name, slug, onboarded_at").eq("id", accountId).single(),
     supabase.from("leads").select("id", { count: "exact", head: true }).eq("account_id", accountId),
     getSetupStatus(accountId),
+    listNotifications(accountId, session.email),
+    getUnreadNotificationCount(accountId, session.email),
   ]);
   if (!account) redirect("/");
   // Oturum çerezi 30 gün geçerli kalabiliyor — ekipten çıkarıldıktan sonra
@@ -41,8 +45,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
         setupProgress={setupStatus.requiredDone ? null : { completed: setupStatus.completedCount, total: setupStatus.totalCount }}
       />
       <div className="min-w-0 flex-1 overflow-x-hidden">
-        <div className="border-b border-border px-8 py-4 text-xs text-muted-foreground">
-          Form adresi: /form/{account.slug}
+        <div className="flex items-center justify-between border-b border-border px-8 py-4 text-xs text-muted-foreground">
+          <span>Form adresi: /form/{account.slug}</span>
+          <NotificationBell initialNotifications={notifications} initialUnreadCount={unreadCount} />
         </div>
         <main className="px-8 py-8">{children}</main>
       </div>
