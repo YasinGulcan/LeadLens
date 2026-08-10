@@ -4,14 +4,28 @@ import { usePathname, useRouter } from "next/navigation";
 
 const TABS = [
   { id: "genel", label: "Genel" },
+  { id: "plan", label: "Plan" },
   { id: "fiyatlandirma", label: "Fiyatlandırma" },
 ] as const;
 
-/** Ayarlar sayfasının sekmeleri — ?tab= parametresini değiştirir, sayfa sunucuda yeniden hesaplar (bkz. ReportRangePicker'daki aynı desen). "Fiyatlandırma" sadece platform admin'e (showPricing) gösterilir. */
-export function SettingsTabs({ current, showPricing }: { current: string; showPricing: boolean }) {
+/**
+ * Ayarlar sayfasının sekmeleri — ?tab= parametresini değiştirir, sayfa
+ * sunucuda yeniden hesaplar (bkz. ReportRangePicker'daki aynı desen).
+ * "Plan" herkese açık (hiç aktif plan yoksa gizlenir — showPlanTab);
+ * "Fiyatlandırma" sadece platform admin'e (showPricing) gösterilir.
+ */
+export function SettingsTabs({
+  current,
+  showPricing,
+  showPlanTab,
+}: {
+  current: string;
+  showPricing: boolean;
+  showPlanTab: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
-  const tabs = showPricing ? TABS : TABS.filter((t) => t.id !== "fiyatlandirma");
+  const tabs = TABS.filter((t) => (t.id === "fiyatlandirma" ? showPricing : t.id === "plan" ? showPlanTab : true));
   if (tabs.length <= 1) return null;
 
   return (

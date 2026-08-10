@@ -2,12 +2,13 @@ import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
 import { isPlatformAdmin } from "@/lib/platform-admin";
-import { getAllPricingPlans } from "@/lib/pricing";
+import { getAllPricingPlans, getActivePricingPlans } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import { SettingsForm } from "../SettingsForm";
 import { DangerZone } from "./DangerZone";
 import { SettingsTabs } from "./SettingsTabs";
 import { PricingPlansAdmin } from "./PricingPlansAdmin";
+import { PricingSection } from "../../PricingSection";
 
 export const dynamic = "force-dynamic";
 
@@ -18,13 +19,17 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
 
   const { tab } = await searchParams;
   const showPricing = isPlatformAdmin(session.email);
-  const activeTab = tab === "fiyatlandirma" && showPricing ? "fiyatlandirma" : "genel";
 
-  const [{ data: account }, isOwner, pricingPlans] = await Promise.all([
+  const [{ data: account }, isOwner, activePlans] = await Promise.all([
     supabase.from("accounts").select("business_name, slug, lead_email_subjects, notification_email").eq("id", accountId).single(),
     isAccountOwner(accountId, session.email),
-    activeTab === "fiyatlandirma" ? getAllPricingPlans() : Promise.resolve(null),
+    getActivePricingPlans(),
   ]);
+
+  const showPlanTab = activePlans.length > 0;
+  const activeTab =
+    tab === "fiyatlandirma" && showPricing ? "fiyatlandirma" : tab === "plan" && showPlanTab ? "plan" : "genel";
+  const pricingPlans = activeTab === "fiyatlandirma" ? await getAllPricingPlans() : null;
 
   if (!account) redirect("/");
 
@@ -41,10 +46,15 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
   return (
     <section>
       <h2 className="text-2xl font-bold text-foreground">Ayarlar</h2>
-      <SettingsTabs current={activeTab} showPricing={showPricing} />
+      <SettingsTabs current={activeTab} showPricing={showPricing} showPlanTab={showPlanTab} />
 
       {activeTab === "fiyatlandirma" && pricingPlans ? (
         <PricingPlansAdmin plans={pricingPlans} />
+      ) : activeTab === "plan" ? (
+        <div className="mt-6">
+          <p className="text-sm text-muted-foreground">Mevcut planlardan birini inceleyebilirsiniz.</p>
+          <PricingSection plans={activePlans} />
+        </div>
       ) : (
         <>
           <SettingsForm
