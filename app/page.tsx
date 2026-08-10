@@ -45,7 +45,7 @@ const FEATURES = [
     icon: Eye,
     title: "AI Görünürlük Kontrolü",
     body: "Sitenizin gerçek bir web aramasında ve yapay zeka sonuçlarında ne kadar görünür olduğu ölçülüp rapora eklenir.",
-    featured: false,
+    featured: true,
   },
   {
     icon: Mail,
@@ -101,7 +101,13 @@ export default async function HomePage({
       </header>
 
       {/* Hero — dropdown'ın (AuthMenu) en uzun hâlde bile başlığa değmemesi için üstte bilinçli olarak geniş boşluk bırakılıyor */}
-      <section className="mx-auto flex w-full max-w-3xl flex-col items-center px-6 pt-28 pb-10 text-center sm:pt-32">
+      <section className="relative mx-auto flex w-full max-w-3xl flex-col items-center px-6 pt-28 pb-10 text-center sm:pt-32">
+        {/* Marka imzası — çok hafif, dikkat dağıtmayan bir accent doku; şablon değil LeadLens hissi versin diye */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.07]"
+          style={{ background: "radial-gradient(ellipse 900px 500px at 15% 0%, var(--accent), transparent 65%)" }}
+        />
         <h1 className="text-4xl leading-[1.1] font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
           Gelen lead&apos;leriniz, siz bakmadan önce analiz edilsin.
         </h1>
@@ -128,12 +134,12 @@ export default async function HomePage({
       </section>
 
       {/* Ürün görseli */}
-      <section className="mx-auto flex w-full max-w-5xl justify-center px-6 pt-4 pb-24">
+      <section className="mx-auto flex w-full max-w-5xl justify-center px-6 pt-4 pb-12">
         <LandingProductPreview />
       </section>
 
       {/* Nasıl çalışır */}
-      <section className="bg-surface py-20 sm:py-24">
+      <section className="bg-surface py-16 sm:py-20">
         <div className="mx-auto w-full max-w-5xl px-6">
           <div className="text-center">
             <Eyebrow>Süreç</Eyebrow>
@@ -160,7 +166,7 @@ export default async function HomePage({
       </section>
 
       {/* Özellikler */}
-      <section className="bg-background py-20 sm:py-24">
+      <section className="bg-background py-16 sm:py-20">
         <div className="mx-auto w-full max-w-5xl px-6">
           <div className="text-center">
             <Eyebrow>Özellikler</Eyebrow>
@@ -172,10 +178,10 @@ export default async function HomePage({
               return (
                 <Card
                   key={feature.title}
-                  className={`p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${
+                  className={`p-5 transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lg ${
                     feature.featured
-                      ? "border-accent/30 shadow-md shadow-accent/5 hover:border-accent/50"
-                      : "hover:border-border-subtle"
+                      ? "border-accent/30 shadow-md shadow-accent/5 hover:border-accent/60"
+                      : "hover:border-accent/40"
                   }`}
                 >
                   <span
@@ -194,8 +200,9 @@ export default async function HomePage({
         </div>
       </section>
 
-      {/* Erişim ve Gizlilik */}
-      <section className="bg-surface py-20 sm:py-24">
+      {/* Erişim ve Gizlilik + Giriş alanı — aynı yüzey (bg-surface) içinde tek bant: aralarına ayrı bir section
+          (ve onun kendi py-20/24'ü) koymak, ikisi arasında neredeyse yarım ekranlık boş alana yol açıyordu. */}
+      <section className="bg-surface py-16 sm:py-20">
         <div className="mx-auto w-full max-w-5xl px-6">
           <div className="text-center">
             <Eyebrow>Güvenlik</Eyebrow>
@@ -207,7 +214,7 @@ export default async function HomePage({
               return (
                 <Card
                   key={item.title}
-                  className="p-5 transition-all duration-200 hover:-translate-y-1 hover:border-border-subtle hover:shadow-lg"
+                  className="p-5 transition-all duration-200 ease-out hover:-translate-y-1 hover:border-accent/40 hover:shadow-lg"
                 >
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
                     <Icon size={18} />
@@ -218,21 +225,18 @@ export default async function HomePage({
               );
             })}
           </div>
-        </div>
-      </section>
 
-      {/* Giriş alanı */}
-      <section className="bg-background py-20 sm:py-24">
-        <div className="mx-auto flex w-full max-w-md flex-col items-center rounded-xl border border-accent/20 bg-surface px-8 py-10 text-center shadow-2xl shadow-accent/5">
-          <h2 className="text-xl font-bold text-foreground">Hemen başlayın</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Google hesabınızla saniyeler içinde giriş yapın ya da yeni bir hesap oluşturun. Ayrı bir kullanıcı
-            adı/şifre yok.
-          </p>
-          <GoogleButton className="mt-6 w-full" />
-          <p className="mt-3 text-xs text-muted-foreground">
-            Gmail hesabınızı bağlayarak hesabınızı oluşturur ya da mevcut hesabınıza giriş yaparsınız.
-          </p>
+          <div className="mx-auto mt-16 flex w-full max-w-md flex-col items-center border-t border-border pt-12 text-center sm:mt-20 sm:pt-14">
+            <h2 className="text-xl font-bold text-foreground">Hemen başlayın</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Google hesabınızla saniyeler içinde giriş yapın ya da yeni bir hesap oluşturun. Ayrı bir kullanıcı
+              adı/şifre yok.
+            </p>
+            <GoogleButton className="mt-6 w-full" />
+            <p className="mt-3 text-xs text-muted-foreground">
+              Gmail hesabınızı bağlayarak hesabınızı oluşturur ya da mevcut hesabınıza giriş yaparsınız.
+            </p>
+          </div>
         </div>
       </section>
 
