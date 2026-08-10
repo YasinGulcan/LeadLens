@@ -3,9 +3,8 @@ import { getSessionAccountId } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** `/dashboard`'daki ayarlar formu — işletme adı, form adresi (slug), lead e-postası başlığı, bildirim e-postası. */
+/** `/dashboard`'daki ayarlar formu — işletme adı, form adresi (slug), lead e-postası başlığı. */
 export async function POST(req: NextRequest) {
   const accountId = await getSessionAccountId();
   if (!accountId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -22,7 +21,6 @@ export async function POST(req: NextRequest) {
         )
       )
     : [];
-  const notificationEmailRaw = typeof body?.notificationEmail === "string" ? body.notificationEmail.trim() : "";
 
   if (!businessName) return NextResponse.json({ error: "İşletme adı zorunlu." }, { status: 400 });
   if (!slug || !SLUG_PATTERN.test(slug)) {
@@ -34,9 +32,6 @@ export async function POST(req: NextRequest) {
   if (leadEmailSubjects.length === 0) {
     return NextResponse.json({ error: "En az bir lead e-postası başlığı girilmeli." }, { status: 400 });
   }
-  if (notificationEmailRaw && !EMAIL_PATTERN.test(notificationEmailRaw)) {
-    return NextResponse.json({ error: "Bildirim e-postası geçerli bir adres olmalı." }, { status: 400 });
-  }
 
   const { error } = await supabase
     .from("accounts")
@@ -44,7 +39,6 @@ export async function POST(req: NextRequest) {
       business_name: businessName,
       slug,
       lead_email_subjects: leadEmailSubjects,
-      notification_email: notificationEmailRaw || null,
     })
     .eq("id", accountId);
 

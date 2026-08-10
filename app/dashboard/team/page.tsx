@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
-import { getAccountOwnerEmail, getPendingOwnerEmail, listTeamMembers } from "@/lib/accounts";
+import { getAccountById, getAccountOwnerEmail, getPendingOwnerEmail, listTeamMembers } from "@/lib/accounts";
 import { listActivityLog, getActivityLogCount } from "@/lib/activity-log";
 import { TeamManager } from "../TeamManager";
 import { ActivityLogTable } from "./ActivityLogTable";
+import { NotificationEmailForm } from "./NotificationEmailForm";
 import { CardTitle } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,8 @@ export default async function DashboardTeamPage() {
   const session = await getSessionInfo();
   if (!session) redirect("/");
 
-  const [ownerEmail, members, pendingOwnerEmail, activityLog, activityLogCount] = await Promise.all([
+  const [account, ownerEmail, members, pendingOwnerEmail, activityLog, activityLogCount] = await Promise.all([
+    getAccountById(session.accountId),
     getAccountOwnerEmail(session.accountId),
     listTeamMembers(session.accountId),
     getPendingOwnerEmail(session.accountId),
@@ -30,6 +32,13 @@ export default async function DashboardTeamPage() {
         kendilerine de gider. Gmail bağlantısı ve hesap ayarları gibi hassas işlemler sadece hesap sahibinde kalır.
       </p>
       <TeamManager isOwner={isOwner} ownerEmail={ownerEmail} members={members} pendingOwnerEmail={pendingOwnerEmail} />
+
+      <div className="mt-10">
+        <CardTitle className="px-1">Bildirimler</CardTitle>
+        <div className="mt-3 px-1">
+          <NotificationEmailForm initialNotificationEmail={account?.notificationEmail ?? null} />
+        </div>
+      </div>
 
       <div className="mt-10">
         <CardTitle className="px-1">Aktivite Geçmişi</CardTitle>

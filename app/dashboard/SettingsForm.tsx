@@ -17,19 +17,16 @@ export function SettingsForm({
   initialBusinessName,
   initialSlug,
   initialLeadEmailSubjects,
-  initialNotificationEmail,
 }: {
   initialBusinessName: string;
   initialSlug: string;
   initialLeadEmailSubjects: string[];
-  initialNotificationEmail: string | null;
 }) {
   const router = useRouter();
   const [businessName, setBusinessName] = useState(initialBusinessName);
   const [slug, setSlug] = useState(initialSlug);
   const [leadEmailSubjects, setLeadEmailSubjects] = useState(initialLeadEmailSubjects);
   const [newSubject, setNewSubject] = useState("");
-  const [notificationEmail, setNotificationEmail] = useState(initialNotificationEmail ?? "");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +54,7 @@ export function SettingsForm({
       const res = await fetch("/api/dashboard/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessName, slug, leadEmailSubjects, notificationEmail }),
+        body: JSON.stringify({ businessName, slug, leadEmailSubjects }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Bilinmeyen hata");
@@ -136,22 +133,6 @@ export function SettingsForm({
             </Button>
           </div>
         </Card>
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-muted-foreground">Bildirim E-postası (opsiyonel)</label>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Analiz raporu buraya gönderilir. Boş bırakılırsa bağlı Gmail hesabınızın kendi adresine gider.
-          (Form kopyası — lead&apos;in ilk yakalandığı e-posta — teknik nedenlerle her zaman bağlı hesabın
-          kendi kutusuna gitmek zorunda, değiştirilemez.)
-        </p>
-        <input
-          type="email"
-          value={notificationEmail}
-          onChange={(e) => setNotificationEmail(e.target.value)}
-          placeholder="ornek@gmail.com"
-          className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
-        />
       </div>
 
       {message && <p className="text-xs text-emerald-500 dark:text-emerald-400">{message}</p>}

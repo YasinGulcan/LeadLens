@@ -18,7 +18,7 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
   const { tab } = await searchParams;
 
   const [{ data: account }, isOwner, activePlans] = await Promise.all([
-    supabase.from("accounts").select("business_name, slug, lead_email_subjects, notification_email").eq("id", accountId).single(),
+    supabase.from("accounts").select("business_name, slug, lead_email_subjects").eq("id", accountId).single(),
     isAccountOwner(accountId, session.email),
     getActivePricingPlans(),
   ]);
@@ -54,7 +54,6 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
             initialBusinessName={account.business_name}
             initialSlug={account.slug}
             initialLeadEmailSubjects={account.lead_email_subjects}
-            initialNotificationEmail={account.notification_email}
           />
 
           {isOwner && deletionSummary && (
