@@ -89,6 +89,7 @@ export function SignupFlow() {
           <input
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
+            autoComplete="name"
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
           />
         </div>
@@ -98,6 +99,7 @@ export function SignupFlow() {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             type="tel"
+            autoComplete="tel"
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
           />
         </div>
@@ -107,6 +109,7 @@ export function SignupFlow() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
+            autoComplete="email"
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
           />
         </div>

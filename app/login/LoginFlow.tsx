@@ -118,6 +118,7 @@ export function LoginFlow() {
               value={resetEmail}
               onChange={(e) => setResetEmail(e.target.value)}
               type="email"
+              autoComplete="email"
               autoFocus
               className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
             />
@@ -153,6 +154,7 @@ export function LoginFlow() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
+            autoComplete="email"
             autoFocus
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
           />
@@ -163,6 +165,7 @@ export function LoginFlow() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             type="password"
+            autoComplete="current-password"
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
           />
         </div>
