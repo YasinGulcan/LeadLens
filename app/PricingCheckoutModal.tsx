@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { X, Check, CreditCard, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui";
 import type { PricingPlan, BillingPeriod } from "@/lib/pricing";
@@ -31,6 +32,7 @@ function formatExpiry(value: string): string {
  * plan" durumu da güncelleniyor (bkz. /api/pricing-inquiries).
  */
 export function PricingCheckoutModal({ plan, onClose }: { plan: PricingPlan; onClose: () => void }) {
+  const router = useRouter();
   const [step, setStep] = useState<Step>("form");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -104,6 +106,11 @@ export function PricingCheckoutModal({ plan, onClose }: { plan: PricingPlan; onC
       ]);
       if (!res.ok) throw new Error();
       setStep("success");
+      // Oturum açıksa hesabın "aktif plan" durumu sunucuda güncellendi —
+      // sidebar/Ayarlar'daki rozet Server Component olduğu için bunu
+      // yeniden çekmesi gerekiyor, aksi halde manuel yenilemeye kadar eski
+      // "Deneme" rozetini göstermeye devam ederdi.
+      router.refresh();
     } catch {
       setError("Bir şeyler ters gitti, tekrar deneyin.");
       setStep("payment");
