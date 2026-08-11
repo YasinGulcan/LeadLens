@@ -3,7 +3,7 @@ import { RANK_TIER_LABEL, rankTier } from "./rank-tier";
 
 let client: Resend | null = null;
 
-function getClient(): Resend {
+export function getResendClient(): Resend {
   if (!client) {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) throw new Error("RESEND_API_KEY ortam değişkeni tanımlı olmalı.");
@@ -133,7 +133,7 @@ export async function sendLeadNotification(lead: LeadNotification): Promise<void
     </div>
   `.trim();
 
-  const { error } = await getClient().emails.send({
+  const { error } = await getResendClient().emails.send({
     from: "LeadLens <onboarding@resend.dev>",
     to,
     subject,
