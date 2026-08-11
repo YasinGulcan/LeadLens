@@ -8,7 +8,8 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
-  const purpose: OtpPurpose | null = body?.purpose === "signup" || body?.purpose === "login" ? body.purpose : null;
+  const purpose: OtpPurpose | null =
+    body?.purpose === "signup_verification" || body?.purpose === "password_reset" ? body.purpose : null;
   const fullName = typeof body?.fullName === "string" ? body.fullName.trim() : undefined;
   const phone = typeof body?.phone === "string" ? body.phone.trim() : undefined;
 
@@ -19,7 +20,11 @@ export async function POST(req: NextRequest) {
   const rateLimitError = await checkOtpRateLimit(email);
   if (rateLimitError) return NextResponse.json({ error: rateLimitError }, { status: 429 });
 
-  const code = await createOtpCode(email, purpose, purpose === "signup" && fullName && phone ? { fullName, phone } : undefined);
+  const code = await createOtpCode(
+    email,
+    purpose,
+    purpose === "signup_verification" && fullName && phone ? { fullName, phone } : undefined
+  );
   try {
     await sendOtpEmail(email, code, purpose);
   } catch (err) {

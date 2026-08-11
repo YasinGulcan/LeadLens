@@ -66,7 +66,7 @@ export function SignupFlow() {
     const res = await fetch("/api/auth/resend-code", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, purpose: "signup", fullName, phone }),
+      body: JSON.stringify({ email, purpose: "signup_verification", fullName, phone }),
     });
     const data = await res.json();
     return res.ok ? { ok: true } : { ok: false, error: data.error };

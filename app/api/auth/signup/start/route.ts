@@ -26,9 +26,9 @@ export async function POST(req: NextRequest) {
   const rateLimitError = await checkOtpRateLimit(email);
   if (rateLimitError) return NextResponse.json({ error: rateLimitError }, { status: 429 });
 
-  const code = await createOtpCode(email, "signup", { fullName, phone });
+  const code = await createOtpCode(email, "signup_verification", { fullName, phone });
   try {
-    await sendOtpEmail(email, code, "signup");
+    await sendOtpEmail(email, code, "signup_verification");
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Kod gönderilemedi." }, { status: 500 });
   }

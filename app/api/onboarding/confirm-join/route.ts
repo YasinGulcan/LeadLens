@@ -30,9 +30,25 @@ export async function POST(req: NextRequest) {
   const { accountId, email, previousOwnerEmail } = pending;
 
   if (pending.type === "transfer") {
+    // Devralan kişi zaten bir üye olarak bir şifre belirlemişse (bu hesaba
+    // üyeyken), o şifre sahiplik hash'ine taşınır — aksi halde ESKİ sahibin
+    // hash'i accounts.owner_password_hash'te kalıp yeni sahibin kimliğiyle
+    // eşleşmiş olurdu, bu bir güvenlik açığı olurdu.
+    const { data: transferringMember } = await supabase
+      .from("account_members")
+      .select("password_hash")
+      .eq("account_id", accountId)
+      .eq("email", email)
+      .maybeSingle();
+
     const { error: transferError } = await supabase
       .from("accounts")
-      .update({ owner_email: email, owner_full_name: null, owner_phone: null })
+      .update({
+        owner_email: email,
+        owner_full_name: null,
+        owner_phone: null,
+        owner_password_hash: transferringMember?.password_hash ?? null,
+      })
       .eq("id", accountId);
     if (transferError) {
       const url = new URL("/", origin);
@@ -56,8 +72,22 @@ export async function POST(req: NextRequest) {
     await acceptTeamMembership(accountId, email);
   }
 
-  const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", accountId).single();
-  const destination = account?.onboarded_at ? "/dashboard" : "/onboarding";
+  const { data: account } = await supabase.from("accounts").select("onboarded_at, owner_password_hash").eq("id", accountId).single();
+
+  let hasPassword: boolean;
+  if (pending.type === "transfer") {
+    hasPassword = !!account?.owner_password_hash;
+  } else {
+    const { data: memberRow } = await supabase
+      .from("account_members")
+      .select("password_hash")
+      .eq("account_id", accountId)
+      .eq("email", email)
+      .maybeSingle();
+    hasPassword = !!memberRow?.password_hash;
+  }
+
+  const destination = !hasPassword ? "/set-password" : account?.onboarded_at ? "/dashboard" : "/onboarding";
 
   return withSessionCookie(NextResponse.redirect(new URL(destination, origin)), accountId, email);
 }

@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   const code = typeof body?.code === "string" ? body.code.trim() : "";
   if (!email || !code) return NextResponse.json({ error: "E-posta ve kod zorunlu." }, { status: 400 });
 
-  const result = await verifyOtpCode(email, "signup", code);
+  const result = await verifyOtpCode(email, "signup_verification", code);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
   // Kod bekleme süresinde (10 dk) aynı e-posta başka bir yoldan hesaba/üyeliğe
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: insertError?.message ?? "Hesap oluşturulamadı." }, { status: 400 });
   }
 
-  const res = NextResponse.json({ ok: true, redirect: "/onboarding" });
+  const res = NextResponse.json({ ok: true, redirect: "/set-password" });
   res.cookies.set(ACCOUNT_SESSION_COOKIE, createAccountSessionValue(newAccount.id, email), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

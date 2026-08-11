@@ -2,8 +2,8 @@ import { getResendClient, getResendFromAddress, escapeHtml } from "./resend";
 import type { OtpPurpose } from "./otp";
 
 export async function sendOtpEmail(email: string, code: string, purpose: OtpPurpose): Promise<void> {
-  const subject = purpose === "signup" ? "LeadLens kayıt doğrulama kodunuz" : "LeadLens giriş kodunuz";
-  const intro = purpose === "signup" ? "Kaydınızı tamamlamak için" : "Panele giriş yapmak için";
+  const subject = purpose === "signup_verification" ? "LeadLens kayıt doğrulama kodunuz" : "LeadLens şifre sıfırlama kodunuz";
+  const intro = purpose === "signup_verification" ? "Kaydınızı tamamlamak için" : "Şifrenizi sıfırlamak için";
 
   const html = `
     <div style="font-family: -apple-system, Arial, sans-serif; max-width: 480px; color: #1f2937;">

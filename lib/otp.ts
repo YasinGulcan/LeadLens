@@ -1,7 +1,8 @@
 import { randomInt, createHash } from "crypto";
 import { supabase } from "./supabase";
 
-export type OtpPurpose = "signup" | "login";
+/** Giriş artık e-posta+şifre ile çalışıyor — OTP sadece kayıt sırasında e-postayı doğrulamak ve şifre sıfırlamak için kullanılıyor. */
+export type OtpPurpose = "signup_verification" | "password_reset";
 
 const CODE_TTL_MS = 1000 * 60 * 10; // 10 dakika
 const MAX_ATTEMPTS = 5;
@@ -36,7 +37,7 @@ export async function checkOtpRateLimit(email: string): Promise<string | null> {
   return null;
 }
 
-/** `full_name`/`phone` sadece purpose "signup" için anlamlı — kod doğrulanınca hesabı açmak için gerekiyor. */
+/** `full_name`/`phone` sadece purpose "signup_verification" için anlamlı — kod doğrulanınca hesabı açmak için gerekiyor. */
 export async function createOtpCode(
   email: string,
   purpose: OtpPurpose,
