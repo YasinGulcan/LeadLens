@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
-import { signOAuthState } from "@/lib/oauth-state";
+import { signOAuthState, OAUTH_RETURN_PATHS, type OAuthReturnPath } from "@/lib/oauth-state";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
 
@@ -30,6 +30,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "accountId zorunlu." }, { status: 400 });
   }
 
+  const requestedReturnTo = req.nextUrl.searchParams.get("returnTo");
+  const returnTo: OAuthReturnPath = OAUTH_RETURN_PATHS.includes(requestedReturnTo as OAuthReturnPath)
+    ? (requestedReturnTo as OAuthReturnPath)
+    : "/dashboard/gmail";
+
   const session = await getSessionInfo();
   const isOwner = session?.accountId === requestedAccountId && (await isAccountOwner(requestedAccountId, session.email));
   if (!isOwner) {
@@ -47,7 +52,7 @@ export async function GET(req: NextRequest) {
     access_type: "offline",
     prompt: "consent", // refresh_token her seferinde dönsün diye
     scope: SCOPES,
-    state: signOAuthState(requestedAccountId),
+    state: signOAuthState(requestedAccountId, returnTo),
   });
 
   return NextResponse.redirect(authUrl);

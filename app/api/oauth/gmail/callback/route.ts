@@ -10,8 +10,8 @@ function getRedirectUri(req: NextRequest): string {
   return `${new URL(req.url).origin}/api/oauth/gmail/callback`;
 }
 
-function errorRedirect(req: NextRequest, message: string): NextResponse {
-  const url = new URL("/dashboard/gmail", new URL(req.url).origin);
+function errorRedirect(req: NextRequest, message: string, returnTo = "/dashboard/gmail"): NextResponse {
+  const url = new URL(returnTo, new URL(req.url).origin);
   url.searchParams.set("connectError", message);
   return NextResponse.redirect(url);
 }
@@ -30,12 +30,13 @@ export async function GET(req: NextRequest) {
   if (oauthError) return errorRedirect(req, `Google yetkilendirmeyi reddetti: ${oauthError}`);
   if (!code || !state) return errorRedirect(req, "code/state parametreleri eksik.");
 
-  const accountId = verifyOAuthState(state);
-  if (!accountId) return errorRedirect(req, "Geçersiz veya bozulmuş state — yetkilendirme reddedildi.");
+  const parsedState = verifyOAuthState(state);
+  if (!parsedState) return errorRedirect(req, "Geçersiz veya bozulmuş state — yetkilendirme reddedildi.");
+  const { accountId, returnTo } = parsedState;
 
   const clientId = process.env.GMAIL_CLIENT_ID;
   const clientSecret = process.env.GMAIL_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return errorRedirect(req, "GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET tanımlı değil.");
+  if (!clientId || !clientSecret) return errorRedirect(req, "GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET tanımlı değil.", returnTo);
 
   const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, getRedirectUri(req));
 
@@ -43,13 +44,14 @@ export async function GET(req: NextRequest) {
   try {
     ({ tokens } = await oauth2Client.getToken(code));
   } catch (err) {
-    return errorRedirect(req, err instanceof Error ? err.message : String(err));
+    return errorRedirect(req, err instanceof Error ? err.message : String(err), returnTo);
   }
 
   if (!tokens.refresh_token) {
     return errorRedirect(
       req,
-      "refresh_token alınamadı — bu hesap için muhtemelen zaten izin verilmişti. myaccount.google.com/permissions üzerinden erişimi iptal edip tekrar deneyin."
+      "refresh_token alınamadı — bu hesap için muhtemelen zaten izin verilmişti. myaccount.google.com/permissions üzerinden erişimi iptal edip tekrar deneyin.",
+      returnTo
     );
   }
 
@@ -61,9 +63,9 @@ export async function GET(req: NextRequest) {
     const profile = await gmail.users.getProfile({ userId: "me" });
     connectedEmail = profile.data.emailAddress;
   } catch (err) {
-    return errorRedirect(req, `Profil okunamadı: ${err instanceof Error ? err.message : String(err)}`);
+    return errorRedirect(req, `Profil okunamadı: ${err instanceof Error ? err.message : String(err)}`, returnTo);
   }
-  if (!connectedEmail) return errorRedirect(req, "Bağlanan hesabın e-postası okunamadı.");
+  if (!connectedEmail) return errorRedirect(req, "Bağlanan hesabın e-postası okunamadı.", returnTo);
 
   const encryptedRefreshToken = encryptToken(tokens.refresh_token);
 
@@ -77,9 +79,9 @@ export async function GET(req: NextRequest) {
   });
   if (upsertError) {
     const message = upsertError.code === "23505" ? "Bu Gmail adresi zaten başka bir hesaba bağlı." : upsertError.message;
-    return errorRedirect(req, message);
+    return errorRedirect(req, message, returnTo);
   }
   await supabase.from("accounts").update({ status: "connected" }).eq("id", accountId);
 
-  return NextResponse.redirect(new URL("/dashboard/gmail", new URL(req.url).origin));
+  return NextResponse.redirect(new URL(returnTo, new URL(req.url).origin));
 }
