@@ -1,4 +1,4 @@
-import { Phone, Mail, Globe } from "lucide-react";
+import { Phone, Mail, Globe, Search } from "lucide-react";
 import { Badge, ScoreCircle } from "@/components/ui";
 
 const MOCK_SCORES = [
@@ -59,9 +59,18 @@ export function LandingProductPreview() {
         <div className="mt-5 flex items-center gap-4 border-t border-border pt-5">
           <ScoreCircle score={0.82} size="lg" />
           <div>
-            <p className="text-sm font-medium text-foreground">Skor: 82/100</p>
-            <p className="text-xs text-muted-foreground">SEO Paketi Pro ile eşleşti</p>
+            <p className="text-sm font-medium text-foreground">Skor: 82/100 — SEO Paketi Pro ile eşleşti</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              İçerik pazarlaması ve arama görünürlüğü zayıf — bu paket doğrudan bu boşluğu kapatıyor.
+            </p>
           </div>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <Search size={12} className="shrink-0" />
+          <span>
+            &quot;ofis mobilyası&quot; araması — AI görünürlüğü: <span className="font-medium text-danger">marka geçmedi</span>
+          </span>
         </div>
 
         <div className="mt-5 space-y-3">

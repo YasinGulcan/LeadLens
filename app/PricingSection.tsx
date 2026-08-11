@@ -51,6 +51,7 @@ export function PricingSection({ plans }: { plans: PricingPlan[] }) {
               </span>
               <span className="text-sm text-muted-foreground">/ {BILLING_PERIOD_SHORT[plan.billingPeriod]}</span>
             </p>
+            <p className="mt-1 text-xs font-medium text-accent">İlk 14 gün ücretsiz</p>
 
             <div className="mt-5 border-t border-border" />
 
