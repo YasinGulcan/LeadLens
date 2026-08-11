@@ -54,7 +54,7 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
   }
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <h2 className="text-2xl font-bold text-foreground">Kurulum Paneli</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {status.completedCount}/{status.totalCount} adım tamamlandı.
