@@ -5,7 +5,6 @@ import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import { Sparkles } from "lucide-react";
-import { useConfirm } from "./useConfirm";
 import { Button } from "@/components/ui";
 
 interface Draft {
@@ -77,6 +76,35 @@ function Toolbar({ editor }: { editor: Editor }) {
 }
 
 /**
+ * Gmail'in compose URL'i zengin biçimlendirme desteklemiyor, bu yüzden
+ * editörün HTML çıktısı düz metne çevriliyor — madde/numaralı listeler
+ * "- "/"1. " gibi düz karakterlerle korunuyor ki taslağın yapısı kaybolmasın.
+ */
+function htmlToPlainText(html: string): string {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const lines: string[] = [];
+
+  for (const node of Array.from(doc.body.children)) {
+    if (node.tagName === "UL" || node.tagName === "OL") {
+      const ordered = node.tagName === "OL";
+      let i = 1;
+      for (const li of Array.from(node.children)) {
+        if (li.tagName !== "LI") continue;
+        const text = li.textContent?.trim() ?? "";
+        if (text) lines.push(`${ordered ? `${i}. ` : "- "}${text}`);
+        i++;
+      }
+      lines.push("");
+    } else {
+      const text = node.textContent?.trim() ?? "";
+      if (text) lines.push(text, "");
+    }
+  }
+
+  return lines.join("\n").trim();
+}
+
+/**
  * Taslak, sayfa her yüklendiğinde OTOMATİK üretilmiyor — yalnızca "Taslak
  * Oluştur"a basıldığında bir Claude çağrısı yapılıyor. Çoğu lead'e satış
  * ekibi telefonla dönüyor, hazır yanıt her lead için gerekmiyor; otomatik
@@ -84,12 +112,10 @@ function Toolbar({ editor }: { editor: Editor }) {
  * masrafını) her sayfa yenilemesinde tekrarlardı.
  */
 export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: string | null }) {
-  const { confirm, dialog } = useConfirm();
   const [tone, setTone] = useState<DraftTone>("samimi");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [subject, setSubject] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -161,27 +187,14 @@ export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: s
     }
   }
 
-  async function sendDraft() {
+  function openInGmail() {
     if (!editor || !leadEmail) return;
-    if (!(await confirm(`Bu taslak "${leadEmail}" adresine gönderilsin mi?`))) return;
-
-    setSending(true);
+    const body = htmlToPlainText(editor.getHTML());
+    const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(leadEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    setMessage("Gmail yeni sekmede açıldı.");
     setError(null);
-    setMessage(null);
-    try {
-      const res = await fetch(`/api/dashboard/leads/${leadId}/draft/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, bodyHtml: editor.getHTML() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Bilinmeyen hata");
-      setMessage(`"${leadEmail}" adresine gönderildi.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Hata");
-    } finally {
-      setSending(false);
-    }
+    fetch(`/api/dashboard/leads/${leadId}/draft/gmail-open-log`, { method: "POST" }).catch(() => {});
   }
 
   return (
@@ -234,11 +247,11 @@ export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: s
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <Button
               variant="primary"
-              disabled={sending || !leadEmail}
-              onClick={sendDraft}
+              disabled={!leadEmail}
+              onClick={openInGmail}
               title={leadEmail ? undefined : "Bu lead için e-posta adresi kayıtlı değil"}
             >
-              {sending ? "Gönderiliyor..." : "Otomatik Gönder"}
+              Gmail&apos;de Aç
             </Button>
             <Button variant="secondary" onClick={copyToClipboard}>
               Panoya Kopyala
@@ -249,7 +262,7 @@ export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: s
           </div>
           {!leadEmail && (
             <p className="text-xs text-muted-foreground">
-              Bu lead formda e-posta paylaşmamış — &quot;Otomatik Gönder&quot; bu yüzden pasif. Taslağı kopyalayıp kendi e-posta
+              Bu lead formda e-posta paylaşmamış — &quot;Gmail&apos;de Aç&quot; bu yüzden pasif. Taslağı kopyalayıp kendi e-posta
               istemcinizden gönderebilirsiniz.
             </p>
           )}
@@ -258,7 +271,6 @@ export function DraftReply({ leadId, leadEmail }: { leadId: string; leadEmail: s
 
       {message && <p className="mt-2 text-xs text-muted-foreground">{message}</p>}
       {error && <p className="mt-2 text-xs text-red-400/80">{error}</p>}
-      {dialog}
     </div>
   );
 }

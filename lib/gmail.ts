@@ -158,24 +158,6 @@ async function sendMultipartSelfEmail(account: GmailAccount, subject: string, te
   await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
 }
 
-/** Bağlı hesap üzerinden, hesabın dışındaki rastgele bir adrese (davet vb.) multipart mail gönderir. */
-async function sendMultipartEmailTo(account: GmailAccount, to: string, subject: string, text: string, html: string): Promise<void> {
-  const gmail = getClientForAccount(account);
-  const raw = toRawMessage(buildMultipartMessage(to, [], subject, text, html));
-  await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
-}
-
-/** Lead detay sayfasındaki "Otomatik Gönder" — kullanıcının düzenlediği taslağı, bağlı Gmail hesabından lead'in kendi adresine gönderir. */
-export async function sendDraftReplyEmail(account: GmailAccount, to: string, subject: string, bodyHtml: string): Promise<void> {
-  const text = bodyHtml
-    .replace(/<\/(p|li|div)>/gi, "\n")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-  await sendMultipartEmailTo(account, to, subject, text, bodyHtml);
-}
-
 /**
  * Form gönderimini simüle eden e-postayı gönderir. `text/plain` bölümü
  * `fetchUnprocessedLeadEmails`'in ayrıştırdığı sabit şablon (satır satır
