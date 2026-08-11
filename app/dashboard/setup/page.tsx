@@ -70,6 +70,7 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
       <div className="mt-6">
         <SetupAccordion
           steps={status.steps}
+          requiredDone={status.requiredDone}
           content={{
             mail: (
               <MailSourceContent

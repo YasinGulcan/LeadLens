@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronDown, Link2, Filter, Database, Settings } from "lucide-react";
-import { Card, Badge } from "@/components/ui";
+import { Check, ChevronDown, Link2, Filter, Database, Settings, PartyPopper } from "lucide-react";
+import { Card, Badge, Button } from "@/components/ui";
 import type { SetupStep, SetupStepKey } from "@/lib/setup-checklist";
 
 const STEP_ICON: Record<SetupStepKey, typeof Link2> = {
@@ -22,9 +22,22 @@ function firstIncompleteKey(steps: SetupStep[]): SetupStepKey | null {
  * anda açık olsa sayfa çok uzayıp rehberli-kurulum hissini kaybederdi. Bir
  * adım tamamlanınca (props'taki `steps.done` sunucu tarafında yeniden
  * hesaplanıp aşağı aktığında) otomatik olarak sıradaki eksik adıma geçilir.
+ *
+ * Zorunlu adımlar tamamlanınca (isteğe bağlı olanlar bekleniyor olsa bile)
+ * akordeon kendini küçük bir "tamamlandı" özetine indirip yer kaplamayı
+ * bırakır — "Yeniden gözden geçir" ile istendiğinde tekrar açılabilir.
  */
-export function SetupAccordion({ steps, content }: { steps: SetupStep[]; content: Record<SetupStepKey, ReactNode> }) {
+export function SetupAccordion({
+  steps,
+  requiredDone,
+  content,
+}: {
+  steps: SetupStep[];
+  requiredDone: boolean;
+  content: Record<SetupStepKey, ReactNode>;
+}) {
   const [openKey, setOpenKey] = useState<SetupStepKey | null>(() => firstIncompleteKey(steps));
+  const [manuallyExpanded, setManuallyExpanded] = useState(false);
   const prevDoneRef = useRef<Record<string, boolean>>(Object.fromEntries(steps.map((s) => [s.key, s.done])));
 
   useEffect(() => {
@@ -36,8 +49,30 @@ export function SetupAccordion({ steps, content }: { steps: SetupStep[]; content
     prevDoneRef.current = Object.fromEntries(steps.map((s) => [s.key, s.done]));
   }, [steps, openKey]);
 
+  const completedCount = steps.filter((s) => s.done).length;
+
+  if (requiredDone && !manuallyExpanded) {
+    return (
+      <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
+        <div className="flex items-center gap-2.5 text-sm text-foreground">
+          <PartyPopper size={18} className="text-accent" />
+          Kurulum tamamlandı — {completedCount}/{steps.length} adım tamam.
+        </div>
+        <Button variant="secondary" size="sm" onClick={() => setManuallyExpanded(true)}>
+          Yeniden gözden geçir
+        </Button>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-3">
+      {requiredDone && (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <PartyPopper size={15} className="text-accent" />
+          Zorunlu adımlar tamam — geri kalanlar isteğe bağlı, dilediğinizde güncelleyebilirsiniz.
+        </p>
+      )}
       {steps.map((step, i) => {
         const Icon = STEP_ICON[step.key];
         const isOpen = openKey === step.key;
