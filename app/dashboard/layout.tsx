@@ -16,13 +16,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { accountId } = session;
 
   const [{ data: account }, { count: leadCount }, setupStatus, notifications, unreadCount] = await Promise.all([
-    supabase.from("accounts").select("business_name, slug, onboarded_at, created_at").eq("id", accountId).single(),
+    supabase.from("accounts").select("business_name, slug, onboarded_at, created_at, active_plan_id").eq("id", accountId).single(),
     supabase.from("leads").select("id", { count: "exact", head: true }).eq("account_id", accountId),
     getSetupStatus(accountId),
     listNotifications(accountId, session.email),
     getUnreadNotificationCount(accountId, session.email),
   ]);
   if (!account) redirect("/");
+
+  let activePlanName: string | null = null;
+  if (account.active_plan_id) {
+    const { data: plan } = await supabase.from("pricing_plans").select("name").eq("id", account.active_plan_id).maybeSingle();
+    activePlanName = plan?.name ?? null;
+  }
   // Oturum çerezi 30 gün geçerli kalabiliyor — ekipten çıkarıldıktan sonra
   // bile eski çerez taşınabilir, bu yüzden her girişte yetki tekrar
   // doğrulanır (sadece ilk "Google ile Bağlan" anında değil).
@@ -45,6 +51,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         leadCount={leadCount ?? 0}
         setupProgress={setupStatus.requiredDone ? null : { completed: setupStatus.completedCount, total: setupStatus.totalCount }}
         trial={getTrialInfo(account.created_at)}
+        activePlanName={activePlanName}
       />
       <div className="min-w-0 flex-1 overflow-x-hidden">
         <div className="flex items-center justify-between border-b border-border px-8 py-4 text-xs text-muted-foreground">

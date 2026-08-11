@@ -21,7 +21,7 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
   const { tab } = await searchParams;
 
   const [{ data: account }, isOwner, activePlans] = await Promise.all([
-    supabase.from("accounts").select("business_name, slug, lead_email_subjects, created_at").eq("id", accountId).single(),
+    supabase.from("accounts").select("business_name, slug, lead_email_subjects, created_at, active_plan_id").eq("id", accountId).single(),
     isAccountOwner(accountId, session.email),
     getActivePricingPlans(),
   ]);
@@ -32,6 +32,11 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
   if (!account) redirect("/");
 
   const trial = getTrialInfo(account.created_at);
+  let activePlanName: string | null = null;
+  if (account.active_plan_id) {
+    const { data: plan } = await supabase.from("pricing_plans").select("name").eq("id", account.active_plan_id).maybeSingle();
+    activePlanName = plan?.name ?? null;
+  }
 
   let deletionSummary: { leadCount: number; sourceCount: number; memberCount: number } | null = null;
   if (isOwner) {
@@ -65,18 +70,24 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
             <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  {trial.isExpired ? "Deneme Sürümü" : `Ücretsiz Deneme — ${trial.daysLeft} gün kaldı`}
+                  {activePlanName
+                    ? `${activePlanName} — Aktif`
+                    : trial.isExpired
+                      ? "Deneme Sürümü"
+                      : `Ücretsiz Deneme — ${trial.daysLeft} gün kaldı`}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {trial.isExpired
-                    ? "Deneme süreniz sona erdi — hiçbir kısıtlama yok, dilediğinizde bir plana geçebilirsiniz."
-                    : "14 günlük deneme süreniz boyunca tüm özellikler açık."}
+                  {activePlanName
+                    ? "Aboneliğiniz aktif, teşekkürler!"
+                    : trial.isExpired
+                      ? "Deneme süreniz sona erdi — hiçbir kısıtlama yok, dilediğinizde bir plana geçebilirsiniz."
+                      : "14 günlük deneme süreniz boyunca tüm özellikler açık."}
                 </p>
               </div>
               {showPlanTab && (
                 <Link href="/dashboard/settings?tab=plan">
                   <Button variant="secondary" size="sm">
-                    Planları Görüntüle
+                    {activePlanName ? "Planı Değiştir" : "Planları Görüntüle"}
                   </Button>
                 </Link>
               )}

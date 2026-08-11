@@ -48,6 +48,7 @@ export function DashboardSidebar({
   leadCount,
   setupProgress,
   trial,
+  activePlanName,
 }: {
   businessName: string;
   email: string;
@@ -55,6 +56,8 @@ export function DashboardSidebar({
   /** Zorunlu kurulum adımları tamamsa null — rozet gösterilmez. */
   setupProgress: { completed: number; total: number } | null;
   trial: TrialInfo;
+  /** Sahte checkout'tan geçildiyse (bkz. PricingCheckoutModal) dolu — doluysa deneme rozetinin yerini alır. */
+  activePlanName: string | null;
 }) {
   const pathname = usePathname();
 
@@ -106,7 +109,9 @@ export function DashboardSidebar({
           <p className="truncate text-xs text-muted-foreground">{email}</p>
         </Link>
         <div className="mt-2">
-          {trial.isExpired ? (
+          {activePlanName ? (
+            <Badge variant="success">{activePlanName} — Aktif</Badge>
+          ) : trial.isExpired ? (
             <Badge variant="neutral">Deneme Sürümü</Badge>
           ) : (
             <Badge variant={trial.isEndingSoon ? "warning" : "accent"}>Deneme: {trial.daysLeft} gün kaldı</Badge>
