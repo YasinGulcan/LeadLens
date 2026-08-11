@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
-import { getAccountById, isAccountOwner, listTeamMembers, loadGmailAccount, setPendingOwnerTransfer } from "@/lib/accounts";
-import { sendOwnershipTransferInviteEmail } from "@/lib/gmail";
+import { getAccountById, isAccountOwner, listTeamMembers, setPendingOwnerTransfer } from "@/lib/accounts";
+import { sendOwnershipTransferInviteEmail } from "@/lib/team-emails";
 import { logActivity } from "@/lib/activity-log";
 
 /** `/dashboard/team`'deki "Sahipliği Devret" butonu — sadece mevcut sahip başlatabilir. */
@@ -25,12 +25,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   await logActivity(session.accountId, session.email, "Sahiplik devrini başlattı", member.email);
 
   try {
-    const [account, gmailAccount] = await Promise.all([
-      getAccountById(session.accountId),
-      loadGmailAccount(session.accountId),
-    ]);
-    if (account && gmailAccount) {
-      await sendOwnershipTransferInviteEmail(gmailAccount, account.businessName, member.email);
+    const account = await getAccountById(session.accountId);
+    if (account) {
+      await sendOwnershipTransferInviteEmail(account.businessName, member.email);
     }
   } catch (err) {
     console.error(`Sahiplik devri maili gönderilemedi (${member.email}):`, err instanceof Error ? err.message : err);

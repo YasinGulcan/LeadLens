@@ -5,14 +5,11 @@ import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
 
 // scripts/gmail-auth.ts ile aynı scope'lar: okuma+etiketleme (lead mailini
-// yakalamak için) ve gönderme (form relay + analiz raporu için). Ayrı bir
-// "Sign in with Google" scope'una gerek yok — bağlanan Gmail adresinin
-// kendisi (callback'te gmail.users.getProfile() ile okunuyor) kimlik olarak
-// kullanılıyor.
+// yakalamak için) ve gönderme (form relay + analiz raporu için). Kimlik
+// doğrulama (giriş/kayıt) artık email+OTP ile ayrı — bu akış SADECE oturumu
+// zaten açık bir hesabın Mail Kaynağı'nı (hangi Gmail'den lead okunacağını)
+// bağlamak/değiştirmek için kullanılır, bkz. app/dashboard/gmail/page.tsx.
 const SCOPES = ["https://www.googleapis.com/auth/gmail.modify", "https://www.googleapis.com/auth/gmail.send"];
-
-// Hesabı henüz bilinmeyen (kayıt/giriş) akışlar için state'e imzalanan sentinel.
-const NEW_ACCOUNT_STATE = "new";
 
 function getRedirectUri(req: NextRequest): string {
   // Her zaman isteğin geldiği origin kullanılır (yerelde localhost, canlıda
@@ -23,26 +20,20 @@ function getRedirectUri(req: NextRequest): string {
 }
 
 /**
- * İki modda çalışır:
- * - `accountId` yoksa: herkese açık "Google ile Bağlan" girişi (`/`) —
- *   callback, bağlanan Gmail adresine göre mevcut hesaba giriş yapar ya da
- *   yeni hesap açar.
- * - `accountId` varsa: `/dashboard`'daki "Gmail'i yeniden bağla" — sadece o
- *   hesabın SAHİBİ (Gmail'i ilk bağlayan kişi) kabul edilir. Davetli ekip
- *   üyeleri aynı accountId'ye giriş yapabildiği için burada salt accountId
- *   eşleşmesi yetmez, oturumun e-postası da hesabın sahibiyle eşleşmeli.
+ * "Mail Kaynağını Bağla" — sadece oturumu açık, hesabın SAHİBİ olan kişi
+ * kullanabilir (davetli ekip üyeleri değil). `accountId` zorunlu; anonim/
+ * kayıt akışı yok artık (bkz. email+OTP tabanlı /signup, /login).
  */
 export async function GET(req: NextRequest) {
   const requestedAccountId = req.nextUrl.searchParams.get("accountId");
+  if (!requestedAccountId) {
+    return NextResponse.json({ error: "accountId zorunlu." }, { status: 400 });
+  }
 
-  let stateAccountId: string = NEW_ACCOUNT_STATE;
-  if (requestedAccountId) {
-    const session = await getSessionInfo();
-    const isOwner = session?.accountId === requestedAccountId && (await isAccountOwner(requestedAccountId, session.email));
-    if (!isOwner) {
-      return NextResponse.json({ error: "Bu hesap için yetkiniz yok — sadece hesap sahibi Gmail bağlantısını değiştirebilir." }, { status: 403 });
-    }
-    stateAccountId = requestedAccountId;
+  const session = await getSessionInfo();
+  const isOwner = session?.accountId === requestedAccountId && (await isAccountOwner(requestedAccountId, session.email));
+  if (!isOwner) {
+    return NextResponse.json({ error: "Bu hesap için yetkiniz yok — sadece hesap sahibi Gmail bağlantısını değiştirebilir." }, { status: 403 });
   }
 
   const clientId = process.env.GMAIL_CLIENT_ID;
@@ -56,7 +47,7 @@ export async function GET(req: NextRequest) {
     access_type: "offline",
     prompt: "consent", // refresh_token her seferinde dönsün diye
     scope: SCOPES,
-    state: signOAuthState(stateAccountId),
+    state: signOAuthState(requestedAccountId),
   });
 
   return NextResponse.redirect(authUrl);

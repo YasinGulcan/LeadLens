@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
 import { resolveAuthenticatedDestination } from "@/lib/auth-redirect";
 import { AuthCard } from "../AuthCard";
+import { SignupFlow } from "./SignupFlow";
 
 export const dynamic = "force-dynamic";
 
@@ -13,12 +14,8 @@ export default async function SignupPage() {
   }
 
   return (
-    <AuthCard
-      title="Hesabınızı oluşturun"
-      description="Google hesabınızla saniyeler içinde başlayın"
-      footerText="Zaten hesabınız var mı?"
-      footerLinkText="Giriş yapın"
-      footerHref="/login"
-    />
+    <AuthCard>
+      <SignupFlow />
+    </AuthCard>
   );
 }

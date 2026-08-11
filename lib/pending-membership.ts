@@ -8,9 +8,8 @@ export interface PendingMembership {
   type: "join" | "transfer";
   accountId: string;
   businessName: string;
-  connectedEmail: string;
-  encryptedRefreshToken: string;
-  scopes: string | null;
+  /** OTP ile doğrulanmış, girişi yapan kişinin e-postası. */
+  email: string;
   /** Sadece type: "transfer" için — devri kabul edince eski sahip ekip üyesine dönüşür. */
   previousOwnerEmail: string | null;
 }
@@ -22,11 +21,9 @@ function getSecret(): string {
 }
 
 /**
- * Davetli bir ekip üyesinin ya da sahiplik devri hedefinin, "Google ile
- * Bağlan" ile eşleşme bulunduğu anda hesaba/devre sessizce dahil edilmesini
- * engeller — kullanıcı /confirm-join'de açıkça onaylamadan hiçbir üyelik/
- * sahiplik değişikliği yazılmaz (bkz. lib/pending-signup.ts — yeni hesap
- * oluşturma tarafındaki aynı desen).
+ * Davetli bir ekip üyesinin ya da sahiplik devri hedefinin, OTP ile e-postasını
+ * doğruladığı anda hesaba/devre sessizce dahil edilmesini engeller — kullanıcı
+ * `/confirm-join`'de açıkça onaylamadan hiçbir üyelik/sahiplik değişikliği yazılmaz.
  */
 export function createPendingMembershipValue(data: PendingMembership): string {
   const payload = Buffer.from(JSON.stringify({ ...data, exp: Date.now() + TTL_MS })).toString("base64url");
@@ -55,8 +52,7 @@ export function verifyPendingMembershipValue(value: string | undefined): Pending
       (parsed.type !== "join" && parsed.type !== "transfer") ||
       typeof parsed.accountId !== "string" ||
       typeof parsed.businessName !== "string" ||
-      typeof parsed.connectedEmail !== "string" ||
-      typeof parsed.encryptedRefreshToken !== "string" ||
+      typeof parsed.email !== "string" ||
       typeof parsed.exp !== "number"
     ) {
       return null;
@@ -66,9 +62,7 @@ export function verifyPendingMembershipValue(value: string | undefined): Pending
       type: parsed.type,
       accountId: parsed.accountId,
       businessName: parsed.businessName,
-      connectedEmail: parsed.connectedEmail,
-      encryptedRefreshToken: parsed.encryptedRefreshToken,
-      scopes: parsed.scopes ?? null,
+      email: parsed.email,
       previousOwnerEmail: parsed.previousOwnerEmail ?? null,
     };
   } catch {

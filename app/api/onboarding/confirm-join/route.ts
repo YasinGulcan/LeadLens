@@ -27,26 +27,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const { accountId, connectedEmail, encryptedRefreshToken, scopes, previousOwnerEmail } = pending;
+  const { accountId, email, previousOwnerEmail } = pending;
 
   if (pending.type === "transfer") {
-    const { error: transferError } = await supabase.from("gmail_connections").upsert({
-      account_id: accountId,
-      connected_email: connectedEmail,
-      encrypted_refresh_token: encryptedRefreshToken,
-      scopes,
-      connected_at: new Date().toISOString(),
-    });
+    const { error: transferError } = await supabase
+      .from("accounts")
+      .update({ owner_email: email, owner_full_name: null, owner_phone: null })
+      .eq("id", accountId);
     if (transferError) {
       const url = new URL("/", origin);
       url.searchParams.set("connectError", transferError.message);
       return NextResponse.redirect(url);
     }
 
-    if (previousOwnerEmail && previousOwnerEmail !== connectedEmail) {
+    if (previousOwnerEmail && previousOwnerEmail !== email) {
       await supabase.from("account_members").insert({ account_id: accountId, email: previousOwnerEmail });
     }
-    await supabase.from("account_members").delete().eq("account_id", accountId).eq("email", connectedEmail);
+    await supabase.from("account_members").delete().eq("account_id", accountId).eq("email", email);
     try {
       await clearPendingOwnerTransfer(accountId);
     } catch (err) {
@@ -54,13 +51,13 @@ export async function POST(req: NextRequest) {
       url.searchParams.set("connectError", err instanceof Error ? err.message : String(err));
       return NextResponse.redirect(url);
     }
-    await logActivity(accountId, connectedEmail, "Sahipliği devraldı", previousOwnerEmail);
+    await logActivity(accountId, email, "Sahipliği devraldı", previousOwnerEmail);
   } else {
-    await acceptTeamMembership(accountId, connectedEmail);
+    await acceptTeamMembership(accountId, email);
   }
 
   const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", accountId).single();
   const destination = account?.onboarded_at ? "/dashboard" : "/onboarding";
 
-  return withSessionCookie(NextResponse.redirect(new URL(destination, origin)), accountId, connectedEmail);
+  return withSessionCookie(NextResponse.redirect(new URL(destination, origin)), accountId, email);
 }

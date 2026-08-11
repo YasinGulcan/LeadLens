@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Mail, RefreshCw, Check, X, Inbox } from "lucide-react";
+import { AlertCircle, Mail, RefreshCw, Check, X, Inbox } from "lucide-react";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner, getOrCreateInboundToken } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
@@ -19,10 +19,11 @@ const GMAIL_CAPABILITIES = [
   { ok: false, text: "Mail silmek veya arşivlemek — yapılamaz" },
 ];
 
-export default async function DashboardGmailPage() {
+export default async function DashboardGmailPage({ searchParams }: { searchParams: Promise<{ connectError?: string }> }) {
   const session = await getSessionInfo();
   if (!session) redirect("/");
   const { accountId } = session;
+  const { connectError } = await searchParams;
 
   const [{ data: connection }, { data: account }, isOwner, inboundToken] = await Promise.all([
     supabase.from("gmail_connections").select("connected_email, connected_at, disconnected_at").eq("account_id", accountId).maybeSingle(),
@@ -38,6 +39,13 @@ export default async function DashboardGmailPage() {
   return (
     <section>
       <h2 className="text-2xl font-bold text-foreground">Mail Kaynağı</h2>
+
+      {connectError && (
+        <p className="mt-4 flex items-start gap-2 rounded-md border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
+          <AlertCircle size={16} className="mt-0.5 shrink-0" />
+          {connectError}
+        </p>
+      )}
       <p className="mt-1 text-sm text-muted-foreground">
         Lead yakalama iki yöntemden biriyle (veya ikisiyle birden) çalışabilir — aynı anda ikisini de aktif tutabilirsiniz.
       </p>

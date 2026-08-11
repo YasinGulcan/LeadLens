@@ -125,14 +125,10 @@ export interface TeamMember {
   acceptedAt: string | null;
 }
 
-/** Hesabın Gmail'ini bağlayan e-posta — sadece bu kişi Gmail bağlama/kesme ve ekip yönetimi gibi hassas işlemleri yapabilir. */
+/** Hesabı OTP ile doğrulayıp kayıt eden (ya da sahiplik devrini kabul eden) e-posta — sadece bu kişi Gmail bağlama/kesme ve ekip yönetimi gibi hassas işlemleri yapabilir. Gmail bağlantısından bağımsız: Mail Kaynağı adımı hiç kurulmamış olsa bile sahiplik bellidir. */
 export async function getAccountOwnerEmail(accountId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("gmail_connections")
-    .select("connected_email")
-    .eq("account_id", accountId)
-    .single();
-  return data?.connected_email ?? null;
+  const { data } = await supabase.from("accounts").select("owner_email").eq("id", accountId).single();
+  return data?.owner_email ?? null;
 }
 
 export async function isAccountOwner(accountId: string, email: string): Promise<boolean> {
@@ -140,11 +136,17 @@ export async function isAccountOwner(accountId: string, email: string): Promise<
   return ownerEmail !== null && ownerEmail === email;
 }
 
+/** Bu e-posta zaten bir hesabın sahibi mi — OTP kayıt/giriş akışında yeni hesap açmadan önce çakışma kontrolü için. */
+export async function getAccountIdByOwnerEmail(email: string): Promise<string | null> {
+  const { data } = await supabase.from("accounts").select("id").eq("owner_email", email).maybeSingle();
+  return data?.id ?? null;
+}
+
 /**
- * Gmail erişimini "kaldırır" — satır silinmiyor (bkz. migration 0029): bağlı
- * e-posta, hesabın giriş kimliği olarak kalmaya devam ediyor, sadece pipeline
- * artık bu hesabı okumuyor/bu hesaptan göndermiyor. "Yeniden Bağla" (OAuth)
- * bunu otomatik temizler.
+ * Gmail erişimini "kaldırır" — satır silinmiyor, sadece `disconnected_at`
+ * ile "erişim iptal edildi" işaretlenir; pipeline artık bu hesabı
+ * okumuyor/bu hesaptan göndermiyor. "Yeniden Bağla" (OAuth) bunu otomatik
+ * temizler. (Gmail bağlantısı artık kimlikten bağımsız — bkz. accounts.owner_email.)
  */
 export async function disconnectGmail(accountId: string): Promise<void> {
   const { error } = await supabase
@@ -217,19 +219,15 @@ async function listTeamMemberEmails(accountId: string): Promise<string[]> {
 
 /** Verilen e-postayı hesaba ekip üyesi olarak ekler. E-posta zaten (bu ya da başka bir hesapta) üye/sahipse hata verir. */
 export async function addTeamMember(accountId: string, email: string): Promise<TeamMember> {
-  // Bu e-posta zaten başka bir hesabın SAHİBİyse (kendi Gmail'ini bağlamışsa) davet etmiyoruz —
-  // "Google ile Bağlan" akışı sahiplik eşleşmesini üyelikten önce kontrol ettiği için, davetli
-  // olsa bile giriş yaptığında hep kendi hesabına düşer, üyelik hiçbir zaman ulaşılamaz olur.
-  const { data: existingConnection } = await supabase
-    .from("gmail_connections")
-    .select("account_id")
-    .eq("connected_email", email)
-    .maybeSingle();
-  if (existingConnection) {
+  // Bu e-posta zaten başka bir hesabın SAHİBİyse davet etmiyoruz — OTP giriş akışı
+  // sahiplik eşleşmesini üyelikten önce kontrol ettiği için, davetli olsa bile giriş
+  // yaptığında hep kendi hesabına düşer, üyelik hiçbir zaman ulaşılamaz olur.
+  const existingOwnerAccountId = await getAccountIdByOwnerEmail(email);
+  if (existingOwnerAccountId) {
     throw new Error(
-      existingConnection.account_id === accountId
+      existingOwnerAccountId === accountId
         ? "Bu e-posta zaten bu hesabın sahibi."
-        : "Bu e-posta zaten başka bir hesabın (kendi Gmail'ini bağlamış) sahibi, ekip üyesi olarak eklenemez."
+        : "Bu e-posta zaten başka bir hesabın sahibi, ekip üyesi olarak eklenemez."
     );
   }
 

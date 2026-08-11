@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
-import { addTeamMember, getAccountById, isAccountOwner, loadGmailAccount } from "@/lib/accounts";
-import { sendTeamInviteEmail } from "@/lib/gmail";
+import { addTeamMember, getAccountById, isAccountOwner } from "@/lib/accounts";
+import { sendTeamInviteEmail } from "@/lib/team-emails";
 import { logActivity } from "@/lib/activity-log";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -33,12 +33,9 @@ export async function POST(req: NextRequest) {
   await logActivity(session.accountId, session.email, "Ekip üyesi davet etti", email);
 
   try {
-    const [account, gmailAccount] = await Promise.all([
-      getAccountById(session.accountId),
-      loadGmailAccount(session.accountId),
-    ]);
-    if (account && gmailAccount) {
-      await sendTeamInviteEmail(gmailAccount, account.businessName, email);
+    const account = await getAccountById(session.accountId);
+    if (account) {
+      await sendTeamInviteEmail(account.businessName, email);
     }
   } catch (err) {
     // Davet kaydı yapıldı ama mail gitmedi — sessizce loglanır, kullanıcı yine de linki paylaşabilir.

@@ -10,7 +10,7 @@ export default async function ConfirmJoinPage() {
     return (
       <main className="mx-auto max-w-md px-6 py-16 text-center">
         <h1 className="text-lg font-semibold">Oturum süresi doldu</h1>
-        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">Lütfen davet linkine ya da ana sayfadan &quot;Google ile Bağlan&quot;a tekrar tıklayın.</p>
+        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">Lütfen davet e-postasındaki adımları izleyip tekrar giriş yapın.</p>
         <Link href="/" className="mt-4 inline-block text-sm text-blue-600 hover:underline dark:text-blue-400">
           Ana sayfaya dön
         </Link>
@@ -24,7 +24,7 @@ export default async function ConfirmJoinPage() {
     <main className="mx-auto max-w-md px-6 py-16 text-center">
       <h1 className="text-lg font-semibold">{isTransfer ? "Sahipliği Devral" : "Ekibe Katıl"}</h1>
       <p className="mt-3 text-sm text-neutral-500 dark:text-neutral-400">
-        <strong>{pending.connectedEmail}</strong> ile <strong>{pending.businessName}</strong>{" "}
+        <strong>{pending.email}</strong> ile <strong>{pending.businessName}</strong>{" "}
         {isTransfer ? "hesabının sahipliğini almak" : "işletmesinin LeadLens ekibine katılmak"} üzeresiniz.
       </p>
       <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">

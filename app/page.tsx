@@ -5,7 +5,6 @@ import { getSessionInfo } from "@/lib/account-session";
 import { resolveAuthenticatedDestination } from "@/lib/auth-redirect";
 import { getActivePricingPlans } from "@/lib/pricing";
 import { Card } from "@/components/ui";
-import { GoogleButton } from "./GoogleButton";
 import { AuthMenu } from "./AuthMenu";
 import { LandingProductPreview } from "./LandingProductPreview";
 import { PricingSection } from "./PricingSection";
@@ -103,7 +102,7 @@ export default async function HomePage({
         </div>
       </header>
 
-      {/* Hero — dropdown'ın (AuthMenu) en uzun hâlde bile başlığa değmemesi için üstte bilinçli olarak geniş boşluk bırakılıyor */}
+      {/* Hero — header'daki AuthMenu ile başlık arasında bilinçli olarak geniş boşluk bırakılıyor */}
       <section className="relative mx-auto flex w-full max-w-3xl flex-col items-center px-6 pt-28 pb-10 text-center sm:pt-32">
         {/* Marka imzası — çok hafif, dikkat dağıtmayan bir accent doku; şablon değil LeadLens hissi versin diye */}
         <div
@@ -132,8 +131,12 @@ export default async function HomePage({
           </p>
         )}
 
-        <GoogleButton className="mt-8" />
-        <p className="mt-3 text-xs text-muted-foreground">Ücretsiz başlayın — kredi kartı gerekmez.</p>
+        <Link
+          href="/signup"
+          className="mt-8 inline-flex items-center justify-center gap-1.5 rounded-md bg-accent px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+        >
+          Ücretsiz Kayıt Olun
+        </Link>
       </section>
 
       {/* Ürün görseli */}
@@ -245,13 +248,15 @@ export default async function HomePage({
           <div className="mx-auto mt-16 flex w-full max-w-md flex-col items-center border-t border-border pt-12 text-center sm:mt-20 sm:pt-14">
             <h2 className="text-xl font-bold text-foreground">Hemen başlayın</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Google hesabınızla saniyeler içinde giriş yapın ya da yeni bir hesap oluşturun. Ayrı bir kullanıcı
-              adı/şifre yok.
+              Ad soyad, telefon ve e-postanızla saniyeler içinde başlayın. Ayrı bir şifre oluşturmanıza gerek yok —
+              e-postanıza gönderilecek kodla giriş yaparsınız.
             </p>
-            <GoogleButton className="mt-6 w-full" />
-            <p className="mt-3 text-xs text-muted-foreground">
-              Gmail hesabınızı bağlayarak hesabınızı oluşturur ya da mevcut hesabınıza giriş yaparsınız.
-            </p>
+            <Link
+              href="/signup"
+              className="mt-6 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-accent px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+            >
+              Ücretsiz Kayıt Olun
+            </Link>
           </div>
         </div>
       </section>

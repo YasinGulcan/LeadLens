@@ -12,6 +12,16 @@ function getClient(): Resend {
   return client;
 }
 
+/**
+ * Resend hesabında doğrulanmış özel bir domain varsa `RESEND_FROM_EMAIL` ile
+ * ayarlanabilir. Tanımlı değilse Resend'in sandbox adresine düşer — bu adres
+ * SADECE Resend hesabının kendi doğrulanmış e-postasına gönderim yapabilir,
+ * rastgele kullanıcılara ulaşmaz (bkz. .env.example).
+ */
+export function getResendFromAddress(): string {
+  return process.env.RESEND_FROM_EMAIL || "LeadLens <onboarding@resend.dev>";
+}
+
 export interface LeadNotification {
   name: string | null;
   phone: string | null;
@@ -36,7 +46,7 @@ const PRIORITY_COLOR: Record<string, string> = {
   düşük: "#6b7280",
 };
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value.replace(
     /[&<>"']/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
