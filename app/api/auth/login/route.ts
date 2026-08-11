@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAccountSessionValue, ACCOUNT_SESSION_COOKIE } from "@/lib/account-session";
 import { verifyPassword } from "@/lib/password";
 import { lockoutMessage, recordFailedLogin, resetLoginAttempts } from "@/lib/login-lockout";
+import { getPendingOwnerEmail, getAccountById } from "@/lib/accounts";
+import { createPendingMembershipValue, PENDING_MEMBERSHIP_COOKIE } from "@/lib/pending-membership";
 import { supabase } from "@/lib/supabase";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -65,6 +67,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "E-posta veya şifre hatalı." }, { status: 401 });
     }
     await resetLoginAttempts("account_members", member.id);
+
+    // Zaten şifresi olan bir üye, sahiplik devri hedefi olarak işaretlenmiş
+    // olabilir (üye önce şifre belirlemiş, devir sonradan başlatılmış) — bu
+    // durumda normal şifre girişi devri sessizce atlayıp doğrudan panele
+    // sokmamalı, açık onay için /confirm-join'e yönlendirilmeli.
+    const pendingOwnerEmail = await getPendingOwnerEmail(member.account_id);
+    if (pendingOwnerEmail === email) {
+      const account = await getAccountById(member.account_id);
+      const { data: ownerRow } = await supabase.from("accounts").select("owner_email").eq("id", member.account_id).single();
+      const pendingValue = createPendingMembershipValue({
+        type: "transfer",
+        accountId: member.account_id,
+        businessName: account?.businessName ?? "İşletme",
+        email,
+        previousOwnerEmail: ownerRow?.owner_email ?? null,
+      });
+      const res = NextResponse.json({ ok: true, redirect: "/confirm-join" });
+      res.cookies.set(PENDING_MEMBERSHIP_COOKIE, pendingValue, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 10,
+      });
+      return res;
+    }
 
     const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", member.account_id).single();
     return withSessionCookie(member.account_id, email, account?.onboarded_at ? "/dashboard" : "/onboarding");
