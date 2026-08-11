@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { Inbox, CheckCircle2, Flame, Layers, ShieldCheck, Lock, Users, ArrowRight, Sparkles } from "lucide-react";
 import { getSessionInfo } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
@@ -7,6 +8,7 @@ import { relativeTimeTr } from "@/lib/format";
 import { Card, CardTitle, Badge, StatCard, ScoreCircle } from "@/components/ui";
 import { ScoreDistributionChart, type ScoreBucket } from "./ScoreDistributionChart";
 import { SetupBanner } from "./SetupBanner";
+import { WelcomeToast } from "./WelcomeToast";
 import { getSetupStatus } from "@/lib/setup-checklist";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +64,10 @@ export default async function DashboardOverviewPage() {
 
   return (
     <div className="space-y-8">
+      <Suspense fallback={null}>
+        <WelcomeToast />
+      </Suspense>
+
       <div>
         <h2 className="text-2xl font-bold text-foreground">Hoş geldiniz.</h2>
       </div>

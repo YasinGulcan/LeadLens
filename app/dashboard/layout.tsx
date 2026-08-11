@@ -3,6 +3,7 @@ import { getSessionInfo } from "@/lib/account-session";
 import { acceptTeamMembership, isAccountOwner, isAuthorizedForAccount } from "@/lib/accounts";
 import { getSetupStatus } from "@/lib/setup-checklist";
 import { listNotifications, getUnreadNotificationCount } from "@/lib/notifications";
+import { getTrialInfo } from "@/lib/trial";
 import { supabase } from "@/lib/supabase";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { NotificationBell } from "./NotificationBell";
@@ -15,7 +16,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { accountId } = session;
 
   const [{ data: account }, { count: leadCount }, setupStatus, notifications, unreadCount] = await Promise.all([
-    supabase.from("accounts").select("business_name, slug, onboarded_at").eq("id", accountId).single(),
+    supabase.from("accounts").select("business_name, slug, onboarded_at, created_at").eq("id", accountId).single(),
     supabase.from("leads").select("id", { count: "exact", head: true }).eq("account_id", accountId),
     getSetupStatus(accountId),
     listNotifications(accountId, session.email),
@@ -43,6 +44,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         email={session.email}
         leadCount={leadCount ?? 0}
         setupProgress={setupStatus.requiredDone ? null : { completed: setupStatus.completedCount, total: setupStatus.totalCount }}
+        trial={getTrialInfo(account.created_at)}
       />
       <div className="min-w-0 flex-1 overflow-x-hidden">
         <div className="flex items-center justify-between border-b border-border px-8 py-4 text-xs text-muted-foreground">

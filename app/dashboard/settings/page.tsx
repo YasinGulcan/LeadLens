@@ -1,8 +1,11 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
 import { getActivePricingPlans } from "@/lib/pricing";
+import { getTrialInfo } from "@/lib/trial";
 import { supabase } from "@/lib/supabase";
+import { Card, Button } from "@/components/ui";
 import { SettingsForm } from "../SettingsForm";
 import { DangerZone } from "./DangerZone";
 import { SettingsTabs } from "./SettingsTabs";
@@ -18,7 +21,7 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
   const { tab } = await searchParams;
 
   const [{ data: account }, isOwner, activePlans] = await Promise.all([
-    supabase.from("accounts").select("business_name, slug, lead_email_subjects").eq("id", accountId).single(),
+    supabase.from("accounts").select("business_name, slug, lead_email_subjects, created_at").eq("id", accountId).single(),
     isAccountOwner(accountId, session.email),
     getActivePricingPlans(),
   ]);
@@ -27,6 +30,8 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
   const activeTab = tab === "plan" && showPlanTab ? "plan" : "genel";
 
   if (!account) redirect("/");
+
+  const trial = getTrialInfo(account.created_at);
 
   let deletionSummary: { leadCount: number; sourceCount: number; memberCount: number } | null = null;
   if (isOwner) {
@@ -55,6 +60,28 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
             initialSlug={account.slug}
             initialLeadEmailSubjects={account.lead_email_subjects}
           />
+
+          <div className="mt-8">
+            <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {trial.isExpired ? "Deneme Sürümü" : `Ücretsiz Deneme — ${trial.daysLeft} gün kaldı`}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {trial.isExpired
+                    ? "Deneme süreniz sona erdi — hiçbir kısıtlama yok, dilediğinizde bir plana geçebilirsiniz."
+                    : "14 günlük deneme süreniz boyunca tüm özellikler açık."}
+                </p>
+              </div>
+              {showPlanTab && (
+                <Link href="/dashboard/settings?tab=plan">
+                  <Button variant="secondary" size="sm">
+                    Planları Görüntüle
+                  </Button>
+                </Link>
+              )}
+            </Card>
+          </div>
 
           {isOwner && deletionSummary && (
             <div className="mt-12">

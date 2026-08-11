@@ -70,7 +70,7 @@ export function OnboardingForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Bilinmeyen hata");
-      router.push("/dashboard");
+      router.push("/dashboard?welcome=1");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Hata");

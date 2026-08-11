@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { Home, ListChecks, Database, BarChart3, Link2, Users, Sparkles, Settings, Rocket } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 import { ThemeToggle } from "./ThemeToggle";
+import { Badge } from "@/components/ui";
+import type { TrialInfo } from "@/lib/trial";
 
 interface NavItem {
   href: string;
@@ -45,12 +47,14 @@ export function DashboardSidebar({
   email,
   leadCount,
   setupProgress,
+  trial,
 }: {
   businessName: string;
   email: string;
   leadCount: number;
   /** Zorunlu kurulum adımları tamamsa null — rozet gösterilmez. */
   setupProgress: { completed: number; total: number } | null;
+  trial: TrialInfo;
 }) {
   const pathname = usePathname();
 
@@ -101,6 +105,13 @@ export function DashboardSidebar({
           <p className="truncate text-sm font-medium text-foreground">{businessName}</p>
           <p className="truncate text-xs text-muted-foreground">{email}</p>
         </Link>
+        <div className="mt-2">
+          {trial.isExpired ? (
+            <Badge variant="neutral">Deneme Sürümü</Badge>
+          ) : (
+            <Badge variant={trial.isEndingSoon ? "warning" : "accent"}>Deneme: {trial.daysLeft} gün kaldı</Badge>
+          )}
+        </div>
         <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
           <LogoutButton />
           <ThemeToggle />
