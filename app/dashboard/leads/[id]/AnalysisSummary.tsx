@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import { Card, CardTitle } from "@/components/ui";
 import { RANK_TIER_LABEL, rankTier } from "@/lib/rank-tier";
+import { LeadFeedback } from "./LeadFeedback";
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -13,6 +14,7 @@ function Field({ label, value }: { label: string; value: string }) {
 
 /** Lead detay sağ sütunundaki "Özet" — sektör/önerilen ürün/site bulgusu gibi kısa etiket:değer bilgileri, dar sütuna doğal oturduğu için buraya taşındı. */
 export function AnalysisSummary({
+  leadId,
   sector,
   recommendedProduct,
   siteFinding,
@@ -22,7 +24,9 @@ export function AnalysisSummary({
   searchKeyword,
   searchRankPosition,
   aiVisibilityMentioned,
+  salesFeedback,
 }: {
+  leadId: string;
   sector: string | null;
   recommendedProduct: string | null;
   siteFinding: string | null;
@@ -33,6 +37,7 @@ export function AnalysisSummary({
   searchKeyword: string | null;
   searchRankPosition: number | null;
   aiVisibilityMentioned: boolean | null;
+  salesFeedback: string | null;
 }) {
   const hasAnything = sector || recommendedProduct || siteFinding || (salesNote && showSalesNote) || clarifyingQuestion || searchKeyword;
   if (!hasAnything) return null;
@@ -46,6 +51,8 @@ export function AnalysisSummary({
         {siteFinding && <Field label="Site Bulgusu" value={siteFinding} />}
         {salesNote && showSalesNote && <Field label="Arama Öncesi Not" value={salesNote} />}
       </div>
+
+      {recommendedProduct && <LeadFeedback leadId={leadId} initialFeedback={salesFeedback} />}
 
       {clarifyingQuestion && (
         <div className="mt-3 text-sm">

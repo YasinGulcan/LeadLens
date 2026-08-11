@@ -32,7 +32,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     supabase
       .from("leads")
       .select(
-        "id, account_id, name, phone, email, website_url, message, status, sales_status, priority, recommended_product, match_score, score_breakdown, reasoning, sales_note, site_finding, sector, clarifying_question, error_message, search_keyword, search_rank_position, ai_visibility_mentioned, deep_analysis, assigned_to, created_at"
+        "id, account_id, name, phone, email, website_url, message, status, sales_status, priority, recommended_product, match_score, score_breakdown, reasoning, sales_note, site_finding, sector, clarifying_question, error_message, sales_feedback, search_keyword, search_rank_position, ai_visibility_mentioned, deep_analysis, assigned_to, created_at"
       )
       .eq("id", id)
       .single(),
@@ -154,6 +154,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           currentEmail={session.email}
         />
         <AnalysisSummary
+          leadId={lead.id}
           sector={lead.sector}
           recommendedProduct={lead.recommended_product}
           siteFinding={lead.site_finding}
@@ -163,6 +164,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           searchKeyword={lead.search_keyword}
           searchRankPosition={lead.search_rank_position}
           aiVisibilityMentioned={lead.ai_visibility_mentioned}
+          salesFeedback={lead.sales_feedback}
         />
         <NotesPanel leadId={lead.id} notes={notes} currentEmail={session.email} isOwner={isOwner} />
         <ActivityHistory history={historyEntries} />
