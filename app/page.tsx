@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileText, Sparkles, Send, Gauge, Layers, Eye, Mail, ShieldCheck, Lock, Users, AlertCircle } from "lucide-react";
+import { FileText, Sparkles, Send, Gauge, Layers, Eye, Mail, ShieldCheck, Lock, Users, AlertCircle, ChevronDown } from "lucide-react";
 import { getSessionInfo } from "@/lib/account-session";
 import { resolveAuthenticatedDestination } from "@/lib/auth-redirect";
 import { getActivePricingPlans } from "@/lib/pricing";
@@ -71,6 +71,41 @@ const TRUST_ITEMS = [
     icon: Users,
     title: "Davet etmediğiniz kimse hesabınıza erişemez",
     body: "Silme işlemleri ve ekip yönetimi yalnızca hesap sahibinde.",
+  },
+];
+
+const FAQ_ITEMS = [
+  {
+    q: "LeadLens hangi işletmeler için uygun?",
+    a: "B2B satış süreci olan işletmeler için tasarlandı — ajanslar, yazılım/SaaS şirketleri, toptan satışçılar ve B2B hizmet sağlayıcıları gibi. Web formunuzdan gelen talepleri elle inceleyip önceliklendirmek yerine bu işi otomatik yaptırmak istiyorsanız tam size göre.",
+  },
+  {
+    q: "E-ticaret sitem var, bana uygun mu?",
+    a: "Odağımız, form doldurup görüşme veya teklif bekleyen B2B/danışmanlık ağırlıklı satış süreçleri — anlık sepet/ödeme akışı olan klasik e-ticaretten çok, iletişim formu üzerinden talep alan işletmelere uygun.",
+  },
+  {
+    q: "Kurulum ne kadar sürer?",
+    a: "Kurulum Paneli'ndeki 4 adımı (mail kaynağı, filtreler, bilgi tabanı, profil) tamamlamak ortalama 5-10 dakika sürer. Her adımda ne yapmanız gerektiği ve neden gerekli olduğu ayrı ayrı açıklanır.",
+  },
+  {
+    q: "Gmail dışında bir mail sağlayıcım var, kullanabilir miyim?",
+    a: "Şu an için LeadLens Gmail üzerinden çalışıyor; farklı bir mail adresine gelen talepleri yönlendirebileceğiniz bir seçenek yakında ekleniyor.",
+  },
+  {
+    q: "Verilerim güvende mi, Gmail'ime tam erişim mi veriyorum?",
+    a: "Hayır — yalnızca sizin belirlediğiniz filtrelerle eşleşen mailler okunur. Bilgi tabanınız başka hesaplarla paylaşılmaz ya da model eğitiminde kullanılmaz; silme işlemleri ve ekip yönetimi yalnızca hesap sahibinde kalır.",
+  },
+  {
+    q: "Ücretsiz deneme sonunda ne olur?",
+    a: "14 günlük deneme boyunca kredi kartı istenmez ve tüm özellikler açıktır. Deneme süresi bittiğinde herhangi bir kısıtlama uygulanmaz — dilediğinizde bir plan seçerek devam edebilirsiniz.",
+  },
+  {
+    q: "İstediğim zaman iptal edebilir miyim?",
+    a: "Evet, uzun vadeli bir taahhüt yok. Dilediğiniz zaman hesabınızı Ayarlar'dan kendiniz silebilirsiniz.",
+  },
+  {
+    q: "Ekibimle birlikte kullanabilir miyim?",
+    a: "Evet — ekip üyelerinizi davet edebilir, gelen lead'leri kişilere atayabilirsiniz; herkesin kendi performansını ve aktivite geçmişini gösteren bir profil sayfası olur.",
   },
 ];
 
@@ -219,8 +254,7 @@ export default async function HomePage({
         </section>
       )}
 
-      {/* Erişim ve Gizlilik + Giriş alanı — aynı yüzey (bg-surface) içinde tek bant: aralarına ayrı bir section
-          (ve onun kendi py-20/24'ü) koymak, ikisi arasında neredeyse yarım ekranlık boş alana yol açıyordu. */}
+      {/* Erişim ve Gizlilik */}
       <section className="bg-surface py-16 sm:py-20">
         <div className="mx-auto w-full max-w-5xl px-6">
           <div className="text-center">
@@ -244,20 +278,44 @@ export default async function HomePage({
               );
             })}
           </div>
+        </div>
+      </section>
 
-          <div className="mx-auto mt-16 flex w-full max-w-md flex-col items-center border-t border-border pt-12 text-center sm:mt-20 sm:pt-14">
-            <h2 className="text-xl font-bold text-foreground">Hemen başlayın</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Ad soyad, telefon ve e-postanızla saniyeler içinde başlayın. Ayrı bir şifre oluşturmanıza gerek yok —
-              e-postanıza gönderilecek kodla giriş yaparsınız.
-            </p>
-            <Link
-              href="/signup"
-              className="mt-6 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-accent px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
-            >
-              Ücretsiz Kayıt Olun
-            </Link>
+      {/* Sıkça Sorulan Sorular — native <details>/<summary>, ekstra JS gerekmez; her soru bağımsız açılıp kapanır. */}
+      <section className="bg-background py-16 sm:py-20">
+        <div className="mx-auto w-full max-w-5xl px-6">
+          <div className="text-center">
+            <Eyebrow>SSS</Eyebrow>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Sıkça Sorulan Sorular</h2>
           </div>
+          <Card className="mx-auto mt-12 max-w-2xl divide-y divide-border">
+            {FAQ_ITEMS.map((item) => (
+              <details key={item.q} className="group p-5">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left [&::-webkit-details-marker]:hidden">
+                  <span className="text-sm font-medium text-foreground">{item.q}</span>
+                  <ChevronDown size={16} className="shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                </summary>
+                <p className="mt-3 text-sm text-muted-foreground">{item.a}</p>
+              </details>
+            ))}
+          </Card>
+        </div>
+      </section>
+
+      {/* Hemen başlayın */}
+      <section className="bg-surface py-16 sm:py-20">
+        <div className="mx-auto flex w-full max-w-md flex-col items-center px-6 text-center">
+          <h2 className="text-xl font-bold text-foreground">Hemen başlayın</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Ad soyad, telefon ve e-postanızla saniyeler içinde başlayın. Ayrı bir şifre oluşturmanıza gerek yok —
+            e-postanıza gönderilecek kodla giriş yaparsınız.
+          </p>
+          <Link
+            href="/signup"
+            className="mt-6 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-accent px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+          >
+            Ücretsiz Kayıt Olun
+          </Link>
         </div>
       </section>
 
