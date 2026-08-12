@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { sendFormSubmissionEmail } from "@/lib/gmail";
 import { runFullPipeline } from "@/lib/pipeline";
-import { isSuspiciouslyFast } from "@/lib/spam-protection";
+import { isSuspiciouslyFast, getClientIp, checkRateLimit } from "@/lib/spam-protection";
 import { getAccountBySlug, loadGmailAccount } from "@/lib/accounts";
 
 export const maxDuration = 60; // after() ile arka planda çalışan pipeline için (scrape+analiz+bildirim)
@@ -37,12 +37,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // TODO: test amaçlı geçici olarak devre dışı bırakıldı, test bitince tekrar açılacak.
-  // const ip = getClientIp(req);
-  // const withinLimit = await checkRateLimit(ip);
-  // if (!withinLimit) {
-  //   return NextResponse.json({ error: "Çok fazla deneme yapıldı, lütfen daha sonra tekrar deneyin." }, { status: 429 });
-  // }
+  const ip = getClientIp(req);
+  const withinLimit = await checkRateLimit(ip);
+  if (!withinLimit) {
+    return NextResponse.json({ error: "Çok fazla deneme yapıldı, lütfen daha sonra tekrar deneyin." }, { status: 429 });
+  }
 
   if (!websiteUrl) {
     return NextResponse.json({ error: "website_url zorunlu." }, { status: 400 });
