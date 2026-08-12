@@ -11,8 +11,8 @@ export async function sendTeamInviteEmail(businessName: string, inviteEmail: str
       <h2>Ekibe davet edildiniz 👋</h2>
       <p><strong>${escapeHtml(businessName)}</strong> sizi LeadLens panelinde ekip üyesi olarak eklemek istiyor.</p>
       <p>Katılmak için LeadLens&apos;e gidip bu davetin gönderildiği (<strong>${escapeHtml(inviteEmail)}</strong>)
-      e-posta adresinizle giriş yapmanız yeterli — e-postanıza gönderilecek kodu girerek doğrulanırsınız,
-      ayrı bir şifre oluşturmanıza gerek yok.</p>
+      e-posta adresiyle giriş sayfasında "Şifremi Unuttum"u kullanın — e-postanıza gönderilecek kodu girip
+      kendi şifrenizi belirleyin, sonraki girişlerde bu şifreyi kullanırsınız.</p>
       ${loginUrl ? `<p style="margin-top:20px;"><a href="${escapeHtml(loginUrl)}" style="color:#2563eb;">Giriş yap</a></p>` : ""}
     </div>
   `.trim();
@@ -36,7 +36,7 @@ export async function sendOwnershipTransferInviteEmail(businessName: string, new
       <h2>Hesap sahipliği size devrediliyor 🔑</h2>
       <p><strong>${escapeHtml(businessName)}</strong> hesabının sahipliğini size devretmek istiyor.</p>
       <p>Devri tamamlamak için LeadLens&apos;e gidip bu davetin gönderildiği (<strong>${escapeHtml(newOwnerEmail)}</strong>)
-      e-posta adresinizle giriş yapmanız yeterli.</p>
+      e-posta adresinizle giriş yapın (şifreniz yoksa "Şifremi Unuttum" ile önce bir şifre belirleyin).</p>
       <p style="color:#6b7280; font-size:13px;">Bunu yaptığınızda hesabın veri sahibi siz olursunuz ve eski sahip
       otomatik olarak sıradan bir ekip üyesine dönüşür.</p>
       ${loginUrl ? `<p style="margin-top:20px;"><a href="${escapeHtml(loginUrl)}" style="color:#2563eb;">Giriş yap</a></p>` : ""}

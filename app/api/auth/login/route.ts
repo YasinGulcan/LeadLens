@@ -19,14 +19,14 @@ export async function POST(req: NextRequest) {
 
   const { data: ownerAccount } = await supabase
     .from("accounts")
-    .select("id, owner_user_id, failed_login_attempts, login_locked_until, onboarded_at")
+    .select("id, owner_password_set_at, failed_login_attempts, login_locked_until, onboarded_at")
     .eq("owner_email", email)
     .maybeSingle();
 
   if (ownerAccount) {
     const locked = lockoutMessage(ownerAccount.login_locked_until);
     if (locked) return NextResponse.json({ error: locked }, { status: 429 });
-    if (!ownerAccount.owner_user_id) return NextResponse.json({ error: NO_PASSWORD_ERROR }, { status: 400 });
+    if (!ownerAccount.owner_password_set_at) return NextResponse.json({ error: NO_PASSWORD_ERROR }, { status: 400 });
 
     const client = await createSupabaseServerClient();
     const { error } = await client.auth.signInWithPassword({ email, password });
@@ -40,14 +40,14 @@ export async function POST(req: NextRequest) {
 
   const { data: member } = await supabase
     .from("account_members")
-    .select("id, account_id, user_id, failed_login_attempts, login_locked_until")
+    .select("id, account_id, password_set_at, failed_login_attempts, login_locked_until")
     .eq("email", email)
     .maybeSingle();
 
   if (member) {
     const locked = lockoutMessage(member.login_locked_until);
     if (locked) return NextResponse.json({ error: locked }, { status: 429 });
-    if (!member.user_id) return NextResponse.json({ error: NO_PASSWORD_ERROR }, { status: 400 });
+    if (!member.password_set_at) return NextResponse.json({ error: NO_PASSWORD_ERROR }, { status: 400 });
 
     const client = await createSupabaseServerClient();
     const { error } = await client.auth.signInWithPassword({ email, password });

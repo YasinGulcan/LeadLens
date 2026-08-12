@@ -21,15 +21,23 @@ kullanıcı ihtiyacı çıktıkça ekleniyor, önceden planlanmıyor).
 
 ## Şimdi (bloklayıcı veya yüksek riskli — önce bunlar)
 
-- [ ] **Supabase RLS kapalı (güvenlik bulgusu, 2026-08-12).** `public`
-  şemasındaki 15 tablonun tamamında Row Level Security kapalı — anon/
-  authenticated rollerinin sınırsız erişimi olabilir. Düzeltme SQL'i hazır
-  ama policy'ler tanımlanmadan tüm erişimi kesebileceği için **uygulanmadı**.
-  Karar: kullanıcıdan bekleniyor.
-- [ ] **`RESEND_FROM_EMAIL` domain doğrulaması yapılmadıysa e-posta+OTP
-  girişi gerçek kullanıcılara ulaşmıyor** (Resend sandbox adresi sadece
-  hesap sahibinin kendi doğrulanmış adresine gönderebiliyor). Prod'da domain
-  doğrulanmadan yeni müşteri email+OTP ile kayıt olamaz.
+- [x] **Supabase RLS kapalıydı (güvenlik bulgusu, 2026-08-12).** 15
+  tabloda RLS açıldı (policy'siz — uygulama service-role client kullanıyor,
+  RLS'i bypass ediyor, davranış değişmedi). `docs/PROGRESS.md` Oturum 22.
+- [ ] **Kimlik doğrulama Supabase Auth'a taşındı (2026-08-12) ama kod
+  e-postaları hâlâ gerçek kullanıcılara ulaşmıyor.** İki ayrı manuel adım
+  bekliyor: (1) Supabase Dashboard → Authentication → Email Templates'te
+  "Confirm signup"/"Reset Password" şablonları `{{ .Token }}` kullanacak
+  şekilde düzenlenmeli (yoksa 6 haneli kod değil link gönderiliyor, `/signup`
+  ve `/login` "Şifremi Unuttum" akışları kodu asla bulamaz); (2) custom SMTP
+  + doğrulanmış domain kurulmalı (Supabase'in varsayılan e-posta servisi
+  sadece proje/organizasyon üyelerine gönderebiliyor, saatte birkaç mail
+  limiti var — prod için uygun değil). Bu artık Resend'i değil, doğrudan
+  Supabase Auth'un SMTP ayarını ilgilendiriyor. `docs/PROGRESS.md` Oturum 23.
+- [ ] **`otp_codes` tablosu artık kullanılmıyor, silinmeyi bekliyor** —
+  drop işlemi Claude Code'un otomatik onay sınıflandırıcısı tarafından
+  yıkıcı DDL olduğu için engellendi, kullanıcı onayı gerekiyor
+  (`drop table if exists otp_codes;`, bkz. migration 0046).
 - [ ] **Google OAuth "Testing" modunda** — en fazla 100 test kullanıcısı +
   kısa ömürlü token riski. Gerçek müşteriler eklenmeden önce (a) Cloud
   Console'da test kullanıcısı olarak eklemek, (b) uzun vadede uygulama

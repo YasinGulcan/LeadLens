@@ -18,13 +18,13 @@ export async function POST(req: NextRequest) {
   const { accountId, email, previousOwnerEmail } = pending;
 
   if (pending.type === "transfer") {
-    // Devralan kişi zaten bir üye olarak bir auth.users kimliği edinmişse
-    // (bu hesaba üyeyken şifre belirlemiş/OTP ile doğrulanmışsa), o kimlik
-    // sahipliğe taşınır — aksi halde ESKİ sahibin owner_user_id'si kalıp
-    // yeni sahibin e-postasıyla eşleşmiş olurdu, bu bir güvenlik açığı olurdu.
+    // Devralan kişi zaten bir üye olarak bir auth.users kimliği/şifresi
+    // edinmişse, o kimlik sahipliğe taşınır — aksi halde ESKİ sahibin
+    // owner_user_id'si kalıp yeni sahibin e-postasıyla eşleşmiş olurdu,
+    // bu bir güvenlik açığı olurdu.
     const [{ data: transferringMember }, { data: currentAccount }] = await Promise.all([
-      supabase.from("account_members").select("user_id").eq("account_id", accountId).eq("email", email).maybeSingle(),
-      supabase.from("accounts").select("owner_user_id").eq("id", accountId).single(),
+      supabase.from("account_members").select("user_id, password_set_at").eq("account_id", accountId).eq("email", email).maybeSingle(),
+      supabase.from("accounts").select("owner_user_id, owner_password_set_at").eq("id", accountId).single(),
     ]);
 
     const { error: transferError } = await supabase
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
         owner_full_name: null,
         owner_phone: null,
         owner_user_id: transferringMember?.user_id ?? null,
+        owner_password_set_at: transferringMember?.password_set_at ?? null,
       })
       .eq("id", accountId);
     if (transferError) {
@@ -43,9 +44,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (previousOwnerEmail && previousOwnerEmail !== email) {
-      await supabase
-        .from("account_members")
-        .insert({ account_id: accountId, email: previousOwnerEmail, user_id: currentAccount?.owner_user_id ?? null });
+      await supabase.from("account_members").insert({
+        account_id: accountId,
+        email: previousOwnerEmail,
+        user_id: currentAccount?.owner_user_id ?? null,
+        password_set_at: currentAccount?.owner_password_set_at ?? null,
+      });
     }
     await supabase.from("account_members").delete().eq("account_id", accountId).eq("email", email);
     try {
@@ -60,24 +64,37 @@ export async function POST(req: NextRequest) {
     await acceptTeamMembership(accountId, email);
   }
 
-  const { data: account } = await supabase.from("accounts").select("onboarded_at, owner_user_id").eq("id", accountId).single();
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("onboarded_at, owner_user_id, owner_password_set_at")
+    .eq("id", accountId)
+    .single();
 
   let existingUserId: string | null;
+  let hasRealPassword: boolean;
   if (pending.type === "transfer") {
     existingUserId = account?.owner_user_id ?? null;
+    hasRealPassword = !!account?.owner_password_set_at;
   } else {
-    const { data: memberRow } = await supabase.from("account_members").select("user_id").eq("account_id", accountId).eq("email", email).maybeSingle();
+    const { data: memberRow } = await supabase
+      .from("account_members")
+      .select("user_id, password_set_at")
+      .eq("account_id", accountId)
+      .eq("email", email)
+      .maybeSingle();
     existingUserId = memberRow?.user_id ?? null;
+    hasRealPassword = !!memberRow?.password_set_at;
   }
 
   try {
     if (existingUserId) {
-      // Kimlik zaten kurulu (daha önce şifre belirlemiş biri) — parolaya
+      // Kimlik zaten kurulu (signup/davet anında oluşturuldu) — parolaya
       // dokunmadan oturum açılır.
       await signInWithoutPassword(email);
     } else {
-      // İlk kez giriş — geçici şifreyle kimlik oluşturulup oturum açılır,
-      // gerçek şifre hemen ardından /set-password'te belirlenir.
+      // Normalde buraya düşülmemeli (kimlik signup/davet anında zaten
+      // kuruluyor) — sadece o adım başarısız olduysa devreye giren bir
+      // güvenlik ağı: geçici şifreyle kimlik oluşturulup oturum açılır.
       const userId = await provisionAndSignIn(email, null);
       if (pending.type === "transfer") {
         await supabase.from("accounts").update({ owner_user_id: userId }).eq("id", accountId);
@@ -91,7 +108,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const destination = !existingUserId ? "/set-password" : account?.onboarded_at ? "/dashboard" : "/onboarding";
+  const destination = !hasRealPassword ? "/set-password" : account?.onboarded_at ? "/dashboard" : "/onboarding";
   const res = NextResponse.redirect(new URL(destination, origin));
   res.cookies.delete(PENDING_MEMBERSHIP_COOKIE);
   return res;

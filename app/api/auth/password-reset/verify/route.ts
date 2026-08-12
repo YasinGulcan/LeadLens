@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPendingOwnerEmail, getAccountById, getAccountOwnerEmail } from "@/lib/accounts";
+import {
+  getAccountIdByOwnerEmail,
+  findAccountIdByMemberEmail,
+  getAccountOwnerEmail,
+  getPendingOwnerEmail,
+  getAccountById,
+} from "@/lib/accounts";
 import { createPendingMembershipValue, PENDING_MEMBERSHIP_COOKIE } from "@/lib/pending-membership";
-import { verifyOtpCode } from "@/lib/otp";
-import { provisionAndSignIn } from "@/lib/auth-identity";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 /**
- * `/login` → "Şifremi Unuttum" adım 2 — kod doğrulanınca üç senaryodan biri
- * işler: (1) sahip ya da daveti önceden kabul etmiş bir üye — Supabase Auth
- * oturumu kurulup (geçici şifreyle, hemen ardından `/set-password`'te
- * gerçek şifre belirlenir) `/set-password`'e yönlendirilir; (2) bekleyen
- * bir davet/sahiplik devri hedefi — `/confirm-join`'de açık onay istenir
- * (oturum orada, kabul edilince kurulur); (3) hiçbiri değilse (start'ta
- * zaten elenmiş olmalı) hata.
+ * `/login` → "Şifremi Unuttum" adım 2 — Supabase Auth kodu doğrulanınca
+ * (oturum otomatik kurulur) üç senaryodan biri işler: (1) sahip ya da
+ * daveti önceden kabul etmiş bir üye — `/set-password`'e yönlendirilir;
+ * (2) bekleyen bir davet/sahiplik devri hedefi — oturum bilerek bırakılıp
+ * (`signOut`) `/confirm-join`'de açık onay istenir; (3) hiçbiri değilse
+ * (start'ta zaten elenmiş olmalı) hata.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -20,51 +23,35 @@ export async function POST(req: NextRequest) {
   const code = typeof body?.code === "string" ? body.code.trim() : "";
   if (!email || !code) return NextResponse.json({ error: "E-posta ve kod zorunlu." }, { status: 400 });
 
-  const result = await verifyOtpCode(email, "password_reset", code);
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+  const client = await createSupabaseServerClient();
+  const { error: verifyError } = await client.auth.verifyOtp({ email, token: code, type: "recovery" });
+  if (verifyError) return NextResponse.json({ error: verifyError.message }, { status: 400 });
 
-  const { data: ownerRow } = await supabase.from("accounts").select("id, owner_user_id").eq("owner_email", email).maybeSingle();
-  if (ownerRow) {
-    let userId: string;
-    try {
-      userId = await provisionAndSignIn(email, ownerRow.owner_user_id);
-    } catch (err) {
-      return NextResponse.json({ error: err instanceof Error ? err.message : "Oturum açılamadı." }, { status: 500 });
-    }
-    if (!ownerRow.owner_user_id) await supabase.from("accounts").update({ owner_user_id: userId }).eq("id", ownerRow.id);
-    return NextResponse.json({ ok: true, redirect: "/set-password" });
-  }
+  const ownerAccountId = await getAccountIdByOwnerEmail(email);
+  if (ownerAccountId) return NextResponse.json({ ok: true, redirect: "/set-password" });
 
-  const { data: memberRow } = await supabase
-    .from("account_members")
-    .select("account_id, user_id, accepted_at")
-    .eq("email", email)
-    .maybeSingle();
-  if (!memberRow) {
+  const member = await findAccountIdByMemberEmail(email);
+  if (!member) {
+    await client.auth.signOut();
     return NextResponse.json({ error: "Bu e-posta ile kayıtlı bir hesap bulunamadı, kayıt olun." }, { status: 404 });
   }
 
-  const pendingOwnerEmail = await getPendingOwnerEmail(memberRow.account_id);
+  const pendingOwnerEmail = await getPendingOwnerEmail(member.accountId);
   const isTransfer = !!pendingOwnerEmail && pendingOwnerEmail === email;
 
-  if (!isTransfer && memberRow.accepted_at) {
-    let userId: string;
-    try {
-      userId = await provisionAndSignIn(email, memberRow.user_id);
-    } catch (err) {
-      return NextResponse.json({ error: err instanceof Error ? err.message : "Oturum açılamadı." }, { status: 500 });
-    }
-    if (!memberRow.user_id) {
-      await supabase.from("account_members").update({ user_id: userId }).eq("account_id", memberRow.account_id).eq("email", email);
-    }
+  if (!isTransfer && member.acceptedAt) {
     return NextResponse.json({ ok: true, redirect: "/set-password" });
   }
 
-  const account = await getAccountById(memberRow.account_id);
-  const previousOwnerEmail = isTransfer ? await getAccountOwnerEmail(memberRow.account_id) : null;
+  // Bekleyen davet/devir — oturumu burada bırakmıyoruz, /confirm-join'de
+  // açık onay şart.
+  await client.auth.signOut();
+
+  const account = await getAccountById(member.accountId);
+  const previousOwnerEmail = isTransfer ? await getAccountOwnerEmail(member.accountId) : null;
   const pendingValue = createPendingMembershipValue({
     type: isTransfer ? "transfer" : "join",
-    accountId: memberRow.account_id,
+    accountId: member.accountId,
     businessName: account?.businessName ?? "İşletme",
     email,
     previousOwnerEmail,

@@ -21,6 +21,18 @@ export async function POST(req: NextRequest) {
   const { error } = await client.auth.updateUser({ password });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  const { data: account } = await supabase.from("accounts").select("onboarded_at").eq("id", session.accountId).single();
-  return NextResponse.json({ ok: true, redirect: account?.onboarded_at ? "/dashboard" : "/onboarding" });
+  const { data: account } = await supabase.from("accounts").select("owner_email, onboarded_at").eq("id", session.accountId).single();
+  if (!account) return NextResponse.json({ error: "Hesap bulunamadı." }, { status: 404 });
+
+  if (account.owner_email === session.email) {
+    await supabase.from("accounts").update({ owner_password_set_at: new Date().toISOString() }).eq("id", session.accountId);
+  } else {
+    await supabase
+      .from("account_members")
+      .update({ password_set_at: new Date().toISOString() })
+      .eq("account_id", session.accountId)
+      .eq("email", session.email);
+  }
+
+  return NextResponse.json({ ok: true, redirect: account.onboarded_at ? "/dashboard" : "/onboarding" });
 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkOtpRateLimit, createOtpCode, type OtpPurpose } from "@/lib/otp";
-import { sendOtpEmail } from "@/lib/otp-email";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -8,28 +7,16 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
-  const purpose: OtpPurpose | null =
-    body?.purpose === "signup_verification" || body?.purpose === "password_reset" ? body.purpose : null;
-  const fullName = typeof body?.fullName === "string" ? body.fullName.trim() : undefined;
-  const phone = typeof body?.phone === "string" ? body.phone.trim() : undefined;
+  const purpose = body?.purpose === "signup_verification" || body?.purpose === "password_reset" ? body.purpose : null;
 
   if (!EMAIL_PATTERN.test(email) || !purpose) {
     return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
   }
 
-  const rateLimitError = await checkOtpRateLimit(email);
-  if (rateLimitError) return NextResponse.json({ error: rateLimitError }, { status: 429 });
+  const client = await createSupabaseServerClient();
+  const { error } =
+    purpose === "signup_verification" ? await client.auth.resend({ type: "signup", email }) : await client.auth.resetPasswordForEmail(email);
 
-  const code = await createOtpCode(
-    email,
-    purpose,
-    purpose === "signup_verification" && fullName && phone ? { fullName, phone } : undefined
-  );
-  try {
-    await sendOtpEmail(email, code, purpose);
-  } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Kod gönderilemedi." }, { status: 500 });
-  }
-
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

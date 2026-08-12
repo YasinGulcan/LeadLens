@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { getSessionInfo } from "@/lib/account-session";
 import { addTeamMember, getAccountById, isAccountOwner } from "@/lib/accounts";
 import { sendTeamInviteEmail } from "@/lib/team-emails";
 import { logActivity } from "@/lib/activity-log";
+import { supabase } from "@/lib/supabase";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -31,6 +33,23 @@ export async function POST(req: NextRequest) {
   }
 
   await logActivity(session.accountId, session.email, "Ekip üyesi davet etti", email);
+
+  // Davetli e-posta için hemen bir Supabase Auth kimliği oluşturuluyor —
+  // "Şifremi Unuttum" akışı (resetPasswordForEmail) bilinmeyen bir e-postaya
+  // sessizce hiç mail atmıyor, bu yüzden auth.users satırının önceden var
+  // olması şart. Şifre rastgele/bilinmiyor — gerçek şifre ilk "Şifremi
+  // Unuttum" + /set-password'te belirlenir (bkz. password_set_at).
+  try {
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      password: randomBytes(24).toString("base64url"),
+      email_confirm: true,
+    });
+    if (error || !data.user) throw error ?? new Error("Kullanıcı oluşturulamadı.");
+    await supabase.from("account_members").update({ user_id: data.user.id }).eq("id", member.id);
+  } catch (err) {
+    console.error(`Davetli için auth kimliği oluşturulamadı (${email}):`, err instanceof Error ? err.message : err);
+  }
 
   try {
     const account = await getAccountById(session.accountId);
