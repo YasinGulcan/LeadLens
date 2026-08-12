@@ -6,7 +6,7 @@ import { resolveAuthenticatedDestination } from "@/lib/auth-redirect";
 import { getActivePricingPlans } from "@/lib/pricing";
 import { Card } from "@/components/ui";
 import { AuthMenu } from "./AuthMenu";
-import { LandingProductPreview } from "./LandingProductPreview";
+import { LandingDemoPreview } from "./LandingDemoPreview";
 import { PricingSection } from "./PricingSection";
 
 export const dynamic = "force-dynamic";
@@ -141,7 +141,7 @@ export default async function HomePage({
 
       {/* Ürün görseli */}
       <section className="mx-auto flex w-full max-w-5xl justify-center px-6 pt-4 pb-12">
-        <LandingProductPreview />
+        <LandingDemoPreview />
       </section>
 
       {/* Nasıl çalışır */}
