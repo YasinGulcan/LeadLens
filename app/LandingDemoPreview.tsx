@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { User, Phone, Mail, Globe, MessageSquare, Search, Loader2, ChevronDown } from "lucide-react";
 import { Badge, ScoreCircle } from "@/components/ui";
 import { ScoreBreakdown, type ScoreBreakdownData } from "./dashboard/ScoreBreakdown";
@@ -28,8 +28,8 @@ const DEMO_OVERALL_SCORE = 0.82;
 const CALLOUTS = [
   { text: "0-100 arası otomatik puanlama", delayMs: 300 },
   { text: "AI aramalarında markanız geçiyor mu, otomatik kontrol edilir", delayMs: 1200 },
-  { text: "İhtimal, niyet, değer, aciliyet ayrı ayrı ölçülür", delayMs: 2100 },
-  { text: "Sitenizi tarayıp eksikleri otomatik tespit eder", delayMs: 3000 },
+  { text: "İhtimal, niyet, değer, aciliyet ayrı ayrı ölçülür", delayMs: 4200 },
+  { text: "Sitenizi tarayıp eksikleri otomatik tespit eder", delayMs: 5200 },
 ];
 
 /**
@@ -44,6 +44,7 @@ const CALLOUTS = [
  */
 export function LandingDemoPreview() {
   const [step, setStep] = useState<0 | 1 | 2>(0);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -58,6 +59,34 @@ export function LandingDemoPreview() {
     run(0);
     return () => timers.forEach(clearTimeout);
   }, []);
+
+  // Sonuç adımının içeriği kutunun sabit yüksekliğinden uzun — widget'ın
+  // dış boyutu adımlar arasında hiç değişmesin diye (aksi halde her
+  // geçişte sayfa zıplar) kutu sabit kalır, içerik kendi içinde yavaşça
+  // aşağı kayarak okunur.
+  useEffect(() => {
+    if (step !== 2) return;
+    const el = contentRef.current;
+    if (!el) return;
+    let raf = 0;
+    const startDelay = setTimeout(() => {
+      const startTime = performance.now();
+      const startTop = el.scrollTop;
+      const distance = el.scrollHeight - el.clientHeight - startTop;
+      const duration = 3000;
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - startTime) / duration);
+        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        el.scrollTop = startTop + distance * eased;
+        if (t < 1) raf = requestAnimationFrame(tick);
+      };
+      if (distance > 0) raf = requestAnimationFrame(tick);
+    }, 3500);
+    return () => {
+      clearTimeout(startDelay);
+      cancelAnimationFrame(raf);
+    };
+  }, [step]);
 
   return (
     <div className="w-full max-w-3xl">
@@ -82,7 +111,11 @@ export function LandingDemoPreview() {
           </span>
         </div>
 
-        <div key={step} className="landing-demo-fade p-6 text-left">
+        <div
+          key={step}
+          ref={contentRef}
+          className={`landing-demo-fade h-[580px] p-6 text-left ${step === 2 ? "overflow-y-auto" : "overflow-hidden"}`}
+        >
           {step === 0 && <StepInput />}
           {step === 1 && <StepAnalyzing />}
           {step === 2 && <StepResult />}
@@ -127,7 +160,7 @@ function StepInput() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-2.5 py-2">
+    <div className="flex h-full flex-col justify-center gap-2.5">
       <p className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">Web formunuz dolduruluyor</p>
 
       <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2.5">
@@ -172,7 +205,7 @@ function StepAnalyzing() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
+    <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
       <Loader2 size={28} className="animate-spin text-accent" />
       <p key={msgIndex} className="landing-demo-fade text-sm font-medium text-foreground">
         {ANALYZE_MESSAGES[msgIndex]}
