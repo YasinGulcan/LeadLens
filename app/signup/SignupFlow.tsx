@@ -7,6 +7,7 @@ import { Button } from "@/components/ui";
 import { OtpCodeStep, type OtpActionResult } from "../OtpCodeStep";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 8;
 
 export function SignupFlow() {
   const router = useRouter();
@@ -14,6 +15,8 @@ export function SignupFlow() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,6 +24,8 @@ export function SignupFlow() {
     if (!fullName.trim()) return "Ad soyad zorunlu.";
     if (phone.replace(/\D/g, "").length < 10) return "Geçerli bir telefon numarası girin.";
     if (!EMAIL_PATTERN.test(email)) return "Geçerli bir e-posta adresi girin.";
+    if (password.length < MIN_PASSWORD_LENGTH) return `Şifre en az ${MIN_PASSWORD_LENGTH} karakter olmalı.`;
+    if (password !== passwordConfirm) return "Şifreler eşleşmiyor.";
     return null;
   }
 
@@ -37,10 +42,15 @@ export function SignupFlow() {
       const res = await fetch("/api/auth/signup/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, phone, email }),
+        body: JSON.stringify({ fullName, phone, email, password, passwordConfirm }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Bir hata oluştu.");
+      if (data.confirmed) {
+        router.push(data.redirect ?? "/onboarding");
+        router.refresh();
+        return;
+      }
       setStep("code");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Hata");
@@ -110,6 +120,27 @@ export function SignupFlow() {
             onChange={(e) => setEmail(e.target.value)}
             type="email"
             autoComplete="email"
+            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground">Şifre</label>
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            type="password"
+            autoComplete="new-password"
+            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">En az {MIN_PASSWORD_LENGTH} karakter.</p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground">Şifre Tekrar</label>
+          <input
+            value={passwordConfirm}
+            onChange={(e) => setPasswordConfirm(e.target.value)}
+            type="password"
+            autoComplete="new-password"
             className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
           />
         </div>

@@ -308,6 +308,41 @@ export async function generateUniqueSlug(base: string): Promise<string> {
   }
 }
 
+export interface NewOwnerInput {
+  email: string;
+  userId: string;
+  fullName: string;
+  phone: string | null;
+}
+
+/**
+ * `/signup` tamamlanınca (Supabase Auth "Confirm email" kapalıysa anında,
+ * açıksa kod doğrulandıktan sonra) hesabı gerçekten açar. Şifre bu noktada
+ * zaten `auth.users`'ta gerçek (signUp() sırasında verilen) değeriyle
+ * kayıtlı olduğu için `owner_password_set_at` da hemen dolduruluyor —
+ * yeni kayıtlarda ayrı bir /set-password adımına gerek kalmıyor.
+ */
+export async function createAccountForNewOwner(input: NewOwnerInput): Promise<{ id: string } | { error: string }> {
+  const slug = await generateUniqueSlug(input.fullName);
+  const { data, error } = await supabase
+    .from("accounts")
+    .insert({
+      business_name: input.fullName,
+      slug,
+      status: "pending",
+      owner_email: input.email,
+      owner_full_name: input.fullName,
+      owner_phone: input.phone,
+      email_verified_at: new Date().toISOString(),
+      owner_user_id: input.userId,
+      owner_password_set_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (error || !data) return { error: error?.message ?? "Hesap oluşturulamadı." };
+  return { id: data.id };
+}
+
 /** `status='connected'` olan tüm hesapların Gmail bağlantı bilgisini yükler (cron'un tüm hesapları gezmesi için). */
 export async function loadConnectedGmailAccounts(): Promise<GmailAccount[]> {
   const { data: accounts, error } = await supabase.from("accounts").select("id").eq("status", "connected");

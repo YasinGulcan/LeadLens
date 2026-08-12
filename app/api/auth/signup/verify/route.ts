@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAccountIdByOwnerEmail, findAccountIdByMemberEmail, generateUniqueSlug } from "@/lib/accounts";
-import { supabase } from "@/lib/supabase";
+import { getAccountIdByOwnerEmail, findAccountIdByMemberEmail, createAccountForNewOwner } from "@/lib/accounts";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
-/** `/signup` adım 2 — Supabase Auth kodu doğrulanınca (oturum otomatik kurulur) hesap gerçekten burada açılır. */
+/**
+ * `/signup` adım 2 — sadece Supabase projesinde "Confirm email" açıkken
+ * devreye girer (kapalıysa hesap zaten `start`'ta açılmış olur). Kod
+ * doğrulanınca (oturum otomatik kurulur) hesap burada gerçekten açılır.
+ */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -24,22 +27,10 @@ export async function POST(req: NextRequest) {
   }
 
   const fullName = (data.user.user_metadata?.full_name as string | undefined) ?? email.split("@")[0];
-  const phone = data.user.user_metadata?.phone as string | undefined;
-  const slug = await generateUniqueSlug(fullName);
+  const phone = (data.user.user_metadata?.phone as string | undefined) ?? null;
 
-  const { error: insertError } = await supabase.from("accounts").insert({
-    business_name: fullName,
-    slug,
-    status: "pending",
-    owner_email: email,
-    owner_full_name: fullName,
-    owner_phone: phone ?? null,
-    email_verified_at: new Date().toISOString(),
-    owner_user_id: data.user.id,
-  });
-  if (insertError) {
-    return NextResponse.json({ error: insertError.message }, { status: 400 });
-  }
+  const result = await createAccountForNewOwner({ email, userId: data.user.id, fullName, phone });
+  if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  return NextResponse.json({ ok: true, redirect: "/set-password" });
+  return NextResponse.json({ ok: true, redirect: "/onboarding" });
 }
