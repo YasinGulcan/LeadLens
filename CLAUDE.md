@@ -5,8 +5,8 @@
 Herhangi bir kod değişikliğine başlamadan önce sırayla oku:
 
 1. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — proje şu an ne yapıyor, mimari nasıl (kısa, güncel anlık görüntü, tarihsiz)
-2. [`PROJECT_PLAN.md`](PROJECT_PLAN.md) — şu anki faz, sırada ne var, hangi soru açık
-3. [`PROGRESS.md`](PROGRESS.md) — sadece Oturum Günlüğü'nün **son birkaç girdisi** (tamamını baştan okumaya gerek yok, append-only bir geçmiş kaydı)
+2. [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) — şu anki faz, sırada ne var, hangi soru açık
+3. [`docs/PROGRESS.md`](docs/PROGRESS.md) — sadece Oturum Günlüğü'nün **son birkaç girdisi** (tamamını baştan okumaya gerek yok, append-only bir geçmiş kaydı)
 
 Bu üç dosya birlikte "vibecoding" için tasarlandı: ilk ikisi **yerinde
 güncellenen anlık görüntüler** (mimari + plan), üçüncüsü **append-only

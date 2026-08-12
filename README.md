@@ -6,8 +6,8 @@ zenginleştirilip (site taraması + RAG ürün eşleştirmesi + LLM analizi) sat
 ekibine önceliklendirilmiş bir rapor olarak iletiliyor.
 
 - Mimarinin şu an ne olduğu (yığın, veri modeli, modül haritası, akışlar) için: **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)**
-- Sırada ne var, hangi soru açık, kuruluş kararları için: **[PROJECT_PLAN.md](./PROJECT_PLAN.md)**
-- Oturumlar arası kronolojik ilerleme günlüğü için: **[PROGRESS.md](./PROGRESS.md)**
+- Sırada ne var, hangi soru açık, kuruluş kararları için: **[docs/PROJECT_PLAN.md](./docs/PROJECT_PLAN.md)**
+- Oturumlar arası kronolojik ilerleme günlüğü için: **[docs/PROGRESS.md](./docs/PROGRESS.md)**
 
 ## Yığın (özet)
 
@@ -23,7 +23,7 @@ Detaylar için [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
 Faz 2 — canlıda, self-servis kayıt açık, ilk gerçek hesaplarla doğrulama
 aşamasında (`https://lead-lens-ten.vercel.app`). Güncel açık sorular/riskler
-için [PROJECT_PLAN.md](./PROJECT_PLAN.md).
+için [docs/PROJECT_PLAN.md](./docs/PROJECT_PLAN.md).
 
 ## Başlarken
 

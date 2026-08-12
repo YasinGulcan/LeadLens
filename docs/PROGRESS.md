@@ -4,27 +4,28 @@ Bu dosya bir **oturum günlüğüdür (append-only log)** — "ne zaman, neden,
 hangi kararla yapıldı" sorusunun cevabı, kronolojik. Yeni bir Claude Code
 oturumu bu projede çalışmaya başlamadan önce sırayla:
 
-1. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — proje şu an ne yapıyor, mimari nasıl (kısa, güncel anlık görüntü)
-2. [`PROJECT_PLAN.md`](PROJECT_PLAN.md) — sırada ne var, hangi soru açık
+1. [`ARCHITECTURE.md`](./ARCHITECTURE.md) — proje şu an ne yapıyor, mimari nasıl (kısa, güncel anlık görüntü)
+2. [`PROJECT_PLAN.md`](./PROJECT_PLAN.md) — sırada ne var, hangi soru açık
 3. Aşağıdaki **Oturum Günlüğü**'nün son birkaç girdisi — en son ne yapıldı, hangi bağlamda
 
-okumalı. Bu dosyanın tamamını (172KB+) baştan sona okumaya gerek yok —
+okumalı. Bu dosyanın tamamını (100KB+) baştan sona okumaya gerek yok —
 o iş artık yukarıdaki iki dosyanın işi; burası sadece geçmişin kaydı.
 
 **Not (2026-08-12):** Bu dosyada önceden "Güncel Durum" adıyla, her oturumda
 başa yeni bir paragraf eklenen, sürekli büyüyen bir özet bölümü vardı. Bu
 bölüm zamanla aşağıdaki Oturum Günlüğü'ndeki aynı bilginin **tekrarına**
 dönüştüğü ve gerçek bir "şu an ne doğru" anlık görüntüsü olmaktan çıkıp
-kronolojik bir günlüğe dönüştüğü için kaldırıldı — yerini `docs/ARCHITECTURE.md`
+kronolojik bir günlüğe dönüştüğü için kaldırıldı — yerini `ARCHITECTURE.md`
 (yerinde güncellenen mimari) ve `PROJECT_PLAN.md` (yerinde güncellenen
 sıradaki-adım/açık-sorular) aldı. Aşağıdaki Oturum Günlüğü hiç dokunulmadan
-duruyor, geçmiş oturumların tam detayları hâlâ orada.
+duruyor, geçmiş oturumların tam detayları hâlâ orada. Üç dosya da artık
+`docs/` altında bir arada.
 
 ## Güncelleme kuralı
 
 Anlamlı bir değişiklik bitince:
 1. **Buraya** (Oturum Günlüğü'nün sonuna) tarihli, kısa bir `### YYYY-MM-DD — Oturum N (başlık)` girdisi eklenir — ne yapıldı, neden, hangi gerçek testle doğrulandı.
-2. Değişiklik mimariyi/şemayı/modülleri etkiliyorsa `docs/ARCHITECTURE.md` **yerinde** güncellenir.
+2. Değişiklik mimariyi/şemayı/modülleri etkiliyorsa `ARCHITECTURE.md` **yerinde** güncellenir.
 3. Değişiklik plan/açık-soru/riski etkiliyorsa `PROJECT_PLAN.md` **yerinde** güncellenir (madde işaretlenir/silinir/eklenir).
 
 Üçü farklı amaçlara hizmet eder — birini diğerinin yerine kullanmayın (ör.
@@ -336,4 +337,4 @@ Kullanıcı iki özelliği birlikte istedi: lead'leri ekip üyelerine atama + he
 
 ---
 
-*Yeni oturumda ilk iş: `docs/ARCHITECTURE.md` ve `PROJECT_PLAN.md`'ı oku, sonra bu dosyanın Oturum Günlüğü'nün son birkaç girdisine bak.*
+*Yeni oturumda ilk iş: `docs/ARCHITECTURE.md` ve `docs/PROJECT_PLAN.md`'ı oku, sonra bu dosyanın Oturum Günlüğü'nün son birkaç girdisine bak.*

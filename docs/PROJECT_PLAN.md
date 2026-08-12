@@ -3,8 +3,8 @@
 > Bu dosya **canlı bir plan/karar dokümanıdır** — "sırada ne var, hangi
 > soru cevaplanmadı" sorusunun cevabı. Kronolojik bir günlük değil; her
 > güncellemede ilgili madde **yerinde** düzenlenir/işaretlenir/silinir.
-> Mimarinin şu an ne olduğu için: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-> "Ne zaman/neden böyle yapıldı" için: [`PROGRESS.md`](PROGRESS.md) Oturum Günlüğü.
+> Mimarinin şu an ne olduğu için: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+> "Ne zaman/neden böyle yapıldı" için: [`PROGRESS.md`](./PROGRESS.md) Oturum Günlüğü.
 >
 > Son güncelleme: 2026-08-12
 

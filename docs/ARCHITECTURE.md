@@ -3,9 +3,9 @@
 > Bu dosya bir **anlık görüntüdür (snapshot)**: proje şu an ne yapıyor, hangi
 > parçalardan oluşuyor. Kronolojik değildir, tarih içermez — her değişiklikte
 > **yerinde güncellenir**, eskiyen cümle silinir. "Ne zaman/neden değişti"
-> sorusunun cevabı burada değil, [`PROGRESS.md`](../PROGRESS.md)'nin
+> sorusunun cevabı burada değil, [`PROGRESS.md`](./PROGRESS.md)'nin
 > Oturum Günlüğü'nde. "Sırada ne var" sorusunun cevabı burada değil,
-> [`PROJECT_PLAN.md`](../PROJECT_PLAN.md)'de.
+> [`PROJECT_PLAN.md`](./PROJECT_PLAN.md)'de.
 >
 > Son güncelleme: 2026-08-12
 
@@ -17,7 +17,7 @@ taranıp RAG ile ürün eşleştirilip Claude ile analiz edilerek satış ekibin
 önceliklendirilmiş rapor halinde gönderiliyor. Artık tek-hesaplı bir prototip
 değil — self-servis kayıt, ekip yönetimi, faturalama planları ve bir web
 paneli (`/dashboard`) olan üretimde çalışan bir ürün (bkz.
-[`PROJECT_PLAN.md`](../PROJECT_PLAN.md) güncel faz için).
+[`PROJECT_PLAN.md`](./PROJECT_PLAN.md) güncel faz için).
 
 ## Yığın
 
@@ -145,7 +145,7 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
 
 ## Bilinen açık riskler / borçlar
 
-Güncel liste için [`PROJECT_PLAN.md`](../PROJECT_PLAN.md) "Açık Sorular"
+Güncel liste için [`PROJECT_PLAN.md`](./PROJECT_PLAN.md) "Açık Sorular"
 bölümüne bakın — en kritik olanı: **Supabase advisor 2026-08-12'de `public`
 şemasındaki 15 tablonun tamamında RLS'in kapalı olduğunu tespit etti**,
 düzeltme SQL'i hazır ama policy'ler tanımlanmadan uygulanmadı (kullanıcı
