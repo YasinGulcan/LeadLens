@@ -1,14 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { User, Phone, Mail, Globe, MessageSquare, Search, Loader2, ChevronDown } from "lucide-react";
-import { Badge, ScoreCircle } from "@/components/ui";
+import { User, Phone, Mail, Globe, MessageSquare, Search, Loader2, ChevronDown, Sparkles } from "lucide-react";
+import { Badge, Button, ScoreCircle } from "@/components/ui";
 import { ScoreBreakdown, type ScoreBreakdownData } from "./dashboard/ScoreBreakdown";
 
 const DEMO_NAME = "Ayşe Yılmaz";
 const DEMO_MESSAGE = "Merhaba, ürünleriniz hakkında bilgi almak istiyorum, uygun bir paket önerebilir misiniz?";
-const STEP_DURATIONS_MS = [4200, 2600, 9500] as const;
+const STEP_DURATIONS_MS = [4200, 2600, 9500, 7000] as const;
 const ANALYZE_MESSAGES = ["Site taranıyor...", "Ürünlerle eşleştiriliyor...", "Skorlanıyor..."];
+
+const DRAFT_SUBJECT = "SEO Paketi Pro — birlikte bakalım mı?";
+const DRAFT_BODY = [
+  "Merhaba Ayşe,",
+  "Mesajınız için teşekkürler! İçerik pazarlaması ve arama görünürlüğünde yakaladığımız boşluğa tam uyan SEO Paketi Pro'yu incelemenizi öneririm.",
+  "Uygun olduğunuz bir saat varsa kısa bir görüşme ayarlayalım mı?",
+];
 
 const DEMO_FIELDS = [
   { icon: Phone, value: "0532 xxx xx xx", delayMs: 900 },
@@ -43,14 +50,14 @@ const CALLOUTS = [
  * zinciriyle yürür, ekstra bir animasyon kütüphanesi kullanılmaz.
  */
 export function LandingDemoPreview() {
-  const [step, setStep] = useState<0 | 1 | 2>(0);
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
-    function run(current: 0 | 1 | 2) {
+    function run(current: 0 | 1 | 2 | 3) {
       const timer = setTimeout(() => {
-        const next = ((current + 1) % 3) as 0 | 1 | 2;
+        const next = ((current + 1) % 4) as 0 | 1 | 2 | 3;
         setStep(next);
         run(next);
       }, STEP_DURATIONS_MS[current]);
@@ -91,7 +98,7 @@ export function LandingDemoPreview() {
   return (
     <div className="w-full max-w-3xl">
       <div className="mb-3 flex justify-center gap-1.5" aria-hidden>
-        {[0, 1, 2].map((i) => (
+        {[0, 1, 2, 3].map((i) => (
           <span
             key={i}
             className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -119,6 +126,7 @@ export function LandingDemoPreview() {
           {step === 0 && <StepInput />}
           {step === 1 && <StepAnalyzing />}
           {step === 2 && <StepResult />}
+          {step === 3 && <StepDraft />}
         </div>
       </div>
 
@@ -305,6 +313,72 @@ function StepResult() {
       </div>
 
       <MobileCalloutCycler />
+    </div>
+  );
+}
+
+function StepDraft() {
+  const [generating, setGenerating] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setGenerating(false), 1500);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div className="flex h-full flex-col justify-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <Sparkles size={13} className="text-accent" />
+          Hazır Yanıt Taslağı
+        </h4>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5 rounded-md border border-border bg-surface p-0.5">
+            {["Resmi", "Samimi", "Teknik"].map((t) => (
+              <span
+                key={t}
+                className={`rounded px-2 py-1 text-xs font-medium ${
+                  t === "Samimi" ? "bg-accent text-white" : "text-muted-foreground"
+                }`}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+          <Button variant="secondary" size="sm" disabled tabIndex={-1}>
+            {generating ? "Oluşturuluyor..." : "Yeniden Oluştur"}
+          </Button>
+        </div>
+      </div>
+
+      {generating ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+          <Loader2 size={22} className="animate-spin text-accent" />
+          <p className="text-xs text-muted-foreground">Mesaj, site bulgusu ve önerilen ürüne göre taslak hazırlanıyor...</p>
+        </div>
+      ) : (
+        <div className="landing-demo-fade space-y-2">
+          <p className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground">
+            {DRAFT_SUBJECT}
+          </p>
+          <div className="space-y-2 rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground">
+            {DRAFT_BODY.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <Button variant="primary" tabIndex={-1} className="pointer-events-none">
+              Gmail&apos;de Aç
+            </Button>
+            <Button variant="secondary" tabIndex={-1} className="pointer-events-none">
+              Panoya Kopyala
+            </Button>
+          </div>
+          <p className="pt-0.5 text-[11px] text-muted-foreground">
+            Otomatik gönderim yok — Gmail&apos;i dolu şekilde açar, siz gönderirsiniz.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
