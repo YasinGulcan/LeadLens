@@ -1,37 +1,46 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Phone, Mail, Globe, Search, Loader2, ChevronDown } from "lucide-react";
+import { User, Phone, Mail, Globe, MessageSquare, Search, Loader2, ChevronDown } from "lucide-react";
 import { Badge, ScoreCircle } from "@/components/ui";
+import { ScoreBreakdown, type ScoreBreakdownData } from "./dashboard/ScoreBreakdown";
 
-const DEMO_URL = "ornekfirma.com";
-const STEP_DURATIONS_MS = [3000, 3000, 6000] as const;
+const DEMO_NAME = "Ayşe Yılmaz";
+const DEMO_MESSAGE = "Merhaba, ürünleriniz hakkında bilgi almak istiyorum, uygun bir paket önerebilir misiniz?";
+const STEP_DURATIONS_MS = [4200, 2600, 9500] as const;
 const ANALYZE_MESSAGES = ["Site taranıyor...", "Ürünlerle eşleştiriliyor...", "Skorlanıyor..."];
 
-const MOCK_SCORES = [
-  { label: "İhtimal Uyumu", score: 82 },
-  { label: "Niyet Gücü", score: 74 },
-  { label: "Aciliyet", score: 65 },
+const DEMO_FIELDS = [
+  { icon: Phone, value: "0532 xxx xx xx", delayMs: 900 },
+  { icon: Mail, value: "ayse@ornek.com", delayMs: 1300 },
+  { icon: Globe, value: "ornekfirma.com", delayMs: 1700 },
+  { icon: MessageSquare, value: DEMO_MESSAGE, delayMs: 2100 },
 ];
+
+const DEMO_BREAKDOWN: ScoreBreakdownData = {
+  fit: { score: 82, reason: "Web sitesi profili ve talep edilen hizmet, hedef müşteri segmentiyle örtüşüyor." },
+  intent: { score: 74, reason: "Net bir ürün/paket talebi var, kararlı bir dil kullanılmış." },
+  value: { score: 58, reason: "Bütçe ya da ekip büyüklüğüne dair somut bir sinyal yok, orta ölçekli bir fırsat gibi görünüyor." },
+  urgency: { score: 65, reason: "Kısa vadeli bir baskı ifade edilmemiş ama aktif olarak paket arıyor." },
+};
+const DEMO_OVERALL_SCORE = 0.82;
 
 const CALLOUTS = [
   { text: "0-100 arası otomatik puanlama", delayMs: 300 },
-  { text: "AI aramalarında markanız geçiyor mu, otomatik kontrol edilir", delayMs: 900 },
-  { text: "İhtimal, niyet, aciliyet ayrı ayrı ölçülür", delayMs: 1500 },
-  { text: "Sitenizi tarayıp eksikleri otomatik tespit eder", delayMs: 2100 },
+  { text: "AI aramalarında markanız geçiyor mu, otomatik kontrol edilir", delayMs: 1200 },
+  { text: "İhtimal, niyet, değer, aciliyet ayrı ayrı ölçülür", delayMs: 2100 },
+  { text: "Sitenizi tarayıp eksikleri otomatik tespit eder", delayMs: 3000 },
 ];
-
-function scoreOpacity(score: number): number {
-  return 0.35 + (score / 100) * 0.65;
-}
 
 /**
  * Landing sayfasındaki "ürün görseli" — gerçek bir ekran görüntüsü ya da
  * gerçek bir API çağrısı değil, 3 adımda kendi kendine ilerleyen TAMAMEN
- * SAHTE/SCRIPTED bir demo döngüsü (girdi → analiz → sonuç → başa dön).
- * Tüm veriler sabit örnek verilerdir. Adım geçişleri kendi kendini
- * zamanlayan bir setTimeout zinciriyle yürür, ekstra bir animasyon
- * kütüphanesi kullanılmaz.
+ * SAHTE/SCRIPTED bir demo döngüsü (form doldurma → analiz → sonuç → başa
+ * dön). Tüm veriler sabit örnek verilerdir. Skor kırılımı, panelde gerçek
+ * lead detayında kullanılan `ScoreBreakdown` component'inin ta kendisi
+ * (sahte veriyle) — böylece panelin tasarımı değişirse demo da otomatik
+ * senkron kalır. Adım geçişleri kendi kendini zamanlayan bir setTimeout
+ * zinciriyle yürür, ekstra bir animasyon kütüphanesi kullanılmaz.
  */
 export function LandingDemoPreview() {
   const [step, setStep] = useState<0 | 1 | 2>(0);
@@ -73,7 +82,7 @@ export function LandingDemoPreview() {
           </span>
         </div>
 
-        <div key={step} className="landing-demo-fade min-h-[420px] p-6 text-left sm:min-h-[400px]">
+        <div key={step} className="landing-demo-fade p-6 text-left">
           {step === 0 && <StepInput />}
           {step === 1 && <StepAnalyzing />}
           {step === 2 && <StepResult />}
@@ -86,6 +95,7 @@ export function LandingDemoPreview() {
           to { opacity: 1; transform: translateY(0); }
         }
         .landing-demo-fade { animation: landingDemoFadeIn 0.4s ease; }
+        .landing-demo-field-in { animation: landingDemoFadeIn 0.35s ease both; }
 
         @keyframes landingDemoBlink {
           0%, 49% { opacity: 1; }
@@ -110,26 +120,40 @@ function StepInput() {
     let i = 0;
     const iv = setInterval(() => {
       i++;
-      setTyped(DEMO_URL.slice(0, i));
-      if (i >= DEMO_URL.length) clearInterval(iv);
-    }, 80);
+      setTyped(DEMO_NAME.slice(0, i));
+      if (i >= DEMO_NAME.length) clearInterval(iv);
+    }, 70);
     return () => clearInterval(iv);
   }, []);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 py-10 text-center">
-      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Web formunuz</p>
-      <div className="flex w-full max-w-sm items-center gap-2 rounded-md border border-border bg-background px-3 py-2.5">
-        <Globe size={14} className="shrink-0 text-muted-foreground" />
-        <span className="font-mono text-sm text-foreground">
+    <div className="flex flex-col gap-2.5 py-2">
+      <p className="mb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">Web formunuz dolduruluyor</p>
+
+      <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2.5">
+        <User size={14} className="shrink-0 text-muted-foreground" />
+        <span className="text-sm text-foreground">
           {typed}
           <span className="landing-demo-caret ml-0.5 inline-block h-4 w-px align-middle bg-foreground" />
         </span>
       </div>
+
+      {DEMO_FIELDS.map(({ icon: Icon, value, delayMs }) => (
+        <div
+          key={value}
+          className="landing-demo-field-in flex items-start gap-2 rounded-md border border-border bg-background px-3 py-2.5"
+          style={{ animationDelay: `${delayMs}ms` }}
+        >
+          <Icon size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
+          <span className="text-sm text-foreground">{value}</span>
+        </div>
+      ))}
+
       <button
         type="button"
         disabled
-        className="pointer-events-none w-full max-w-sm rounded-md bg-accent/40 px-6 py-2.5 text-sm font-medium text-white"
+        className="landing-demo-field-in pointer-events-none mt-1 w-full rounded-md bg-accent/40 px-6 py-2.5 text-sm font-medium text-white"
+        style={{ animationDelay: "2500ms" }}
       >
         Analiz Et
       </button>
@@ -143,12 +167,12 @@ function StepAnalyzing() {
   useEffect(() => {
     const iv = setInterval(() => {
       setMsgIndex((i) => Math.min(i + 1, ANALYZE_MESSAGES.length - 1));
-    }, 1000);
+    }, 900);
     return () => clearInterval(iv);
   }, []);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-4 py-10 text-center">
+    <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
       <Loader2 size={28} className="animate-spin text-accent" />
       <p key={msgIndex} className="landing-demo-fade text-sm font-medium text-foreground">
         {ANALYZE_MESSAGES[msgIndex]}
@@ -173,7 +197,7 @@ function MobileCalloutCycler() {
   const [i, setI] = useState(0);
 
   useEffect(() => {
-    const iv = setInterval(() => setI((v) => (v + 1) % CALLOUTS.length), 1400);
+    const iv = setInterval(() => setI((v) => (v + 1) % CALLOUTS.length), 1800);
     return () => clearInterval(iv);
   }, []);
 
@@ -193,7 +217,7 @@ function StepResult() {
         </span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h3 className="text-lg font-bold text-foreground">Ayşe Yılmaz</h3>
+            <h3 className="text-lg font-bold text-foreground">{DEMO_NAME}</h3>
             <Badge variant="accent">Görüşme Ayarlandı</Badge>
           </div>
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -210,8 +234,13 @@ function StepResult() {
         </div>
       </div>
 
+      <div className="mt-5 border-t border-border pt-5">
+        <h4 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Müşteri Mesajı</h4>
+        <p className="text-sm text-foreground">{DEMO_MESSAGE}</p>
+      </div>
+
       <div className="relative mt-5 flex items-center gap-4 border-t border-border pt-5">
-        <ScoreCircle score={0.82} size="lg" />
+        <ScoreCircle score={DEMO_OVERALL_SCORE} size="lg" />
         <div>
           <p className="text-sm font-medium text-foreground">Skor: 82/100 — SEO Paketi Pro ile eşleşti</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -229,21 +258,8 @@ function StepResult() {
         <Callout text={CALLOUTS[1].text} delayMs={CALLOUTS[1].delayMs} />
       </div>
 
-      <div className="relative mt-5 space-y-3">
-        {MOCK_SCORES.map((s) => (
-          <div key={s.label}>
-            <div className="flex items-baseline justify-between text-xs">
-              <span className="text-foreground">{s.label}</span>
-              <span className="text-muted-foreground">{s.score}/100</span>
-            </div>
-            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-surface-hover">
-              <div
-                className="h-full rounded-full"
-                style={{ width: `${s.score}%`, backgroundColor: "var(--accent)", opacity: scoreOpacity(s.score) }}
-              />
-            </div>
-          </div>
-        ))}
+      <div className="relative mt-5 border-t border-border pt-5">
+        <ScoreBreakdown breakdown={DEMO_BREAKDOWN} overallScore={DEMO_OVERALL_SCORE} />
         <Callout text={CALLOUTS[2].text} delayMs={CALLOUTS[2].delayMs} />
       </div>
 
