@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { User, Phone, Mail, Globe, MessageSquare, Search, Loader2, ChevronDown, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { User, Phone, Mail, Globe, MessageSquare, Search, Loader2, ChevronDown, Sparkles, CheckCircle2 } from "lucide-react";
 import { Badge, Button, ScoreCircle } from "@/components/ui";
 import { ScoreBreakdown, type ScoreBreakdownData } from "./dashboard/ScoreBreakdown";
 
 const DEMO_NAME = "Ayşe Yılmaz";
 const DEMO_MESSAGE = "Merhaba, ürünleriniz hakkında bilgi almak istiyorum, uygun bir paket önerebilir misiniz?";
-const STEP_DURATIONS_MS = [4200, 2600, 9500, 7000] as const;
+const STEP_DURATIONS_MS = [4200, 2600, 9500, 7000, 6000] as const;
 const ANALYZE_MESSAGES = ["Site taranıyor...", "Ürünlerle eşleştiriliyor...", "Skorlanıyor..."];
 
 const DRAFT_SUBJECT = "SEO Paketi Pro — birlikte bakalım mı?";
@@ -57,14 +58,14 @@ const CALLOUTS = [
  * zinciriyle yürür, ekstra bir animasyon kütüphanesi kullanılmaz.
  */
 export function LandingDemoPreview() {
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
-    function run(current: 0 | 1 | 2 | 3) {
+    function run(current: 0 | 1 | 2 | 3 | 4) {
       const timer = setTimeout(() => {
-        const next = ((current + 1) % 4) as 0 | 1 | 2 | 3;
+        const next = ((current + 1) % 5) as 0 | 1 | 2 | 3 | 4;
         setStep(next);
         run(next);
       }, STEP_DURATIONS_MS[current]);
@@ -105,7 +106,7 @@ export function LandingDemoPreview() {
   return (
     <div className="w-full max-w-3xl">
       <div className="mb-3 flex justify-center gap-1.5" aria-hidden>
-        {[0, 1, 2, 3].map((i) => (
+        {[0, 1, 2, 3, 4].map((i) => (
           <span
             key={i}
             className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -121,7 +122,7 @@ export function LandingDemoPreview() {
           <span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/70" />
           <span className="ml-3 truncate rounded-md bg-background px-3 py-1 text-xs text-muted-foreground">
-            {step === 0 ? "leadlens.app/form/…" : "leadlens.app/dashboard/leads/…"}
+            {step === 0 ? "leadlens.app/form/…" : step === 4 ? "leadlens.app/signup" : "leadlens.app/dashboard/leads/…"}
           </span>
         </div>
 
@@ -134,6 +135,7 @@ export function LandingDemoPreview() {
           {step === 1 && <StepAnalyzing />}
           {step === 2 && <StepResult />}
           {step === 3 && <StepDraft />}
+          {step === 4 && <StepCTA />}
         </div>
       </div>
 
@@ -390,6 +392,22 @@ function StepDraft() {
           <MobileCalloutCycler items={DRAFT_CALLOUTS} />
         </div>
       )}
+    </div>
+  );
+}
+
+function StepCTA() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+      <CheckCircle2 size={32} className="text-accent" />
+      <h3 className="text-xl font-bold text-foreground">Sıradaki lead&apos;iniz siz bakmadan önce analiz edilsin</h3>
+      <p className="max-w-sm text-sm text-muted-foreground">Kurulum 5 dakika sürer, kredi kartı gerekmez.</p>
+      <Link
+        href="/signup"
+        className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-md bg-accent px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+      >
+        14 Gün Ücretsiz Deneyin
+      </Link>
     </div>
   );
 }
