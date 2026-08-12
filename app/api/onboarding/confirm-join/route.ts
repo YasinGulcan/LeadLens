@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAccountSessionValue, ACCOUNT_SESSION_COOKIE } from "@/lib/account-session";
 import { acceptTeamMembership, clearPendingOwnerTransfer } from "@/lib/accounts";
 import { getPendingMembership, PENDING_MEMBERSHIP_COOKIE } from "@/lib/pending-membership";
+import { provisionAndSignIn, signInWithoutPassword } from "@/lib/auth-identity";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/activity-log";
-
-function withSessionCookie(res: NextResponse, accountId: string, email: string): NextResponse {
-  res.cookies.set(ACCOUNT_SESSION_COOKIE, createAccountSessionValue(accountId, email), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  res.cookies.delete(PENDING_MEMBERSHIP_COOKIE);
-  return res;
-}
 
 /** `/confirm-join`'deki "Evet" — burada gerçekten üyelik ya da sahiplik devri uygulanır. */
 export async function POST(req: NextRequest) {
@@ -30,16 +18,14 @@ export async function POST(req: NextRequest) {
   const { accountId, email, previousOwnerEmail } = pending;
 
   if (pending.type === "transfer") {
-    // Devralan kişi zaten bir üye olarak bir şifre belirlemişse (bu hesaba
-    // üyeyken), o şifre sahiplik hash'ine taşınır — aksi halde ESKİ sahibin
-    // hash'i accounts.owner_password_hash'te kalıp yeni sahibin kimliğiyle
-    // eşleşmiş olurdu, bu bir güvenlik açığı olurdu.
-    const { data: transferringMember } = await supabase
-      .from("account_members")
-      .select("password_hash")
-      .eq("account_id", accountId)
-      .eq("email", email)
-      .maybeSingle();
+    // Devralan kişi zaten bir üye olarak bir auth.users kimliği edinmişse
+    // (bu hesaba üyeyken şifre belirlemiş/OTP ile doğrulanmışsa), o kimlik
+    // sahipliğe taşınır — aksi halde ESKİ sahibin owner_user_id'si kalıp
+    // yeni sahibin e-postasıyla eşleşmiş olurdu, bu bir güvenlik açığı olurdu.
+    const [{ data: transferringMember }, { data: currentAccount }] = await Promise.all([
+      supabase.from("account_members").select("user_id").eq("account_id", accountId).eq("email", email).maybeSingle(),
+      supabase.from("accounts").select("owner_user_id").eq("id", accountId).single(),
+    ]);
 
     const { error: transferError } = await supabase
       .from("accounts")
@@ -47,7 +33,7 @@ export async function POST(req: NextRequest) {
         owner_email: email,
         owner_full_name: null,
         owner_phone: null,
-        owner_password_hash: transferringMember?.password_hash ?? null,
+        owner_user_id: transferringMember?.user_id ?? null,
       })
       .eq("id", accountId);
     if (transferError) {
@@ -57,7 +43,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (previousOwnerEmail && previousOwnerEmail !== email) {
-      await supabase.from("account_members").insert({ account_id: accountId, email: previousOwnerEmail });
+      await supabase
+        .from("account_members")
+        .insert({ account_id: accountId, email: previousOwnerEmail, user_id: currentAccount?.owner_user_id ?? null });
     }
     await supabase.from("account_members").delete().eq("account_id", accountId).eq("email", email);
     try {
@@ -72,22 +60,39 @@ export async function POST(req: NextRequest) {
     await acceptTeamMembership(accountId, email);
   }
 
-  const { data: account } = await supabase.from("accounts").select("onboarded_at, owner_password_hash").eq("id", accountId).single();
+  const { data: account } = await supabase.from("accounts").select("onboarded_at, owner_user_id").eq("id", accountId).single();
 
-  let hasPassword: boolean;
+  let existingUserId: string | null;
   if (pending.type === "transfer") {
-    hasPassword = !!account?.owner_password_hash;
+    existingUserId = account?.owner_user_id ?? null;
   } else {
-    const { data: memberRow } = await supabase
-      .from("account_members")
-      .select("password_hash")
-      .eq("account_id", accountId)
-      .eq("email", email)
-      .maybeSingle();
-    hasPassword = !!memberRow?.password_hash;
+    const { data: memberRow } = await supabase.from("account_members").select("user_id").eq("account_id", accountId).eq("email", email).maybeSingle();
+    existingUserId = memberRow?.user_id ?? null;
   }
 
-  const destination = !hasPassword ? "/set-password" : account?.onboarded_at ? "/dashboard" : "/onboarding";
+  try {
+    if (existingUserId) {
+      // Kimlik zaten kurulu (daha önce şifre belirlemiş biri) — parolaya
+      // dokunmadan oturum açılır.
+      await signInWithoutPassword(email);
+    } else {
+      // İlk kez giriş — geçici şifreyle kimlik oluşturulup oturum açılır,
+      // gerçek şifre hemen ardından /set-password'te belirlenir.
+      const userId = await provisionAndSignIn(email, null);
+      if (pending.type === "transfer") {
+        await supabase.from("accounts").update({ owner_user_id: userId }).eq("id", accountId);
+      } else {
+        await supabase.from("account_members").update({ user_id: userId }).eq("account_id", accountId).eq("email", email);
+      }
+    }
+  } catch (err) {
+    const url = new URL("/", origin);
+    url.searchParams.set("connectError", err instanceof Error ? err.message : String(err));
+    return NextResponse.redirect(url);
+  }
 
-  return withSessionCookie(NextResponse.redirect(new URL(destination, origin)), accountId, email);
+  const destination = !existingUserId ? "/set-password" : account?.onboarded_at ? "/dashboard" : "/onboarding";
+  const res = NextResponse.redirect(new URL(destination, origin));
+  res.cookies.delete(PENDING_MEMBERSHIP_COOKIE);
+  return res;
 }

@@ -1,27 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAccountSessionValue, ACCOUNT_SESSION_COOKIE } from "@/lib/account-session";
-import { getAccountIdByOwnerEmail, findAccountIdByMemberEmail, getAccountOwnerEmail, getPendingOwnerEmail, getAccountById } from "@/lib/accounts";
+import { getPendingOwnerEmail, getAccountById, getAccountOwnerEmail } from "@/lib/accounts";
 import { createPendingMembershipValue, PENDING_MEMBERSHIP_COOKIE } from "@/lib/pending-membership";
 import { verifyOtpCode } from "@/lib/otp";
-
-function withSessionCookie(accountId: string, email: string): NextResponse {
-  const res = NextResponse.json({ ok: true, redirect: "/set-password" });
-  res.cookies.set(ACCOUNT_SESSION_COOKIE, createAccountSessionValue(accountId, email), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  return res;
-}
+import { provisionAndSignIn } from "@/lib/auth-identity";
+import { supabase } from "@/lib/supabase";
 
 /**
  * `/login` → "Şifremi Unuttum" adım 2 — kod doğrulanınca üç senaryodan biri
- * işler: (1) sahip ya da daveti önceden kabul etmiş bir üye — oturum açılıp
- * `/set-password`'e yönlendirilir; (2) bekleyen bir davet/sahiplik devri
- * hedefi — `/confirm-join`'de açık onay istenir (şifre orada, ilk kez kabul
- * ederken belirlenir); (3) hiçbiri değilse (start'ta zaten elenmiş olmalı) hata.
+ * işler: (1) sahip ya da daveti önceden kabul etmiş bir üye — Supabase Auth
+ * oturumu kurulup (geçici şifreyle, hemen ardından `/set-password`'te
+ * gerçek şifre belirlenir) `/set-password`'e yönlendirilir; (2) bekleyen
+ * bir davet/sahiplik devri hedefi — `/confirm-join`'de açık onay istenir
+ * (oturum orada, kabul edilince kurulur); (3) hiçbiri değilse (start'ta
+ * zaten elenmiş olmalı) hata.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -32,26 +23,48 @@ export async function POST(req: NextRequest) {
   const result = await verifyOtpCode(email, "password_reset", code);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-  const ownerAccountId = await getAccountIdByOwnerEmail(email);
-  if (ownerAccountId) return withSessionCookie(ownerAccountId, email);
+  const { data: ownerRow } = await supabase.from("accounts").select("id, owner_user_id").eq("owner_email", email).maybeSingle();
+  if (ownerRow) {
+    let userId: string;
+    try {
+      userId = await provisionAndSignIn(email, ownerRow.owner_user_id);
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : "Oturum açılamadı." }, { status: 500 });
+    }
+    if (!ownerRow.owner_user_id) await supabase.from("accounts").update({ owner_user_id: userId }).eq("id", ownerRow.id);
+    return NextResponse.json({ ok: true, redirect: "/set-password" });
+  }
 
-  const member = await findAccountIdByMemberEmail(email);
-  if (!member) {
+  const { data: memberRow } = await supabase
+    .from("account_members")
+    .select("account_id, user_id, accepted_at")
+    .eq("email", email)
+    .maybeSingle();
+  if (!memberRow) {
     return NextResponse.json({ error: "Bu e-posta ile kayıtlı bir hesap bulunamadı, kayıt olun." }, { status: 404 });
   }
 
-  const pendingOwnerEmail = await getPendingOwnerEmail(member.accountId);
+  const pendingOwnerEmail = await getPendingOwnerEmail(memberRow.account_id);
   const isTransfer = !!pendingOwnerEmail && pendingOwnerEmail === email;
 
-  if (!isTransfer && member.acceptedAt) {
-    return withSessionCookie(member.accountId, email);
+  if (!isTransfer && memberRow.accepted_at) {
+    let userId: string;
+    try {
+      userId = await provisionAndSignIn(email, memberRow.user_id);
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : "Oturum açılamadı." }, { status: 500 });
+    }
+    if (!memberRow.user_id) {
+      await supabase.from("account_members").update({ user_id: userId }).eq("account_id", memberRow.account_id).eq("email", email);
+    }
+    return NextResponse.json({ ok: true, redirect: "/set-password" });
   }
 
-  const account = await getAccountById(member.accountId);
-  const previousOwnerEmail = isTransfer ? await getAccountOwnerEmail(member.accountId) : null;
+  const account = await getAccountById(memberRow.account_id);
+  const previousOwnerEmail = isTransfer ? await getAccountOwnerEmail(memberRow.account_id) : null;
   const pendingValue = createPendingMembershipValue({
     type: isTransfer ? "transfer" : "join",
-    accountId: member.accountId,
+    accountId: memberRow.account_id,
     businessName: account?.businessName ?? "İşletme",
     email,
     previousOwnerEmail,

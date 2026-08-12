@@ -1,59 +1,12 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { cookies } from "next/headers";
-
-export const ACCOUNT_SESSION_COOKIE = "leadlens_session";
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 gün
+import { createSupabaseServerClient } from "./supabase-server";
+import { supabase } from "./supabase";
 
 export interface SessionInfo {
   accountId: string;
-  /** Google ile oturum açan kişinin e-postası — sahip mi (gmail_connections'a bağlı) yoksa davetli bir ekip üyesi mi ayırt etmek için gerekli, artık bir accountId'ye birden fazla kişi giriş yapabiliyor. */
+  /** Oturum açan kişinin e-postası — sahip mi (accounts.owner_user_id) yoksa davetli bir ekip üyesi mi (account_members.user_id) ayırt etmek için gerekli. */
   email: string;
-}
-
-function getSecret(): string {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) throw new Error("SESSION_SECRET ortam değişkeni tanımlı olmalı.");
-  return secret;
-}
-
-/**
- * "Google ile Bağlan" akışı hem kimlik doğrulama hem Gmail erişimi olduğu
- * için ayrı bir kullanıcı/şifre sistemi yok — oturum, accountId + kişinin
- * e-postasını taşıyan imzalı bir cookie. `proxy.ts` bunu optimistic kontrol
- * için, `/api/dashboard/*` route'ları ve `app/dashboard` ise "gerçek" (DAL)
- * kontrol için kullanır.
- */
-export function createAccountSessionValue(accountId: string, email: string): string {
-  const payload = Buffer.from(JSON.stringify({ accountId, email, exp: Date.now() + SESSION_TTL_MS })).toString(
-    "base64url"
-  );
-  const signature = createHmac("sha256", getSecret()).update(payload).digest("base64url");
-  return `${payload}.${signature}`;
-}
-
-export function verifyAccountSessionValue(value: string | undefined): SessionInfo | null {
-  if (!value) return null;
-  const lastDot = value.lastIndexOf(".");
-  if (lastDot === -1) return null;
-
-  const payload = value.slice(0, lastDot);
-  const signature = value.slice(lastDot + 1);
-  const expected = createHmac("sha256", getSecret()).update(payload).digest("base64url");
-
-  const signatureBuf = Buffer.from(signature);
-  const expectedBuf = Buffer.from(expected);
-  if (signatureBuf.length !== expectedBuf.length || !timingSafeEqual(signatureBuf, expectedBuf)) {
-    return null;
-  }
-
-  try {
-    const { accountId, email, exp } = JSON.parse(Buffer.from(payload, "base64url").toString("utf-8"));
-    if (typeof accountId !== "string" || typeof email !== "string" || typeof exp !== "number") return null;
-    if (Date.now() > exp) return null;
-    return { accountId, email };
-  } catch {
-    return null;
-  }
+  /** Supabase Auth (auth.users) kullanıcı id'si — şifre değiştirme gibi kullanıcının kendi oturumunu gerektiren işlemler için. */
+  userId: string;
 }
 
 /**
@@ -61,11 +14,24 @@ export function verifyAccountSessionValue(value: string | undefined): SessionInf
  * yetkilendirme kontrolü — `proxy.ts`'deki optimistic kontrole ek olarak,
  * veriye en yakın yerde tekrar doğrulanır (bkz. Next.js authentication
  * rehberi). Client'tan gelen bir accountId'ye asla güvenilmez, her zaman
- * bu fonksiyonlardan dönen değer kullanılır.
+ * bu fonksiyonlardan dönen değer kullanılır. Kimlik doğrulama Supabase
+ * Auth'ta; accountId eşlemesi (kişi bu hesabın sahibi mi/üyesi mi) hâlâ
+ * kendi accounts/account_members tablolarımızda.
  */
 export async function getSessionInfo(): Promise<SessionInfo | null> {
-  const cookieStore = await cookies();
-  return verifyAccountSessionValue(cookieStore.get(ACCOUNT_SESSION_COOKIE)?.value);
+  const client = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user?.email) return null;
+
+  const { data: ownerAccount } = await supabase.from("accounts").select("id").eq("owner_user_id", user.id).maybeSingle();
+  if (ownerAccount) return { accountId: ownerAccount.id, email: user.email, userId: user.id };
+
+  const { data: member } = await supabase.from("account_members").select("account_id").eq("user_id", user.id).maybeSingle();
+  if (member) return { accountId: member.account_id, email: user.email, userId: user.id };
+
+  return null;
 }
 
 /** Sadece accountId gereken (rol farkı önemsiz) çoğu route için kısayol. */

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionInfo, ACCOUNT_SESSION_COOKIE } from "@/lib/account-session";
+import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
 import { decryptToken } from "@/lib/crypto";
 import { supabase } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 /** Bağlı Gmail'in refresh token'ını Google'da iptal eder — best-effort, başarısız olsa da hesap silme işlemini engellemez. */
 async function revokeGoogleToken(accountId: string): Promise<void> {
@@ -55,12 +56,23 @@ export async function POST(req: NextRequest) {
 
   await revokeGoogleToken(session.accountId);
 
+  const { data: memberRows } = await supabase.from("account_members").select("user_id").eq("account_id", session.accountId);
+  const { data: ownerRow } = await supabase.from("accounts").select("owner_user_id").eq("id", session.accountId).single();
+
   const { error } = await supabase.from("accounts").delete().eq("id", session.accountId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Auth.users satırları accounts'a cascade'li değil — en iyi çaba ile ayrıca temizlenir.
+  const userIdsToDelete = [ownerRow?.owner_user_id, ...(memberRows ?? []).map((m) => m.user_id)].filter((id): id is string => !!id);
+  await Promise.all(
+    userIdsToDelete.map((id) =>
+      supabase.auth.admin.deleteUser(id).catch((err) => console.error(`Hesap silme: auth kullanıcısı silinemedi (${id}):`, err))
+    )
+  );
+
   console.log(`Hesap silindi: account_id=${session.accountId}, ${new Date().toISOString()}`);
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.delete(ACCOUNT_SESSION_COOKIE);
-  return res;
+  const client = await createSupabaseServerClient();
+  await client.auth.signOut();
+  return NextResponse.json({ ok: true });
 }

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAccountSessionValue, ACCOUNT_SESSION_COOKIE } from "@/lib/account-session";
 import { getAccountIdByOwnerEmail, findAccountIdByMemberEmail, generateUniqueSlug } from "@/lib/accounts";
 import { verifyOtpCode } from "@/lib/otp";
 import { supabase } from "@/lib/supabase";
+import { provisionAndSignIn } from "@/lib/auth-identity";
 
 /** `/signup` adım 2 — kod doğrulanınca hesap gerçekten burada açılır. */
 export async function POST(req: NextRequest) {
@@ -41,13 +41,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: insertError?.message ?? "Hesap oluşturulamadı." }, { status: 400 });
   }
 
-  const res = NextResponse.json({ ok: true, redirect: "/set-password" });
-  res.cookies.set(ACCOUNT_SESSION_COOKIE, createAccountSessionValue(newAccount.id, email), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  return res;
+  let userId: string;
+  try {
+    userId = await provisionAndSignIn(email, null);
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Oturum açılamadı." }, { status: 500 });
+  }
+  await supabase.from("accounts").update({ owner_user_id: userId }).eq("id", newAccount.id);
+
+  return NextResponse.json({ ok: true, redirect: "/set-password" });
 }

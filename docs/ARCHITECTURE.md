@@ -24,8 +24,8 @@ paneli (`/dashboard`) olan üretimde çalışan bir ürün (bkz.
 | Katman | Teknoloji | Not |
 |---|---|---|
 | Uygulama | Next.js 16 (App Router, TypeScript), Vercel | **Bu, alışık olunan Next.js değil** — bkz. [`AGENTS.md`](../AGENTS.md). `middleware.ts` yerine `proxy.ts` kullanılıyor. |
-| Veritabanı | Supabase (Postgres + pgvector) | 15 tablo, `supabase/migrations/0001`→`0042`, sırayla SQL Editor'de çalıştırılır |
-| Auth | Kendi oturum modeli | Google OAuth (Gmail bağlantısı = kimlik) **veya** e-posta+OTP **veya** parola — bkz. §Auth |
+| Veritabanı | Supabase (Postgres + pgvector) | 15 tablo, `supabase/migrations/0001`→`0044`, sırayla SQL Editor'de çalıştırılır |
+| Auth | Supabase Auth (e-posta+şifre) | Kimlik doğrulama/parola/oturum artık `auth.users`'ta; kendi OTP sistemi sadece e-posta doğrulama/şifre sıfırlama için — bkz. §Auth |
 | Mail alma | Gmail API (`googleapis`) + Resend Inbound (webhook) | İki paralel lead kaynağı — bkz. §Lead pipeline |
 | Web scraping | Firecrawl | Ürün kataloğu taraması + müşteri site özeti |
 | Embedding | OpenAI `text-embedding-3` | `lib/embeddings.ts` |
@@ -43,11 +43,11 @@ paneli (`/dashboard`) olan üretimde çalışan bir ürün (bkz.
 - `form_submission_attempts` — spam/rate-limit izleme
 
 **Hesap / Auth / Ekip**
-- `accounts` — kiracı; iş bilgisi, onboarding, bildirim e-postası, özel sistem promptu, `active_plan_id`, parola auth alanları
-- `gmail_connections` — hesabın bağlı Gmail'i; **aynı zamanda giriş kimliği** — bu yüzden koparma işlemi satırı silmez, `disconnected_at` işaretler (bkz. §Gotchas)
-- `account_members` — ekip üyeleri (sahip değil); davet/kabul akışı
+- `accounts` — kiracı; iş bilgisi, onboarding, bildirim e-postası, özel sistem promptu, `active_plan_id`, `owner_user_id` (→ `auth.users.id`)
+- `gmail_connections` — hesabın bağlı Gmail'i, kimlikten bağımsız (opsiyonel "Mail Kaynağı" adımı) — koparma işlemi satırı silmez, `disconnected_at` işaretler (bkz. §Gotchas)
+- `account_members` — ekip üyeleri (sahip değil); davet/kabul akışı, `user_id` (→ `auth.users.id`)
 - `account_activity_log` — ekip aktivite geçmişi
-- `otp_codes` — e-posta+OTP giriş/kayıt kodları
+- `otp_codes` — kayıt sırasında e-posta doğrulama ve şifre sıfırlama kodları (kimlik doğrulamanın kendisi değil, sadece e-posta sahipliği kanıtı — bkz. §Auth)
 
 **Ürün bilgi tabanı (RAG)**
 - `product_sources` — taranacak/işlenecek kaynaklar (URL veya dosya), aktif/pasif
@@ -85,14 +85,29 @@ satış-durumu), `sources/*` (ürün kaynağı CRUD + chunk düzenleme), `team/*
 (üye yönetimi, sahiplik devri, aktivite logu), `settings/*`, `prompt/*`
 (sistem promptu + kütüphane), `gmail/disconnect`.
 
-**`app/api/auth/*`** + **`app/api/oauth/gmail/*`** — üç paralel giriş yolu:
-Google OAuth (Gmail bağlantısı = kimlik, self-servis kayıt/giriş aynı akış),
-e-posta+OTP (`otp_codes`), parola (`bcryptjs`, kilitleme mantığı
-`lib/login-lockout.ts`).
+**`app/api/auth/*`** — tek giriş yolu: e-posta+şifre, kimlik/parola
+Supabase Auth'ta (`lib/auth-identity.ts` köprüsü — bkz. §Auth), kilitleme
+mantığı kendi tablolarımızda (`lib/login-lockout.ts`). `otp_codes` sadece
+kayıt sırasında e-posta doğrulamak ve şifre sıfırlamak için (kimlik
+doğrulamanın kendisi değil). **`app/api/oauth/gmail/*`** ayrı ve
+kimlikten bağımsız: sadece "Mail Kaynağı" adımında Gmail bağlamak için.
+
+**Auth** (`lib/auth-identity.ts`, `lib/account-session.ts`,
+`lib/supabase-server.ts`, `proxy.ts`) — kimlik/şifre/oturum Supabase
+Auth'ta (`auth.users`); `accounts.owner_user_id`/`account_members.user_id`
+hangi `auth.users` satırının hangi hesaba/üyeliğe karşılık geldiğini tutar.
+Kendi OTP sistemi (`otp_codes`, `lib/otp.ts`, Resend) sadece "bu e-postanın
+sahibi gerçekten bu kişi" kanıtı — doğrulandıktan sonra
+`lib/auth-identity.ts#provisionAndSignIn` (yeni/var olan kullanıcı için
+geçici şifre + oturum açma) ya da `#signInWithoutPassword` (kimliği zaten
+kurulu birinin gerçek şifresine dokunmadan, `admin.generateLink` +
+`verifyOtp` ile) çağrılır. `proxy.ts`, Supabase'in SSR middleware deseniyle
+(`@supabase/ssr`) her istekte oturumu yeniler — optimistic ön kontrol,
+gerçek yetkilendirme hâlâ `getSessionInfo()` (DAL).
 
 **`lib/`** — iş mantığı katmanı, route handler'lar ince kalıyor:
 - `pipeline.ts` — 4 pipeline adımı + `claimLead` (atomik durum kilidi) + dedupe
-- `accounts.ts`, `account-session.ts` — kiracı çözümleme + imzalı cookie oturumu
+- `accounts.ts`, `account-session.ts` — kiracı çözümleme + Supabase Auth oturumu (`SessionInfo` arayüzü sabit, 50+ route/sayfa bunu tüketir)
 - `gmail.ts`, `firecrawl.ts`, `embeddings.ts`, `match.ts`, `claude.ts` — entegrasyonlar
 - `visibility.ts`, `rank-tier.ts` — arama sıralaması + AI görünürlüğü kontrolü
 - `crypto.ts` — OAuth token şifreleme (AES-256, `TOKEN_ENCRYPTION_KEY`)

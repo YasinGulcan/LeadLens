@@ -1,19 +1,41 @@
-import { NextRequest, NextResponse } from "next/server";
-import { ACCOUNT_SESSION_COOKIE, verifyAccountSessionValue } from "@/lib/account-session";
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
 
 /**
- * "Google ile Bağlan" hem kayıt hem giriş — ayrı bir admin/şifre modeli yok.
  * `/dashboard`, `/onboarding` ve `/api/dashboard/*` yalnızca geçerli bir
- * hesap oturumuyla erişilebilir. Bu, DAL'daki (route handler/server
+ * Supabase Auth oturumuyla erişilebilir. Bu, DAL'daki (route handler/server
  * component içindeki) asıl kontrolün üstüne eklenen "optimistic" bir ön
- * kontrol — bkz. `lib/account-session.ts#getSessionAccountId`.
+ * kontrol — bkz. `lib/account-session.ts#getSessionAccountId`. Supabase'in
+ * SSR kütüphanesi her istekte access token'ı yeniler; bu yüzden proxy
+ * response cookie'lerini de kendisi set edebilmeli.
  */
-export function proxy(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+export async function proxy(req: NextRequest) {
+  let response = NextResponse.next({ request: req });
 
-  const session = req.cookies.get(ACCOUNT_SESSION_COOKIE)?.value;
-  const isAuthed = verifyAccountSessionValue(session) !== null;
-  if (isAuthed) return NextResponse.next();
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll: () => req.cookies.getAll(),
+      setAll: (cookiesToSet) => {
+        for (const { name, value } of cookiesToSet) {
+          req.cookies.set(name, value);
+        }
+        response = NextResponse.next({ request: req });
+        for (const { name, value, options } of cookiesToSet) {
+          response.cookies.set(name, value, options);
+        }
+      },
+    },
+  });
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = req.nextUrl;
+  if (user) return response;
 
   if (pathname.startsWith("/api/dashboard")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
