@@ -1,0 +1,164 @@
+# Mimari — Güncel Durum
+
+> Bu dosya bir **anlık görüntüdür (snapshot)**: proje şu an ne yapıyor, hangi
+> parçalardan oluşuyor. Kronolojik değildir, tarih içermez — her değişiklikte
+> **yerinde güncellenir**, eskiyen cümle silinir. "Ne zaman/neden değişti"
+> sorusunun cevabı burada değil, [`PROGRESS.md`](../PROGRESS.md)'nin
+> Oturum Günlüğü'nde. "Sırada ne var" sorusunun cevabı burada değil,
+> [`PROJECT_PLAN.md`](../PROJECT_PLAN.md)'de.
+>
+> Son güncelleme: 2026-08-12
+
+## Ürün, bir cümleyle
+
+LeadLens, çok kiracılı (multi-tenant) bir SaaS: her işletme kendi hesabını
+açıp kendi Gmail'ini/ürün kataloğunu bağlıyor, gelen lead'ler otomatik olarak
+taranıp RAG ile ürün eşleştirilip Claude ile analiz edilerek satış ekibine
+önceliklendirilmiş rapor halinde gönderiliyor. Artık tek-hesaplı bir prototip
+değil — self-servis kayıt, ekip yönetimi, faturalama planları ve bir web
+paneli (`/dashboard`) olan üretimde çalışan bir ürün (bkz.
+[`PROJECT_PLAN.md`](../PROJECT_PLAN.md) güncel faz için).
+
+## Yığın
+
+| Katman | Teknoloji | Not |
+|---|---|---|
+| Uygulama | Next.js 16 (App Router, TypeScript), Vercel | **Bu, alışık olunan Next.js değil** — bkz. [`AGENTS.md`](../AGENTS.md). `middleware.ts` yerine `proxy.ts` kullanılıyor. |
+| Veritabanı | Supabase (Postgres + pgvector) | 15 tablo, `supabase/migrations/0001`→`0042`, sırayla SQL Editor'de çalıştırılır |
+| Auth | Kendi oturum modeli | Google OAuth (Gmail bağlantısı = kimlik) **veya** e-posta+OTP **veya** parola — bkz. §Auth |
+| Mail alma | Gmail API (`googleapis`) + Resend Inbound (webhook) | İki paralel lead kaynağı — bkz. §Lead pipeline |
+| Web scraping | Firecrawl | Ürün kataloğu taraması + müşteri site özeti |
+| Embedding | OpenAI `text-embedding-3` | `lib/embeddings.ts` |
+| LLM analiz | Claude (`claude-sonnet-5`) | `lib/claude.ts` — 4 ayrı çağrı: analiz, taslak yanıt, derinlemesine analiz, arama ifadesi üretimi |
+| Bildirim | Gmail (birincil) + Resend (ikincil, best-effort) | `lib/gmail.ts#sendAnalysisNotificationEmail`, `lib/resend.ts` |
+| Zamanlama | Vercel Cron (`vercel.json`, günde 1) + gerçek zamanlı tetikleme (`after()`) | Cron artık sadece yedek, form gönderildiği an pipeline tetikleniyor |
+| Test | Vitest | `lib/*.test.ts`, kritik iş mantığı (eşzamanlılık kilidi, dedupe, şema doğrulama, temizleme, görünürlük hesaplama) |
+
+## Veri modeli (15 tablo, domain'e göre)
+
+**Lead pipeline**
+- `leads` — çekirdek kayıt; `status` (new → scraping → analyzing → analyzed → notifying → sent_to_sales, hata her adımda `error`e düşebilir) pipeline durumunu, `sales_status` (ayrı kavram, bkz. `lib/lead-status.ts`) satışın elle ilerlettiği süreci tutar
+- `lead_status_history` — her durum geçişinin (sistem veya insan, `actor_email` varsa insan) append-only kaydı; ekip aktivite akışının da kaynağı
+- `lead_notes` — ekip üyelerinin lead'e serbest not eklemesi (durum geçmişinden ayrı, elle silinebilir)
+- `form_submission_attempts` — spam/rate-limit izleme
+
+**Hesap / Auth / Ekip**
+- `accounts` — kiracı; iş bilgisi, onboarding, bildirim e-postası, özel sistem promptu, `active_plan_id`, parola auth alanları
+- `gmail_connections` — hesabın bağlı Gmail'i; **aynı zamanda giriş kimliği** — bu yüzden koparma işlemi satırı silmez, `disconnected_at` işaretler (bkz. §Gotchas)
+- `account_members` — ekip üyeleri (sahip değil); davet/kabul akışı
+- `account_activity_log` — ekip aktivite geçmişi
+- `otp_codes` — e-posta+OTP giriş/kayıt kodları
+
+**Ürün bilgi tabanı (RAG)**
+- `product_sources` — taranacak/işlenecek kaynaklar (URL veya dosya), aktif/pasif
+- `product_chunks` — parçalanmış + embed edilmiş içerik, `pgvector`; `match_product_chunks` RPC ile benzerlik araması
+
+**Sistem promptu**
+- `account_system_prompts` — hesabın kayıtlı/isimlendirilmiş prompt kütüphanesi (eskiden otomatik "geçmiş" logtu, migration 0026'da kullanıcı isteğiyle kalıcı kütüphaneye dönüştürüldü)
+
+**Faturalama**
+- `pricing_plans`, `pricing_inquiries` — plan tanımları + satış talepleri (henüz tam bir ödeme akışı yok, bkz. PROJECT_PLAN.md)
+
+**Bildirim**
+- `notifications` — panel içi bildirim çanı (`NotificationBell.tsx`)
+
+Tabloların tümü `account_id` ile kiracıya bağlı (leads/product_* için doğrudan, diğerleri accounts'a FK zinciriyle).
+
+## Modül haritası
+
+**`app/api/cron/*`** — pipeline adımları, her biri tek başına da çağrılabilir:
+`fetch-leads` (Gmail'den oku) → `scrape-leads` (Firecrawl) → `analyze-leads`
+(RAG + Claude) → `notify-sales` (Gmail+Resend). `run-pipeline` hepsini sırayla
+tüm bağlı hesaplar için çalıştırır (Vercel Hobby plan günde 1 cron limiti
+yüzünden tek job'a birleştirildi). `process-leads` tek bir hesap için manuel
+tetikleme.
+
+**`app/api/inbound-email`** — ikinci lead kaynağı: Resend Inbound webhook'u,
+hesaba özel `{slug}-{token}@inbound.leadlens.app` adresine gelen serbest
+formatlı (üçüncü parti form aracı) mailleri Claude ile ayrıştırıp
+`lib/pipeline.ts#createLeadFromSubmission`'a besler — Gmail'in sabit-şablon
+regex ayrıştırmasından ayrı bir yol, ama dedupe/insert/geçmiş adımı ortak.
+
+**`app/api/dashboard/*`** — panel API'leri, domain'e göre alt klasörlenmiş:
+`leads/[id]/*` (detay, atama, taslak, derinlemesine analiz, notlar,
+satış-durumu), `sources/*` (ürün kaynağı CRUD + chunk düzenleme), `team/*`
+(üye yönetimi, sahiplik devri, aktivite logu), `settings/*`, `prompt/*`
+(sistem promptu + kütüphane), `gmail/disconnect`.
+
+**`app/api/auth/*`** + **`app/api/oauth/gmail/*`** — üç paralel giriş yolu:
+Google OAuth (Gmail bağlantısı = kimlik, self-servis kayıt/giriş aynı akış),
+e-posta+OTP (`otp_codes`), parola (`bcryptjs`, kilitleme mantığı
+`lib/login-lockout.ts`).
+
+**`lib/`** — iş mantığı katmanı, route handler'lar ince kalıyor:
+- `pipeline.ts` — 4 pipeline adımı + `claimLead` (atomik durum kilidi) + dedupe
+- `accounts.ts`, `account-session.ts` — kiracı çözümleme + imzalı cookie oturumu
+- `gmail.ts`, `firecrawl.ts`, `embeddings.ts`, `match.ts`, `claude.ts` — entegrasyonlar
+- `visibility.ts`, `rank-tier.ts` — arama sıralaması + AI görünürlüğü kontrolü
+- `crypto.ts` — OAuth token şifreleme (AES-256, `TOKEN_ENCRYPTION_KEY`)
+- `lead-status.ts` — satış-durumu sabitleri (pipeline `status`'tan bilinçli olarak ayrı)
+- `setup-checklist.ts` — kurulum tamamlanma durumu, tek fonksiyon, 3 call site (sidebar rozeti, banner, `/dashboard/setup`)
+- `reports.ts`, `report-range.ts` — Raporlar sayfası hesaplamaları (ikinci dosyaya ayrılma sebebi: client-safe sabitler, service-role client'ın tarayıcı bundle'ına sızmaması için)
+
+**`proxy.ts`** — Next.js 16'da `middleware.ts` yerine geçen dosya;
+`/dashboard`, `/onboarding`, `/api/dashboard/*` için **optimistic** ön kontrol
+(cookie var mı). Asıl yetki kontrolü her route'ta `lib/account-session.ts` ile
+tekrar yapılıyor (DAL'da gerçek kontrol deseni).
+
+## Lead pipeline akışı
+
+```
+Kaynak (Gmail | Resend Inbound webhook)
+  → createLeadFromSubmission (dedupe: aynı website/telefon 24s içinde varsa atla)
+  → status=new
+  → claimLead(new→scraping) → Firecrawl scrape (1 retry) → status=scraping
+  → claimLead(scraping→analyzing) → RAG eşleştirme (site özeti + mesaj ayrı sorgulanır)
+                                   + görünürlük kontrolü (arama sıralaması + AI görünürlüğü, best-effort)
+                                   → Claude analizi (yapılandırılmış JSON, Zod doğrulama)
+                                   → status=analyzed
+  → claimLead(analyzed→notifying) → Gmail + Resend bildirimi → status=sent_to_sales
+```
+
+`claimLead` her adımda atomik `UPDATE ... WHERE status = fromStatus` yapar —
+form gönderimi hem `after()` ile anında hem cron ile eşzamanlı tetiklenebildiği
+için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
+
+## Gotchas (kod okumadan bilinmesi zor kararlar)
+
+- **Hesap sahibinin `account_members`'ta satırı yoktur** — kimliği
+  `gmail_connections.connected_email`'den gelir. `assigned_to` bu yüzden
+  `account_members`e hard FK değil, `author_email` deseniyle tutarlı bir
+  `text` kolonu (migration 0035).
+- **Gmail bağlantısını "koparmak" satırı silmez** — aynı adres giriş kimliği
+  olduğu için silme hesabı kurtarılamaz kilitlerdi. `disconnected_at` ile
+  ayrılıyor: kimlik hâlâ geçerli, pipeline artık okumuyor.
+- **`sales_status` (satış süreci) ve `status` (pipeline durumu) tamamen ayrı
+  kavramlar** — biri sistem yönetimli, diğeri satış ekibinin elle
+  ilerlettiği. Aynı `lead_status_history` tablosunda birlikte tutuluyor
+  (`actor_email` null=sistem, dolu=insan).
+- **`leads`/`product_sources`/`product_chunks`'ın `accounts` FK'ı cascade'e
+  migration 0033'te çevrildi** (öncesi RESTRICT'ti) — hesap silme tek bir
+  `delete from accounts` ile atomik çalışıyor.
+- **Silme yetkisi sadece hesap sahibinde**, satış-durumu/atama güncellemesi
+  herhangi bir kabul etmiş üyede, not silme yazan kişi veya sahipte — üç
+  farklı yetki seviyesi, kasıtlı.
+
+## Bilinen açık riskler / borçlar
+
+Güncel liste için [`PROJECT_PLAN.md`](../PROJECT_PLAN.md) "Açık Sorular"
+bölümüne bakın — en kritik olanı: **Supabase advisor 2026-08-12'de `public`
+şemasındaki 15 tablonun tamamında RLS'in kapalı olduğunu tespit etti**,
+düzeltme SQL'i hazır ama policy'ler tanımlanmadan uygulanmadı (kullanıcı
+kararı bekleniyor).
+
+## Ortam değişkenleri
+
+Güncel liste ve her birinin ne için gerektiği `.env.example`'da —
+kod değiştiğinde oradan güncellenir, burada tekrarlanmaz.
+
+## Bu dosyayı güncelleme kuralı
+
+Mimariyi değiştiren her işten sonra (yeni tablo/migration, yeni modül, yeni
+akış, bir "gotcha" kararı) bu dosya **yerinde düzenlenir** — tarih eklenmez,
+eski cümle güncellenir veya silinir. Tarihli "ne yapıldı" anlatımı buraya
+değil `PROGRESS.md`'ye gider.

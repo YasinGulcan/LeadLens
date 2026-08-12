@@ -1,20 +1,29 @@
 # LeadLens — Lead Analiz Otomasyonu
 
-Web formundan gelen lead'leri otomatik olarak zenginleştirip (site taraması + RAG ürün eşleştirmesi + LLM analizi) satış ekibine önceliklendirilmiş bir rapor olarak ileten pipeline.
+Çok kiracılı (multi-tenant) bir SaaS: her işletme kendi hesabını açıp kendi
+Gmail'ini/ürün kataloğunu bağlıyor; gelen lead'ler otomatik olarak
+zenginleştirilip (site taraması + RAG ürün eşleştirmesi + LLM analizi) satış
+ekibine önceliklendirilmiş bir rapor olarak iletiliyor.
 
-Tam mimari, karar gerekçeleri, alternatif yaklaşımlar, riskler ve geliştirme yol haritası için: **[PROJECT_PLAN.md](./PROJECT_PLAN.md)**
+- Mimarinin şu an ne olduğu (yığın, veri modeli, modül haritası, akışlar) için: **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)**
+- Sırada ne var, hangi soru açık, kuruluş kararları için: **[PROJECT_PLAN.md](./PROJECT_PLAN.md)**
+- Oturumlar arası kronolojik ilerleme günlüğü için: **[PROGRESS.md](./PROGRESS.md)**
 
-## Yığın
+## Yığın (özet)
 
-- **Next.js (App Router, TypeScript)** — Vercel üzerinde serverless
-- **Supabase (Postgres + pgvector)** — `leads`, `lead_status_history`, `product_chunks`, `product_sources`
-- **Gmail API** — hem lead formunun alınması hem de analiz raporunun satış ekibine bildirilmesi (aynı hesap üzerinden)
+- **Next.js 16 (App Router, TypeScript)** — Vercel üzerinde serverless. Bu, alışık olunan Next.js değil, bkz. [AGENTS.md](./AGENTS.md).
+- **Supabase (Postgres + pgvector)** — 15 tablo, `supabase/migrations/`
+- **Gmail API + Resend Inbound** — iki paralel lead kaynağı; Gmail + Resend ile çift kanal bildirim
 - **Firecrawl** — ürün kataloğu ve müşteri site taraması
 - **OpenAI embeddings + Claude (RAG)** — ürün eşleştirme ve rapor üretimi
 
+Detaylar için [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+
 ## Durum
 
-Faz 1 (prototip) — güncel ilerleme için **[PROGRESS.md](./PROGRESS.md)**'ye bakın.
+Faz 2 — canlıda, self-servis kayıt açık, ilk gerçek hesaplarla doğrulama
+aşamasında (`https://lead-lens-ten.vercel.app`). Güncel açık sorular/riskler
+için [PROJECT_PLAN.md](./PROJECT_PLAN.md).
 
 ## Başlarken
 
@@ -23,9 +32,13 @@ npm install
 cp .env.example .env.local   # anahtarları doldurun
 ```
 
-Veritabanı şeması Supabase SQL Editor'de `supabase/migrations/` klasöründeki dosya sırasına göre (0001 → 0004) çalıştırılmalı.
+Veritabanı şeması Supabase SQL Editor'de `supabase/migrations/` klasöründeki dosya sırasına göre (0001 → en son) çalıştırılmalı.
 
-Gmail entegrasyonu için (form alma + rapor bildirimi) `npm run gmail:auth` ile bir kerelik OAuth yetkilendirmesi gerekir — bkz. `scripts/gmail-auth.ts`.
+Gmail bağlantısı artık elle bir script çalıştırmayı gerektirmiyor — her hesap
+kendi Gmail'ini panelden ("Google ile Bağlan" / Bağlantılar sekmesi)
+self-servis olarak bağlıyor, token veritabanında şifreli saklanıyor.
+`scripts/gmail-auth.ts` ve `scripts/migrate-to-accounts.ts` artık sadece
+eski tek-hesaplı kurulumdan kalma, bir kerelik geçiş araçları.
 
 ### Ürün bilgi tabanını doldurma (RAG kaynağı)
 
