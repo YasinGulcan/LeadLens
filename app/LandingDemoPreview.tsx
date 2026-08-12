@@ -14,7 +14,14 @@ const DRAFT_SUBJECT = "SEO Paketi Pro — birlikte bakalım mı?";
 const DRAFT_BODY = [
   "Merhaba Ayşe,",
   "Mesajınız için teşekkürler! İçerik pazarlaması ve arama görünürlüğünde yakaladığımız boşluğa tam uyan SEO Paketi Pro'yu incelemenizi öneririm.",
-  "Uygun olduğunuz bir saat varsa kısa bir görüşme ayarlayalım mı?",
+  "Bu pakette aylık içerik takvimi, teknik SEO denetimi ve haftalık raporlama yer alıyor — sitenizde şu an eksik olan tam da bu alanlar.",
+  "Uygun olduğunuz bir saat varsa kısa bir görüşme ayarlayalım, ihtiyaçlarınıza göre paketi birlikte netleştirelim.",
+];
+
+const DRAFT_CALLOUTS = [
+  { text: "Ton'a göre otomatik yeniden yazılır", delayMs: 300 },
+  { text: "Mesaj, site bulgusu ve önerilen ürüne göre yazılır", delayMs: 1000 },
+  { text: "Tek tıkla Gmail'de dolu şekilde açılır", delayMs: 1700 },
 ];
 
 const DEMO_FIELDS = [
@@ -234,17 +241,17 @@ function Callout({ text, delayMs }: { text: string; delayMs: number }) {
   );
 }
 
-function MobileCalloutCycler() {
+function MobileCalloutCycler({ items }: { items: { text: string }[] }) {
   const [i, setI] = useState(0);
 
   useEffect(() => {
-    const iv = setInterval(() => setI((v) => (v + 1) % CALLOUTS.length), 1800);
+    const iv = setInterval(() => setI((v) => (v + 1) % items.length), 1800);
     return () => clearInterval(iv);
-  }, []);
+  }, [items.length]);
 
   return (
     <p key={i} className="landing-demo-fade mt-4 text-center text-[11px] font-medium text-accent sm:hidden">
-      {CALLOUTS[i].text}
+      {items[i].text}
     </p>
   );
 }
@@ -312,7 +319,7 @@ function StepResult() {
         <Callout text={CALLOUTS[3].text} delayMs={CALLOUTS[3].delayMs} />
       </div>
 
-      <MobileCalloutCycler />
+      <MobileCalloutCycler items={CALLOUTS} />
     </div>
   );
 }
@@ -332,7 +339,7 @@ function StepDraft() {
           <Sparkles size={13} className="text-accent" />
           Hazır Yanıt Taslağı
         </h4>
-        <div className="flex items-center gap-2">
+        <div className="relative flex items-center gap-2">
           <div className="flex items-center gap-0.5 rounded-md border border-border bg-surface p-0.5">
             {["Resmi", "Samimi", "Teknik"].map((t) => (
               <span
@@ -348,6 +355,7 @@ function StepDraft() {
           <Button variant="secondary" size="sm" disabled tabIndex={-1}>
             {generating ? "Oluşturuluyor..." : "Yeniden Oluştur"}
           </Button>
+          {!generating && <Callout text={DRAFT_CALLOUTS[0].text} delayMs={DRAFT_CALLOUTS[0].delayMs} />}
         </div>
       </div>
 
@@ -361,22 +369,25 @@ function StepDraft() {
           <p className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground">
             {DRAFT_SUBJECT}
           </p>
-          <div className="space-y-2 rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground">
+          <div className="relative space-y-2 rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground">
             {DRAFT_BODY.map((line) => (
               <p key={line}>{line}</p>
             ))}
+            <Callout text={DRAFT_CALLOUTS[1].text} delayMs={DRAFT_CALLOUTS[1].delayMs} />
           </div>
-          <div className="flex flex-wrap items-center gap-2 pt-1">
+          <div className="relative flex flex-wrap items-center gap-2 pt-1">
             <Button variant="primary" tabIndex={-1} className="pointer-events-none">
               Gmail&apos;de Aç
             </Button>
             <Button variant="secondary" tabIndex={-1} className="pointer-events-none">
               Panoya Kopyala
             </Button>
+            <Callout text={DRAFT_CALLOUTS[2].text} delayMs={DRAFT_CALLOUTS[2].delayMs} />
           </div>
           <p className="pt-0.5 text-[11px] text-muted-foreground">
             Otomatik gönderim yok — Gmail&apos;i dolu şekilde açar, siz gönderirsiniz.
           </p>
+          <MobileCalloutCycler items={DRAFT_CALLOUTS} />
         </div>
       )}
     </div>
