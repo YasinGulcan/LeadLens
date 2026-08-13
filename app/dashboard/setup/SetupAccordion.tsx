@@ -39,6 +39,8 @@ export function SetupAccordion({
   const [openKey, setOpenKey] = useState<SetupStepKey | null>(() => firstIncompleteKey(steps));
   const [manuallyExpanded, setManuallyExpanded] = useState(false);
   const prevDoneRef = useRef<Record<string, boolean>>(Object.fromEntries(steps.map((s) => [s.key, s.done])));
+  const cardRefs = useRef<Partial<Record<SetupStepKey, HTMLDivElement | null>>>({});
+  const isFirstRenderRef = useRef(true);
 
   useEffect(() => {
     const prevDone = prevDoneRef.current;
@@ -48,6 +50,19 @@ export function SetupAccordion({
     }
     prevDoneRef.current = Object.fromEntries(steps.map((s) => [s.key, s.done]));
   }, [steps, openKey]);
+
+  // Bir adım tıklanıp açıldığında ya da tamamlanıp bir sonrakine
+  // geçildiğinde, o adım sayfada görünmüyorsa (aşağıda kalmışsa)
+  // otomatik kaydırılır — sayfa ilk yüklendiğinde bu atlanır, aksi
+  // halde ilk açık adıma anında bir zıplama olurdu.
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (!openKey) return;
+    cardRefs.current[openKey]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [openKey]);
 
   const completedCount = steps.filter((s) => s.done).length;
 
@@ -77,34 +92,41 @@ export function SetupAccordion({
         const Icon = STEP_ICON[step.key];
         const isOpen = openKey === step.key;
         return (
-          <Card key={step.key} className="overflow-hidden p-0">
-            <button
-              type="button"
-              onClick={() => setOpenKey(isOpen ? null : step.key)}
-              className="flex w-full items-start gap-4 p-4 text-left transition-colors hover:bg-surface-hover"
-            >
-              <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
-                  step.done ? "bg-accent text-white" : "bg-surface-hover text-muted-foreground"
-                }`}
+          <div
+            key={step.key}
+            ref={(el) => {
+              cardRefs.current[step.key] = el;
+            }}
+          >
+            <Card className="overflow-hidden p-0">
+              <button
+                type="button"
+                onClick={() => setOpenKey(isOpen ? null : step.key)}
+                className="flex w-full items-start gap-4 p-4 text-left transition-colors hover:bg-surface-hover"
               >
-                {step.done ? <Check size={16} /> : i + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Icon size={15} className="shrink-0 text-muted-foreground" />
-                  <span className="text-sm font-medium text-foreground">{step.title}</span>
-                  <Badge variant={step.badgeVariant}>{step.badgeLabel}</Badge>
+                <span
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
+                    step.done ? "bg-accent text-white" : "bg-surface-hover text-muted-foreground"
+                  }`}
+                >
+                  {step.done ? <Check size={16} /> : i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Icon size={15} className="shrink-0 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">{step.title}</span>
+                    <Badge variant={step.badgeVariant}>{step.badgeLabel}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{step.why}</p>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{step.why}</p>
-              </div>
-              <ChevronDown
-                size={18}
-                className={`mt-1.5 shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-            {isOpen && <div className="border-t border-border p-4">{content[step.key]}</div>}
-          </Card>
+                <ChevronDown
+                  size={18}
+                  className={`mt-1.5 shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              {isOpen && <div className="border-t border-border p-4">{content[step.key]}</div>}
+            </Card>
+          </div>
         );
       })}
     </div>
