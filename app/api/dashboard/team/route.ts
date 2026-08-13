@@ -35,14 +35,18 @@ export async function POST(req: NextRequest) {
 
   // Davetliye Supabase Auth'un native "Invite user" mekanizmasıyla
   // tıklanabilir bir davet linki gönderiyoruz (Resend değil — bkz. Oturum
-  // 22/24/28 kararı: auth e-postaları Supabase'de). Link
-  // /api/auth/invite/callback'e düşüp oradan /confirm-join'e yönlendiriyor.
+  // 22/24/28 kararı: auth e-postaları Supabase'de). Şablon custom SMTP
+  // kurulana kadar özelleştirilemediği için (Dashboard'da kilitli)
+  // varsayılan {{ .ConfirmationURL }} kullanılıyor — o link Supabase'in
+  // kendi /verify uç noktasına gidip buraya (/invite/callback) oturum
+  // bilgisini URL fragment'ında bırakıyor, oradan /api/auth/invite/callback
+  // üzerinden /confirm-join'e düşüyor (bkz. app/invite/callback).
   // inviteUserByEmail hem auth.users kimliğini oluşturuyor hem maili
   // gönderiyor — ayrı bir createUser çağrısına gerek yok.
   const origin = new URL(req.url).origin;
   try {
     const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${origin}/api/auth/invite/callback`,
+      redirectTo: `${origin}/invite/callback`,
     });
     if (error || !data.user) throw error ?? new Error("Davet gönderilemedi.");
     await supabase.from("account_members").update({ user_id: data.user.id }).eq("id", member.id);

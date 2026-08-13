@@ -10,46 +10,47 @@ import { createPendingMembershipValue, PENDING_MEMBERSHIP_COOKIE } from "@/lib/p
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 /**
- * Davet e-postasındaki "Daveti Kabul Et" linkinin hedefi —
- * `{{ .SiteURL }}/api/auth/invite/callback?token_hash={{ .TokenHash }}&type=invite`
- * (Supabase Dashboard → Authentication → Email Templates → "Invite user",
- * bkz. docs/PROJECT_PLAN.md). Diğer akışlar (`/login` "Şifremi Unuttum")
- * kod-girişi (6 haneli) kullanıyor; davet linki tıklanabilir olsun istendiği
- * için burada token_hash tabanlı doğrudan link doğrulaması kullanılıyor —
- * `inviteUserByEmail` PKCE'yi desteklemediğinden bu, oturumu URL fragment'ı
- * olmadan sunucu tarafında kurmanın tek yolu.
+ * `app/invite/callback/InviteCallbackFlow.tsx`'in çağırdığı uç nokta —
+ * davet linkinin URL fragment'ından okuduğu `access_token`/`refresh_token`'ı
+ * buraya POST eder. Supabase'in "Invite user" şablonu şu an
+ * özelleştirilemediği için (custom SMTP kurulana kadar Dashboard'da
+ * subject/body kilitli) token_hash tabanlı doğrudan link kuramıyoruz;
+ * bunun yerine oturum tarayıcıda kurulup buraya POST ediliyor. Mantığın
+ * geri kalanı `/api/auth/password-reset/verify` ile aynı desen: sahip/üye/
+ * bekleyen-devir kontrolü → `PENDING_MEMBERSHIP_COOKIE` → `/confirm-join`.
  */
-export async function GET(req: NextRequest) {
-  const origin = new URL(req.url).origin;
-  const tokenHash = req.nextUrl.searchParams.get("token_hash");
-
-  const fail = (message: string) => {
-    const url = new URL("/", origin);
-    url.searchParams.set("connectError", message);
-    return NextResponse.redirect(url);
-  };
-
-  if (!tokenHash) return fail("Davet linki geçersiz ya da süresi dolmuş.");
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => null);
+  const accessToken = typeof body?.access_token === "string" ? body.access_token : "";
+  const refreshToken = typeof body?.refresh_token === "string" ? body.refresh_token : "";
+  if (!accessToken || !refreshToken) {
+    return NextResponse.json({ error: "Davet linki geçersiz ya da süresi dolmuş." }, { status: 400 });
+  }
 
   const client = await createSupabaseServerClient();
-  const { data: verifyData, error: verifyError } = await client.auth.verifyOtp({ token_hash: tokenHash, type: "invite" });
-  const email = verifyData?.user?.email?.toLowerCase();
-  if (verifyError || !email) return fail("Davet linki geçersiz ya da süresi dolmuş, tekrar davet isteyin.");
+  const { data: sessionData, error: sessionError } = await client.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  const email = sessionData?.user?.email?.toLowerCase();
+  if (sessionError || !email) {
+    return NextResponse.json({ error: "Davet linki geçersiz ya da süresi dolmuş, tekrar davet isteyin." }, { status: 400 });
+  }
 
   const ownerAccountId = await getAccountIdByOwnerEmail(email);
-  if (ownerAccountId) return NextResponse.redirect(new URL("/set-password", origin));
+  if (ownerAccountId) return NextResponse.json({ ok: true, redirect: "/set-password" });
 
   const member = await findAccountIdByMemberEmail(email);
   if (!member) {
     await client.auth.signOut();
-    return fail("Bu e-posta için bekleyen bir davet bulunamadı.");
+    return NextResponse.json({ error: "Bu e-posta için bekleyen bir davet bulunamadı." }, { status: 404 });
   }
 
   const pendingOwnerEmail = await getPendingOwnerEmail(member.accountId);
   const isTransfer = !!pendingOwnerEmail && pendingOwnerEmail === email;
 
   if (!isTransfer && member.acceptedAt) {
-    return NextResponse.redirect(new URL("/set-password", origin));
+    return NextResponse.json({ ok: true, redirect: "/set-password" });
   }
 
   // Bekleyen davet/devir — oturumu burada bırakmıyoruz, /confirm-join'de
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
     previousOwnerEmail,
   });
 
-  const res = NextResponse.redirect(new URL("/confirm-join", origin));
+  const res = NextResponse.json({ ok: true, redirect: "/confirm-join" });
   res.cookies.set(PENDING_MEMBERSHIP_COOKIE, pendingValue, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

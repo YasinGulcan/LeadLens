@@ -104,13 +104,16 @@ başına yeterli değil). Kayıt: `signUp()` (geçici rastgele şifreyle, gerçe
 `resetPasswordForEmail()` → `verifyOtp(type:'recovery')`. Ekip daveti
 (`addTeamMember`) diğer akışlardan farklı olarak kod değil **tıklanabilir
 link** kullanıyor: `admin.inviteUserByEmail` (auth kimliğini de kendisi
-oluşturuyor) → davetli linke tıklayınca `app/api/auth/invite/callback`
-`verifyOtp({token_hash, type:'invite'})` ile oturumu sunucu tarafında kurar
-(PKCE desteklenmediği için link doğrudan `token_hash` query param'ı taşıyacak
-şekilde e-posta şablonu özelleştirilmeli, bkz. PROJECT_PLAN.md) → aynı
-`/confirm-join` onay ekranına düşer. E-posta başka bir hesapta zaten
-kayıtlıysa `inviteUserByEmail` hata verir, o durumda eski
-`resetPasswordForEmail`'e düşülür. `lib/auth-identity.ts#
+oluşturuyor, varsayılan — özelleştirilemeyen, bkz. Gotchas — "Invite user"
+şablonunu gönderir). `inviteUserByEmail` PKCE desteklemediği için link
+tıklanınca oturum bilgisi Supabase'in `/verify` uç noktasından
+`app/invite/callback`'e **URL fragment'ında** (`#access_token=...`, sunucu
+göremez) gelir; `InviteCallbackFlow.tsx` (client) bunu okuyup
+`POST /api/auth/invite/callback`'e gönderir, route `setSession(...)` ile
+oturumu sunucu tarafında kurup aynı `/confirm-join` onay ekranına
+yönlendirir. E-posta başka bir hesapta zaten kayıtlıysa `inviteUserByEmail`
+hata verir, o durumda eski `resetPasswordForEmail`'e düşülür.
+`lib/auth-identity.ts#
 signInWithoutPassword` (kimliği zaten kurulu birinin gerçek şifresine
 dokunmadan, `admin.generateLink`+`verifyOtp` ile) `/confirm-join`'de
 kullanılıyor; `#provisionAndSignIn` sadece bu akışların normalde
@@ -180,6 +183,12 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
 - **Deneme süresi bitip aktif plan yoksa panel gerçekten kilitlenir**
   (`app/dashboard/layout.tsx#isLocked`) — ama seçilebilecek hiç plan yoksa
   (`pricing_plans` boşsa) kilit devre dışı kalır, kimse çıkışsız bırakılmaz.
+- **Supabase Dashboard'da Email Templates'in Subject/Body alanları custom
+  SMTP kurulana kadar tamamen kilitli** — "Invite user" gibi şablonların
+  metnini/linkini elle değiştirmek mümkün değil, sadece varsayılan içerik
+  kullanılabilir. Ekip daveti bu yüzden şablona hiç dokunmadan, fragment
+  tabanlı bir client sayfayla (`app/invite/callback`) çalışacak şekilde
+  kuruldu — bkz. §Auth.
 
 ## Bilinen açık riskler / borçlar
 
