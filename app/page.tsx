@@ -14,17 +14,17 @@ export const dynamic = "force-dynamic";
 const STEPS = [
   {
     icon: FileText,
-    title: "Form dolduruluyor",
+    title: "Form dolsun",
     body: "Müşteriniz web sitenizdeki iletişim/teklif formunu dolduruyor — ekstra bir entegrasyon kurmanıza gerek kalmaz.",
   },
   {
     icon: Sparkles,
-    title: "Otomatik analiz",
+    title: "Analiz otomatik çalışsın",
     body: "Site taranıyor, ürün kataloğunuzla eşleştiriliyor ve yapay zeka tarafından fit/niyet/değer/aciliyet kırılımıyla skorlanıyor.",
   },
   {
     icon: Send,
-    title: "Hazır raporla satışa gidiyor",
+    title: "Rapor satışa düşsün",
     body: "Ekibiniz skor, sektör, önerilen ürün ve satış temsilcisinin sorması gereken netleştirici soruyla birlikte lead'i alıyor.",
   },
 ];
@@ -187,16 +187,13 @@ export default async function HomePage({
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Nasıl çalışır</h2>
           </div>
           <div className="mt-12 grid gap-10 sm:grid-cols-3">
-            {STEPS.map((step, i) => {
+            {STEPS.map((step) => {
               const Icon = step.icon;
               return (
                 <div key={step.title}>
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
-                      {i + 1}
-                    </span>
-                    <Icon size={20} className="text-accent" />
-                  </div>
+                  <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-accent/15 text-accent">
+                    <Icon size={20} />
+                  </span>
                   <h3 className="mt-4 font-semibold text-foreground">{step.title}</h3>
                   <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
                 </div>
