@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Building2, Globe, Users } from "lucide-react";
 
 const TEAM_SIZE_LABEL: Record<string, string> = {
@@ -10,7 +11,7 @@ const TEAM_SIZE_LABEL: Record<string, string> = {
 /**
  * Salt okunur — bu adımın verileri `/onboarding`'de (tek seferlik, hesap
  * kurulurken) toplanıyor, panele erişebilen herkeste zaten tamamlanmış
- * durumda (bkz. lib/setup-checklist.ts). Ayrı bir düzenleme formu yok.
+ * durumda (bkz. lib/setup-checklist.ts). Düzenleme Ayarlar > Genel'e taşındı.
  */
 export function ProfileSummary({
   businessName,
@@ -31,7 +32,12 @@ export function ProfileSummary({
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">Hesabınızı kurarken topladığımız bilgiler:</p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">Hesabınızı kurarken topladığımız bilgiler:</p>
+        <Link href="/dashboard/settings" className="shrink-0 text-xs font-medium text-accent hover:underline">
+          Düzenle
+        </Link>
+      </div>
       <div className="space-y-2">
         {rows.map((row) => {
           const Icon = row.icon;

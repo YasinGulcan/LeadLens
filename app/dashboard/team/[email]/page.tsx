@@ -29,15 +29,21 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
   const ownerEmail = await getAccountOwnerEmail(session.accountId);
   const isOwner = ownerEmail === email;
 
-  const [joinedAtResult, profile] = await Promise.all([
+  const [joinedAtResult, nameResult, profile] = await Promise.all([
     isOwner
       ? supabase.from("gmail_connections").select("connected_at").eq("account_id", session.accountId).single()
       : supabase.from("account_members").select("accepted_at").eq("account_id", session.accountId).eq("email", email).single(),
+    isOwner
+      ? supabase.from("accounts").select("owner_full_name").eq("id", session.accountId).single()
+      : supabase.from("account_members").select("full_name").eq("account_id", session.accountId).eq("email", email).single(),
     getMemberProfileData(session.accountId, email),
   ]);
   const joinedAt = isOwner
     ? ((joinedAtResult.data as { connected_at: string } | null)?.connected_at ?? null)
     : ((joinedAtResult.data as { accepted_at: string | null } | null)?.accepted_at ?? null);
+  const fullName = isOwner
+    ? ((nameResult.data as { owner_full_name: string | null } | null)?.owner_full_name ?? null)
+    : ((nameResult.data as { full_name: string | null } | null)?.full_name ?? null);
 
   const { stats, assignedLeads, activity } = profile;
 
@@ -49,13 +55,14 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
 
       <div className="flex items-center gap-4">
         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xl font-semibold text-accent">
-          {email[0]!.toUpperCase()}
+          {(fullName || email)[0]!.toUpperCase()}
         </span>
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-foreground">{email}</h2>
+            <h2 className="text-xl font-bold text-foreground">{fullName || email}</h2>
             <Badge variant={isOwner ? "accent" : "neutral"}>{isOwner ? "Sahip" : "Üye"}</Badge>
           </div>
+          {fullName && <p className="mt-0.5 text-sm text-muted-foreground">{email}</p>}
           <p className="mt-1 text-xs text-muted-foreground">
             {joinedAt ? `Hesaba katıldı: ${new Date(joinedAt).toLocaleDateString("tr-TR")}` : "Katılma tarihi bilinmiyor"}
           </p>

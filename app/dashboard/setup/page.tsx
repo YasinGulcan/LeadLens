@@ -87,6 +87,10 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
                 initialBusinessName={account?.business_name ?? ""}
                 initialSlug={account?.slug ?? ""}
                 initialLeadEmailSubjects={account?.lead_email_subjects ?? []}
+                initialBusinessSector={account?.business_sector ?? null}
+                initialWebsiteUrl={account?.website_url ?? null}
+                initialTeamSize={account?.team_size ?? null}
+                showProfileFields={false}
               />
             ),
             "knowledge-base": (

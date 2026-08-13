@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 const TABS = [
   { id: "genel", label: "Genel" },
+  { id: "hesabim", label: "Hesabım" },
   { id: "prompt", label: "Sistem Promptu" },
   { id: "plan", label: "Plan" },
 ] as const;

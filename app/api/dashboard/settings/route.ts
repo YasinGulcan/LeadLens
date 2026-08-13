@@ -3,8 +3,9 @@ import { getSessionAccountId } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const TEAM_SIZES = ["solo", "2-5", "6-20", "20+"] as const;
 
-/** `/dashboard`'daki ayarlar formu — işletme adı, form adresi (slug), lead e-postası başlığı. */
+/** `/dashboard`'daki ayarlar formu — işletme adı, form adresi (slug), lead e-postası başlığı, ve (isteğe bağlı) onboarding'de toplanan sektör/site/ekip büyüklüğü. */
 export async function POST(req: NextRequest) {
   const accountId = await getSessionAccountId();
   if (!accountId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,6 +22,9 @@ export async function POST(req: NextRequest) {
         )
       )
     : [];
+  const businessSector = typeof body?.businessSector === "string" ? body.businessSector.trim() : "";
+  const websiteUrl = typeof body?.websiteUrl === "string" ? body.websiteUrl.trim() : "";
+  const teamSize = typeof body?.teamSize === "string" ? body.teamSize : "";
 
   if (!businessName) return NextResponse.json({ error: "İşletme adı zorunlu." }, { status: 400 });
   if (!slug || !SLUG_PATTERN.test(slug)) {
@@ -32,6 +36,9 @@ export async function POST(req: NextRequest) {
   if (leadEmailSubjects.length === 0) {
     return NextResponse.json({ error: "En az bir lead e-postası başlığı girilmeli." }, { status: 400 });
   }
+  if (teamSize && !TEAM_SIZES.includes(teamSize as (typeof TEAM_SIZES)[number])) {
+    return NextResponse.json({ error: "Geçersiz ekip büyüklüğü." }, { status: 400 });
+  }
 
   const { error } = await supabase
     .from("accounts")
@@ -39,6 +46,9 @@ export async function POST(req: NextRequest) {
       business_name: businessName,
       slug,
       lead_email_subjects: leadEmailSubjects,
+      business_sector: businessSector || null,
+      website_url: websiteUrl || null,
+      team_size: teamSize || null,
     })
     .eq("id", accountId);
 

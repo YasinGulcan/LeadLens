@@ -253,6 +253,22 @@ export async function acceptTeamMembership(accountId: string, email: string): Pr
     .is("accepted_at", null);
 }
 
+/** Kişinin kendi profilinde/panelde gösterilen adı — sahipse accounts.owner_full_name, üyeyse account_members.full_name güncellenir. */
+export async function updateDisplayName(accountId: string, email: string, fullName: string): Promise<void> {
+  const ownerEmail = await getAccountOwnerEmail(accountId);
+  if (ownerEmail === email) {
+    const { error } = await supabase.from("accounts").update({ owner_full_name: fullName }).eq("id", accountId);
+    if (error) throw new Error(error.message);
+    return;
+  }
+  const { error } = await supabase
+    .from("account_members")
+    .update({ full_name: fullName })
+    .eq("account_id", accountId)
+    .eq("email", email);
+  if (error) throw new Error(error.message);
+}
+
 export async function removeTeamMember(accountId: string, memberId: string): Promise<void> {
   const { error } = await supabase.from("account_members").delete().eq("id", memberId).eq("account_id", accountId);
   if (error) throw new Error(error.message);

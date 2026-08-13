@@ -10,6 +10,8 @@ import { listSavedPrompts } from "@/lib/prompt-library";
 import { Card, Button } from "@/components/ui";
 import { SettingsForm } from "../SettingsForm";
 import { PromptForm } from "../PromptForm";
+import { ProfileNameForm } from "../ProfileNameForm";
+import { ChangePasswordForm } from "../ChangePasswordForm";
 import { DangerZone } from "./DangerZone";
 import { SettingsTabs } from "./SettingsTabs";
 import { PricingSection } from "../../PricingSection";
@@ -26,7 +28,9 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
   const [{ data: account }, isOwner, activePlans] = await Promise.all([
     supabase
       .from("accounts")
-      .select("business_name, slug, lead_email_subjects, created_at, active_plan_id, custom_system_prompt")
+      .select(
+        "business_name, slug, lead_email_subjects, created_at, active_plan_id, custom_system_prompt, business_sector, website_url, team_size"
+      )
       .eq("id", accountId)
       .single(),
     isAccountOwner(accountId, session.email),
@@ -34,10 +38,27 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
   ]);
 
   const showPlanTab = activePlans.length > 0;
-  const activeTab = tab === "plan" && showPlanTab ? "plan" : tab === "prompt" ? "prompt" : "genel";
+  const activeTab =
+    tab === "plan" && showPlanTab ? "plan" : tab === "prompt" ? "prompt" : tab === "hesabim" ? "hesabim" : "genel";
   const savedPrompts = activeTab === "prompt" ? await listSavedPrompts(accountId) : [];
 
   if (!account) redirect("/");
+
+  let myFullName: string | null = null;
+  if (activeTab === "hesabim") {
+    if (isOwner) {
+      const { data } = await supabase.from("accounts").select("owner_full_name").eq("id", accountId).single();
+      myFullName = data?.owner_full_name ?? null;
+    } else {
+      const { data } = await supabase
+        .from("account_members")
+        .select("full_name")
+        .eq("account_id", accountId)
+        .eq("email", session.email)
+        .maybeSingle();
+      myFullName = data?.full_name ?? null;
+    }
+  }
 
   const trial = getTrialInfo(account.created_at);
   let activePlanName: string | null = null;
@@ -74,12 +95,30 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
             savedPrompts={savedPrompts}
           />
         </div>
+      ) : activeTab === "hesabim" ? (
+        <div className="mt-6 space-y-10">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Ad Soyad</h3>
+            <div className="mt-3">
+              <ProfileNameForm initialFullName={myFullName} />
+            </div>
+          </div>
+          <div className="border-t border-border pt-8">
+            <h3 className="text-sm font-semibold text-foreground">Şifre</h3>
+            <div className="mt-3">
+              <ChangePasswordForm />
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           <SettingsForm
             initialBusinessName={account.business_name}
             initialSlug={account.slug}
             initialLeadEmailSubjects={account.lead_email_subjects}
+            initialBusinessSector={account.business_sector}
+            initialWebsiteUrl={account.website_url}
+            initialTeamSize={account.team_size}
           />
 
           <div className="mt-8">
