@@ -115,7 +115,7 @@ export function PricingSection({
                 variant={isActive ? "secondary" : plan.isFeatured ? "primary" : "secondary"}
                 className="mt-6 w-full justify-center"
               >
-                {isActive ? "Aktif Planınız" : plan.ctaLabel}
+                {isActive ? "Aktif Planınız" : activePlanId ? "Bu Plana Geç" : plan.ctaLabel}
               </Button>
             </Card>
           );
