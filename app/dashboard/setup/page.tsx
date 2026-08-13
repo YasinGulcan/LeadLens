@@ -115,16 +115,13 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
       <div className="mt-10 border-t border-border pt-6">
         <CardTitle>Nasıl çalışır</CardTitle>
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          {HOW_IT_WORKS.map((step, i) => {
+          {HOW_IT_WORKS.map((step) => {
             const Icon = step.icon;
             return (
               <div key={step.title}>
-                <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-white">
-                    {i + 1}
-                  </span>
-                  <Icon size={15} className="text-accent" />
-                </div>
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
+                  <Icon size={16} />
+                </span>
                 <p className="mt-2 text-sm font-medium text-foreground">{step.title}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{step.body}</p>
               </div>
