@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
-import { getAccountById, isAccountOwner, listTeamMembers, setPendingOwnerTransfer } from "@/lib/accounts";
-import { sendOwnershipTransferInviteEmail } from "@/lib/team-emails";
+import { isAccountOwner, listTeamMembers, setPendingOwnerTransfer } from "@/lib/accounts";
 import { logActivity } from "@/lib/activity-log";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 /** `/dashboard/team`'deki "Sahipliği Devret" butonu — sadece mevcut sahip başlatabilir. */
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -24,11 +24,14 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   }
   await logActivity(session.accountId, session.email, "Sahiplik devrini başlattı", member.email);
 
+  // Bildirim artık Supabase Auth'un kendi şifre sıfırlama koduyla gidiyor
+  // (Resend değil) — kişinin zaten geçerli bir şifresi olsa da normal
+  // girişi (isAccountOwner kontrolündeki pending-transfer kontrolü) zaten
+  // /confirm-join'e yönlendirir, bu mail sadece "gidip giriş yapın" nudge'ı.
   try {
-    const account = await getAccountById(session.accountId);
-    if (account) {
-      await sendOwnershipTransferInviteEmail(account.businessName, member.email);
-    }
+    const client = await createSupabaseServerClient();
+    const { error } = await client.auth.resetPasswordForEmail(member.email);
+    if (error) throw error;
   } catch (err) {
     console.error(`Sahiplik devri maili gönderilemedi (${member.email}):`, err instanceof Error ? err.message : err);
   }

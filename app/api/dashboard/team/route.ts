@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { getSessionInfo } from "@/lib/account-session";
-import { addTeamMember, getAccountById, isAccountOwner } from "@/lib/accounts";
-import { sendTeamInviteEmail } from "@/lib/team-emails";
+import { addTeamMember, isAccountOwner } from "@/lib/accounts";
 import { logActivity } from "@/lib/activity-log";
 import { supabase } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -51,13 +51,17 @@ export async function POST(req: NextRequest) {
     console.error(`Davetli için auth kimliği oluşturulamadı (${email}):`, err instanceof Error ? err.message : err);
   }
 
+  // Davetliye "giriş yapabilirsiniz" bildirimini artık Supabase Auth'un kendi
+  // şifre sıfırlama koduyla gönderiyoruz (Resend değil — bkz. Oturum 22/24
+  // kararı: auth e-postaları Supabase'de, Resend sadece form/lead tarafında
+  // kalsın). Davetli /login → "Şifremi Unuttum"a bu koduyla girip
+  // /confirm-join'e (bkz. password-reset/verify) düşüyor.
   try {
-    const account = await getAccountById(session.accountId);
-    if (account) {
-      await sendTeamInviteEmail(account.businessName, email);
-    }
+    const client = await createSupabaseServerClient();
+    const { error } = await client.auth.resetPasswordForEmail(email);
+    if (error) throw error;
   } catch (err) {
-    // Davet kaydı yapıldı ama mail gitmedi — sessizce loglanır, kullanıcı yine de linki paylaşabilir.
+    // Davet kaydı yapıldı ama mail gitmedi — sessizce loglanır, hesap sahibi yine de kişiye elle haber verebilir.
     console.error(`Davet maili gönderilemedi (${email}):`, err instanceof Error ? err.message : err);
   }
 
