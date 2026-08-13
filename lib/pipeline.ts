@@ -5,8 +5,8 @@ import { sendLeadNotification } from "./resend";
 import { scrapeMarkdown } from "./firecrawl";
 import { stripBoilerplate, safeTruncate } from "./clean";
 import { matchProductChunks } from "./match";
-import { analyzeLead } from "./claude";
-import { checkSearchRanking, checkAiVisibility, generateSearchKeyword } from "./visibility";
+import { analyzeLead, checkAiVisibility, generateSearchKeyword } from "./ai";
+import { checkSearchRanking } from "./visibility";
 import { rankTier } from "./rank-tier";
 
 // PROJECT_PLAN.md riskler tablosu: "Lead hacmi aniden artarsa" → her adım

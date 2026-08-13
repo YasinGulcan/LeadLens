@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getResendClient } from "@/lib/resend";
 import { INBOUND_EMAIL_DOMAIN, parseInboundToken } from "@/lib/inbound-email";
-import { extractLeadFieldsFromEmail } from "@/lib/claude";
+import { extractLeadFieldsFromEmail } from "@/lib/ai";
 import { createLeadFromSubmission } from "@/lib/pipeline";
 import { supabase } from "@/lib/supabase";
 

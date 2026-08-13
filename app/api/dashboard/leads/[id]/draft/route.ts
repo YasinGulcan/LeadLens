@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { getAccountById } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
-import { generateDraftReply, type DraftTone } from "@/lib/claude";
+import { generateDraftReply } from "@/lib/ai";
+import type { DraftTone } from "@/lib/ai-schemas";
 
 const DRAFT_TONES: readonly DraftTone[] = ["resmi", "samimi", "teknik"];
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AnalysisSchema, computeOverallScore, SCORE_WEIGHTS } from "./claude";
+import { AnalysisSchema, computeOverallScore, SCORE_WEIGHTS } from "./ai-schemas";
 
 const VALID_SCORE_BREAKDOWN = {
   fit: { score: 85, reason: "İşletme, ürün bilgi tabanındaki hedef kitleyle (KOBİ e-ticaret) birebir örtüşüyor." },

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
 import { matchProductChunks } from "@/lib/match";
-import { generateDeepAnalysis } from "@/lib/claude";
+import { generateDeepAnalysis } from "@/lib/ai";
 
 /**
  * Lead detay sayfasındaki "Derinlemesine Analiz Oluştur" — istendiğinde
