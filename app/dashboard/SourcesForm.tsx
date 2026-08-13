@@ -52,11 +52,13 @@ export function SourcesForm() {
   const [progress, setProgress] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pageFilter, setPageFilter] = useState("");
 
   function reset() {
     setStep({ kind: "input" });
     setUrl("");
     setLabel("");
+    setPageFilter("");
   }
 
   async function handleDiscover(e: React.FormEvent) {
@@ -75,6 +77,7 @@ export function SourcesForm() {
 
       if (data.mode === "sitemap") {
         const pages = data.pages as SitemapPage[];
+        setPageFilter("");
         setStep({ kind: "sitemap", pages, selected: new Set(pages.map((p) => p.url)) });
       } else {
         setStep({ kind: "single", page: data.page as SinglePreview });
@@ -142,12 +145,27 @@ export function SourcesForm() {
 
   if (step.kind === "sitemap") {
     const allSelected = step.selected.size === step.pages.length;
+    const normalizedFilter = pageFilter.trim().toLowerCase();
+    const filteredPages = normalizedFilter
+      ? step.pages.filter(
+          (p) => p.url.toLowerCase().includes(normalizedFilter) || (p.title?.toLowerCase().includes(normalizedFilter) ?? false)
+        )
+      : step.pages;
+
     return (
       <div className="mt-3 max-w-2xl overflow-hidden rounded-lg border border-border bg-surface">
         <div className="border-b border-border px-4 py-3">
           <p className="text-sm font-medium">
             {step.pages.length} sayfa bulundu — bilgi tabanına eklenecek sayfaları seçin.
           </p>
+          {step.pages.length > 8 && (
+            <input
+              value={pageFilter}
+              onChange={(e) => setPageFilter(e.target.value)}
+              placeholder="Sayfa başlığı veya URL'de ara..."
+              className="mt-2 w-full rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground focus:border-accent focus:outline-none"
+            />
+          )}
           <div className="mt-2 flex items-center justify-between text-xs">
             <button
               type="button"
@@ -169,7 +187,10 @@ export function SourcesForm() {
         </div>
 
         <ul className="max-h-80 divide-y divide-border overflow-y-auto">
-          {step.pages.map((page) => {
+          {filteredPages.length === 0 && (
+            <li className="px-4 py-6 text-center text-xs text-muted-foreground">Eşleşen sayfa bulunamadı.</li>
+          )}
+          {filteredPages.map((page) => {
             const checked = step.selected.has(page.url);
             return (
               <li key={page.url}>
