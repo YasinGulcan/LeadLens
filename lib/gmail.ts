@@ -338,8 +338,26 @@ export interface ParsedLeadEmail {
   rawBody: string;
 }
 
+// sendFormSubmissionEmail'in text/plain şablonundaki sabit alan sırası —
+// extractField'ın bir alanın değerinin nerede bittiğini (bir sonraki alan
+// başlayana kadar) bilebilmesi için gerekli.
+const TEMPLATE_FIELD_LABELS = ["İsim", "Telefon", "E-posta", "Website", "Mesaj", "Onay"];
+
+/**
+ * `label:` sonrası değeri, bir SONRAKİ bilinen alan satırı başlayana (ya da
+ * gövde bitene) kadar yakalar — sadece bir sonraki satıra kadar değil.
+ * "Mesaj" alanı bir textarea'dan geldiği için müşteri Enter'a basmışsa
+ * birden fazla satır olabilir; eski regex (`.` yeni satırı eşlemiyor) bu
+ * durumda ilk satırdan sonrasını sessizce kaybediyordu.
+ */
 function extractField(body: string, label: string): string | null {
-  const match = body.match(new RegExp(`^${label}:\\s*(.+)$`, "im"));
+  const otherLabels = TEMPLATE_FIELD_LABELS.filter((l) => l !== label).join("|");
+  // "label:" sonrası SADECE aynı satırdaki boşluk kırpılır (\s* değil) —
+  // aksi halde değer boşsa greedy \s* ayırıcı \n'i de yutar ve aşağıdaki
+  // lookahead bir sonraki alanı hiç bulamaz. Bitiş: bir sonraki bilinen
+  // alan satırı ya da (multiline modda $'ın her satır sonunda eşleşmesini
+  // önlemek için) gerçek gövde sonu — (?![\s\S]).
+  const match = body.match(new RegExp(`^${label}:[^\\S\\n]*([\\s\\S]*?)(?=\\n(?:${otherLabels}):|(?![\\s\\S]))`, "im"));
   const value = match?.[1]?.trim();
   return value ? value : null;
 }
