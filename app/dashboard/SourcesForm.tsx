@@ -144,13 +144,16 @@ export function SourcesForm() {
   }
 
   if (step.kind === "sitemap") {
-    const allSelected = step.selected.size === step.pages.length;
     const normalizedFilter = pageFilter.trim().toLowerCase();
     const filteredPages = normalizedFilter
       ? step.pages.filter(
           (p) => p.url.toLowerCase().includes(normalizedFilter) || (p.title?.toLowerCase().includes(normalizedFilter) ?? false)
         )
       : step.pages;
+    // "Tümünü seç"/"Seçimi kaldır" sadece o an GÖRÜNEN (filtrelenmiş) sayfaları
+    // etkiler — filtre aktifken tüm sayfaları (görünmeyenler dahil) seçip
+    // "N / toplam" sayacını yanıltıcı şekilde artırmasın diye.
+    const allFilteredSelected = filteredPages.length > 0 && filteredPages.every((p) => step.selected.has(p.url));
 
     return (
       <div className="mt-3 max-w-2xl overflow-hidden rounded-lg border border-border bg-surface">
@@ -170,15 +173,19 @@ export function SourcesForm() {
             <button
               type="button"
               onClick={() =>
-                setStep((prev) =>
-                  prev.kind === "sitemap"
-                    ? { ...prev, selected: allSelected ? new Set() : new Set(prev.pages.map((p) => p.url)) }
-                    : prev
-                )
+                setStep((prev) => {
+                  if (prev.kind !== "sitemap") return prev;
+                  const next = new Set(prev.selected);
+                  for (const p of filteredPages) {
+                    if (allFilteredSelected) next.delete(p.url);
+                    else next.add(p.url);
+                  }
+                  return { ...prev, selected: next };
+                })
               }
               className="font-medium text-muted-foreground underline hover:text-foreground"
             >
-              {allSelected ? "Seçimi kaldır" : "Tümünü seç"}
+              {allFilteredSelected ? "Seçimi kaldır" : "Tümünü seç"}
             </button>
             <span className="rounded-full bg-accent/10 px-2.5 py-1 font-medium text-accent">
               {step.selected.size} / {step.pages.length} sayfa seçildi
