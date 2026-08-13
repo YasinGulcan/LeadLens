@@ -16,10 +16,13 @@ export function PromptForm({
   initialCustomPrompt,
   defaultPrompt,
   savedPrompts,
+  isOwner = true,
 }: {
   initialCustomPrompt: string | null;
   defaultPrompt: string;
   savedPrompts: SavedPrompt[];
+  /** AI'ın davranışını hesap genelinde değiştiren bir ayar — sadece hesap sahibi düzenleyebilir. */
+  isOwner?: boolean;
 }) {
   const router = useRouter();
   const { confirm, dialog } = useConfirm();
@@ -113,7 +116,9 @@ export function PromptForm({
         üsluba/önceliklere dikkat edeceğidir.{" "}
         <strong className="text-foreground">Şu an {usingCustom ? "kendi özel promptunuz" : "varsayılan prompt"}</strong> kullanılıyor.
       </p>
+      {!isOwner && <p className="text-xs text-muted-foreground">Sadece hesap sahibi sistem promptunu düzenleyebilir.</p>}
 
+      <fieldset disabled={!isOwner} className="space-y-4 disabled:opacity-60">
       <textarea
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -177,6 +182,7 @@ export function PromptForm({
           </ul>
         </Card>
       )}
+      </fieldset>
       {dialog}
     </div>
   );

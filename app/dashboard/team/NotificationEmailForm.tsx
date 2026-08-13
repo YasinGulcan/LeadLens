@@ -4,7 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
 
-export function NotificationEmailForm({ initialNotificationEmail }: { initialNotificationEmail: string | null }) {
+export function NotificationEmailForm({
+  initialNotificationEmail,
+  isOwner = true,
+}: {
+  initialNotificationEmail: string | null;
+  isOwner?: boolean;
+}) {
   const router = useRouter();
   const [notificationEmail, setNotificationEmail] = useState(initialNotificationEmail ?? "");
   const [pending, setPending] = useState(false);
@@ -13,6 +19,7 @@ export function NotificationEmailForm({ initialNotificationEmail }: { initialNot
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!isOwner) return;
     setPending(true);
     setError(null);
     setMessage(null);
@@ -41,6 +48,8 @@ export function NotificationEmailForm({ initialNotificationEmail }: { initialNot
         kopyası — lead&apos;in ilk yakalandığı e-posta — teknik nedenlerle her zaman bağlı hesabın kendi kutusuna
         gitmek zorunda, değiştirilemez.)
       </p>
+      {!isOwner && <p className="text-xs text-muted-foreground">Sadece hesap sahibi bu adresi değiştirebilir.</p>}
+      <fieldset disabled={!isOwner} className="space-y-2 disabled:opacity-60">
       <input
         type="email"
         value={notificationEmail}
@@ -53,6 +62,7 @@ export function NotificationEmailForm({ initialNotificationEmail }: { initialNot
       <Button type="submit" variant="primary" disabled={pending}>
         {pending ? "Kaydediliyor..." : "Kaydet"}
       </Button>
+      </fieldset>
     </form>
   );
 }

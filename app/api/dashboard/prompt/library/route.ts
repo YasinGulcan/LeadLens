@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionAccountId } from "@/lib/account-session";
+import { getSessionInfo } from "@/lib/account-session";
+import { isAccountOwner } from "@/lib/accounts";
 import { saveNamedPrompt } from "@/lib/prompt-library";
 
-/** `/dashboard/prompt`'taki "Farklı Kaydet" — mevcut aktif prompta dokunmadan, metni isimlendirip kütüphaneye ekler. */
+/** `/dashboard/prompt`'taki "Farklı Kaydet" — mevcut aktif prompta dokunmadan, metni isimlendirip kütüphaneye ekler. Sadece hesap sahibi düzenleyebilir. */
 export async function POST(req: NextRequest) {
-  const accountId = await getSessionAccountId();
-  if (!accountId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getSessionInfo();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isAccountOwner(session.accountId, session.email))) {
+    return NextResponse.json({ error: "Sadece hesap sahibi sistem promptunu düzenleyebilir." }, { status: 403 });
+  }
+  const accountId = session.accountId;
 
   const body = await req.json().catch(() => null);
   const name = typeof body?.name === "string" ? body.name.trim() : "";

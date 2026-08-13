@@ -180,6 +180,16 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
 - **Silme yetkisi sadece hesap sahibinde**, satış-durumu/atama güncellemesi
   herhangi bir kabul etmiş üyede, not silme yazan kişi veya sahipte — üç
   farklı yetki seviyesi, kasıtlı.
+- **Sahip/üye yetki sınırı (2026-08-13):** plan satın alma, hesap ayarları
+  (işletme adı/slug/bildirim e-postası/sektör/website/ekip büyüklüğü/sistem
+  promptu), ekip yönetimi, Gmail bağlantısı ve tüm silme işlemleri sadece
+  hesap sahibinde; lead işlemleri (durum/atama/not/taslak/derin analiz) ve
+  bilgi tabanına kaynak **ekleme**/yeniden tarama tüm ekibe açık (kasıtlı —
+  günlük operasyon işi, yıkıcı değil; sadece kaynak/chunk **silme** sahipte
+  kalıyor). `isAccountOwner` kontrolü backend'de, `isOwner`/`canPurchase`
+  prop'ları frontend'de (`<fieldset disabled>` + "Sadece hesap sahibi..."
+  notu) — aynı desen `lib/accounts.ts#isAccountOwner`'ı kullanan 10+ route'ta
+  tekrarlanıyor.
 - **Deneme süresi bitip aktif plan yoksa panel gerçekten kilitlenir**
   (`app/dashboard/layout.tsx#isLocked`) — ama seçilebilecek hiç plan yoksa
   (`pricing_plans` boşsa) kilit devre dışı kalır, kimse çıkışsız bırakılmaz.

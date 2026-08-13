@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionAccountId } from "@/lib/account-session";
+import { getSessionInfo } from "@/lib/account-session";
+import { isAccountOwner } from "@/lib/accounts";
 import { deleteSavedPrompt } from "@/lib/prompt-library";
 
+/** Sadece hesap sahibi kütüphaneden prompt silebilir. */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const accountId = await getSessionAccountId();
-  if (!accountId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getSessionInfo();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isAccountOwner(session.accountId, session.email))) {
+    return NextResponse.json({ error: "Sadece hesap sahibi sistem promptunu düzenleyebilir." }, { status: 403 });
+  }
+  const accountId = session.accountId;
 
   const { id } = await params;
 

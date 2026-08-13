@@ -43,11 +43,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!(await isAuthorizedForAccount(accountId, session.email))) redirect("/");
   if (!account.onboarded_at) redirect("/onboarding");
 
+  const isOwner = await isAccountOwner(accountId, session.email);
   // "Kabul edildi" işareti sadece taze bir Google girişinde değil, panele her
   // başarılı erişimde de tetiklenir — aksi halde tarayıcıda zaten geçerli bir
   // oturum çerezi olan (yeniden davet sonrası hiç OAuth'a hiç uğramayan) bir
   // üye panelde gezinirken "bekliyor" olarak görünmeye devam ederdi.
-  if (!(await isAccountOwner(accountId, session.email))) {
+  if (!isOwner) {
     await acceptTeamMembership(accountId, session.email);
   }
 
@@ -66,7 +67,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <span>Form adresi: /form/{account.slug}</span>
           <NotificationBell initialNotifications={notifications} initialUnreadCount={unreadCount} />
         </div>
-        <main className="px-8 py-8">{isLocked ? <TrialLockScreen plans={activePlans} /> : children}</main>
+        <main className="px-8 py-8">{isLocked ? <TrialLockScreen plans={activePlans} isOwner={isOwner} /> : children}</main>
       </div>
     </div>
   );

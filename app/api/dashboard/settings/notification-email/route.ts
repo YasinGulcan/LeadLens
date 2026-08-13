@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionAccountId } from "@/lib/account-session";
+import { getSessionInfo } from "@/lib/account-session";
+import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Ekip sayfasındaki "Bildirim E-postası" formu — analiz raporunun gideceği adresi günceller. */
+/** Ekip sayfasındaki "Bildirim E-postası" formu — analiz raporunun gideceği adresi günceller. Sadece hesap sahibi düzenleyebilir. */
 export async function POST(req: NextRequest) {
-  const accountId = await getSessionAccountId();
-  if (!accountId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getSessionInfo();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isAccountOwner(session.accountId, session.email))) {
+    return NextResponse.json({ error: "Sadece hesap sahibi bu adresi değiştirebilir." }, { status: 403 });
+  }
+  const accountId = session.accountId;
 
   const body = await req.json().catch(() => null);
   const notificationEmailRaw = typeof body?.notificationEmail === "string" ? body.notificationEmail.trim() : "";

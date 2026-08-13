@@ -19,10 +19,13 @@ export function PricingSection({
   plans,
   hasSession = false,
   activePlanId = null,
+  canPurchase = true,
 }: {
   plans: PricingPlan[];
   hasSession?: boolean;
   activePlanId?: string | null;
+  /** Panel içinden (oturumlu) çağrıldığında plan satın alma sadece hesap sahibine açık — üyeler kartları görür ama tıklayamaz. */
+  canPurchase?: boolean;
 }) {
   const [selected, setSelected] = useState<PricingPlan | null>(null);
 
@@ -30,6 +33,9 @@ export function PricingSection({
 
   return (
     <>
+      {hasSession && !canPurchase && (
+        <p className="mx-auto mt-8 max-w-md text-center text-sm text-muted-foreground">Sadece hesap sahibi plan seçebilir/değiştirebilir.</p>
+      )}
       <div
         className={`mx-auto mt-12 grid max-w-4xl gap-5 ${
           plans.length === 1 ? "max-w-sm" : plans.length === 2 ? "max-w-2xl sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"
@@ -37,28 +43,31 @@ export function PricingSection({
       >
         {plans.map((plan) => {
           const isActive = plan.id === activePlanId;
+          const canClick = !isActive && canPurchase;
           return (
             <Card
               key={plan.id}
-              role={isActive ? undefined : "button"}
-              tabIndex={isActive ? undefined : 0}
-              onClick={isActive ? undefined : () => setSelected(plan)}
+              role={canClick ? "button" : undefined}
+              tabIndex={canClick ? 0 : undefined}
+              onClick={canClick ? () => setSelected(plan) : undefined}
               onKeyDown={
-                isActive
-                  ? undefined
-                  : (e) => {
+                canClick
+                  ? (e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
                         setSelected(plan);
                       }
                     }
+                  : undefined
               }
               className={`relative flex flex-col p-6 transition-all duration-200 ease-out ${
                 isActive
                   ? "border-success/40 shadow-lg shadow-success/10"
-                  : `cursor-pointer hover:-translate-y-1 hover:shadow-lg ${
-                      plan.isFeatured ? "border-accent/40 shadow-lg shadow-accent/10 sm:scale-[1.03]" : "hover:border-accent/40"
-                    }`
+                  : canClick
+                    ? `cursor-pointer hover:-translate-y-1 hover:shadow-lg ${
+                        plan.isFeatured ? "border-accent/40 shadow-lg shadow-accent/10 sm:scale-[1.03]" : "hover:border-accent/40"
+                      }`
+                    : "opacity-70"
               }`}
             >
               {isActive ? (
@@ -103,19 +112,25 @@ export function PricingSection({
 
               <Button
                 type="button"
-                disabled={isActive}
+                disabled={!canClick}
                 onClick={
-                  isActive
-                    ? undefined
-                    : (e) => {
+                  canClick
+                    ? (e) => {
                         e.stopPropagation();
                         setSelected(plan);
                       }
+                    : undefined
                 }
                 variant={isActive ? "secondary" : plan.isFeatured ? "primary" : "secondary"}
                 className="mt-6 w-full justify-center"
               >
-                {isActive ? "Aktif Planınız" : activePlanId ? "Bu Plana Geç" : plan.ctaLabel}
+                {isActive
+                  ? "Aktif Planınız"
+                  : !canPurchase
+                    ? "Sahip Değiştirebilir"
+                    : activePlanId
+                      ? "Bu Plana Geç"
+                      : plan.ctaLabel}
               </Button>
             </Card>
           );

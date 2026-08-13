@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionAccountId } from "@/lib/account-session";
+import { getSessionInfo } from "@/lib/account-session";
+import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const TEAM_SIZES = ["solo", "2-5", "6-20", "20+"] as const;
 
-/** `/dashboard`'daki ayarlar formu — işletme adı, form adresi (slug), lead e-postası başlığı, ve (isteğe bağlı) onboarding'de toplanan sektör/site/ekip büyüklüğü. */
+/** `/dashboard`'daki ayarlar formu — işletme adı, form adresi (slug), lead e-postası başlığı, ve (isteğe bağlı) onboarding'de toplanan sektör/site/ekip büyüklüğü. Sadece hesap sahibi düzenleyebilir. */
 export async function POST(req: NextRequest) {
-  const accountId = await getSessionAccountId();
-  if (!accountId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getSessionInfo();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isAccountOwner(session.accountId, session.email))) {
+    return NextResponse.json({ error: "Sadece hesap sahibi bu ayarları düzenleyebilir." }, { status: 403 });
+  }
+  const accountId = session.accountId;
 
   const body = await req.json().catch(() => null);
   const businessName = typeof body?.businessName === "string" ? body.businessName.trim() : "";

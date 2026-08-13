@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
+import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
@@ -19,6 +20,9 @@ export async function POST(req: NextRequest) {
   if (!planId) return NextResponse.json({ error: "planId zorunlu." }, { status: 400 });
 
   const session = await getSessionInfo();
+  if (session && !(await isAccountOwner(session.accountId, session.email))) {
+    return NextResponse.json({ error: "Sadece hesap sahibi plan satın alabilir." }, { status: 403 });
+  }
 
   let name: string;
   let email: string;

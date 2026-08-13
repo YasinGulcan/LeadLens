@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionAccountId } from "@/lib/account-session";
+import { getSessionInfo } from "@/lib/account-session";
+import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 
-/** `/dashboard/prompt`'taki "Sistem Promptu" formu — boş gönderilirse null yazılır (varsayılana döner). */
+/** `/dashboard/prompt`'taki "Sistem Promptu" formu — boş gönderilirse null yazılır (varsayılana döner). Sadece hesap sahibi düzenleyebilir. */
 export async function POST(req: NextRequest) {
-  const accountId = await getSessionAccountId();
-  if (!accountId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getSessionInfo();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isAccountOwner(session.accountId, session.email))) {
+    return NextResponse.json({ error: "Sadece hesap sahibi sistem promptunu düzenleyebilir." }, { status: 403 });
+  }
+  const accountId = session.accountId;
 
   const body = await req.json().catch(() => null);
   const customSystemPrompt = typeof body?.customSystemPrompt === "string" ? body.customSystemPrompt.trim() : "";

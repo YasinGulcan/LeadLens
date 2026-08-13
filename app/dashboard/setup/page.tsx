@@ -91,6 +91,7 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
                 initialWebsiteUrl={account?.website_url ?? null}
                 initialTeamSize={account?.team_size ?? null}
                 showProfileFields={false}
+                isOwner={isOwner}
               />
             ),
             "knowledge-base": (

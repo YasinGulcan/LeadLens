@@ -85,7 +85,7 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
       {activeTab === "plan" ? (
         <div className="mt-6">
           <p className="text-sm text-muted-foreground">Mevcut planlardan birini inceleyebilirsiniz.</p>
-          <PricingSection plans={activePlans} hasSession activePlanId={account.active_plan_id} />
+          <PricingSection plans={activePlans} hasSession activePlanId={account.active_plan_id} canPurchase={isOwner} />
         </div>
       ) : activeTab === "prompt" ? (
         <div className="mt-6">
@@ -93,6 +93,7 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
             initialCustomPrompt={account.custom_system_prompt}
             defaultPrompt={DEFAULT_SYSTEM_PROMPT}
             savedPrompts={savedPrompts}
+            isOwner={isOwner}
           />
         </div>
       ) : activeTab === "hesabim" ? (
@@ -119,6 +120,7 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
             initialBusinessSector={account.business_sector}
             initialWebsiteUrl={account.website_url}
             initialTeamSize={account.team_size}
+            isOwner={isOwner}
           />
 
           <div className="mt-8">

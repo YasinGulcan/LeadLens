@@ -36,7 +36,7 @@ export default async function DashboardTeamPage() {
       <div className="mt-10">
         <CardTitle className="px-1">Bildirimler</CardTitle>
         <div className="mt-3 px-1">
-          <NotificationEmailForm initialNotificationEmail={account?.notificationEmail ?? null} />
+          <NotificationEmailForm initialNotificationEmail={account?.notificationEmail ?? null} isOwner={isOwner} />
         </div>
       </div>
 

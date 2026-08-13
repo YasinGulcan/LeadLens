@@ -29,6 +29,7 @@ export function SettingsForm({
   initialWebsiteUrl,
   initialTeamSize,
   showProfileFields = true,
+  isOwner = true,
 }: {
   initialBusinessName: string;
   initialSlug: string;
@@ -38,6 +39,8 @@ export function SettingsForm({
   initialTeamSize: string | null;
   /** Kurulum Paneli'nin "Filtreleri tanımla" adımında yeniden kullanılırken bu bölüm konu dışı kalıyor, gizlenir. */
   showProfileFields?: boolean;
+  /** İşletme kimliğini değiştiren ayarlar — sadece hesap sahibi düzenleyebilir. */
+  isOwner?: boolean;
 }) {
   const router = useRouter();
   const [businessName, setBusinessName] = useState(initialBusinessName);
@@ -67,6 +70,7 @@ export function SettingsForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!isOwner) return;
     setPending(true);
     setError(null);
     setMessage(null);
@@ -89,6 +93,8 @@ export function SettingsForm({
 
   return (
     <form onSubmit={handleSubmit} className="mt-4 max-w-lg space-y-5">
+      {!isOwner && <p className="text-xs text-muted-foreground">Sadece hesap sahibi bu ayarları düzenleyebilir.</p>}
+      <fieldset disabled={!isOwner} className="space-y-5 disabled:opacity-60">
       <div>
         <label className="block text-xs font-medium text-muted-foreground">İşletme Adı</label>
         <input
@@ -203,6 +209,7 @@ export function SettingsForm({
       <Button type="submit" variant="primary" disabled={pending}>
         {pending ? "Kaydediliyor..." : "Kaydet"}
       </Button>
+      </fieldset>
     </form>
   );
 }
