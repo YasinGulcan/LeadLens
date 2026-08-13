@@ -50,7 +50,11 @@ export async function GET(req: NextRequest) {
   const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, getRedirectUri(req));
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",
-    prompt: "consent", // refresh_token her seferinde dönsün diye
+    // "consent": refresh_token her seferinde dönsün diye. "select_account":
+    // tarayıcıda zaten aktif olan Google oturumu (genelde LeadLens'e giriş
+    // yapılan Gmail) otomatik seçilmesin — hesap seçim ekranı her zaman
+    // gösterilsin ki Mail Kaynağı bilerek farklı bir Gmail'e bağlanabilsin.
+    prompt: "select_account consent",
     scope: SCOPES,
     state: signOAuthState(requestedAccountId, returnTo),
   });
