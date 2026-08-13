@@ -4,9 +4,11 @@ import { acceptTeamMembership, isAccountOwner, isAuthorizedForAccount } from "@/
 import { getSetupStatus } from "@/lib/setup-checklist";
 import { listNotifications, getUnreadNotificationCount } from "@/lib/notifications";
 import { getTrialInfo } from "@/lib/trial";
+import { getActivePricingPlans } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { NotificationBell } from "./NotificationBell";
+import { TrialLockScreen } from "./TrialLockScreen";
 
 export const dynamic = "force-dynamic";
 
@@ -15,12 +17,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) redirect("/");
   const { accountId } = session;
 
-  const [{ data: account }, { count: leadCount }, setupStatus, notifications, unreadCount] = await Promise.all([
+  const [{ data: account }, { count: leadCount }, setupStatus, notifications, unreadCount, activePlans] = await Promise.all([
     supabase.from("accounts").select("business_name, slug, onboarded_at, created_at, active_plan_id").eq("id", accountId).single(),
     supabase.from("leads").select("id", { count: "exact", head: true }).eq("account_id", accountId),
     getSetupStatus(accountId),
     listNotifications(accountId, session.email),
     getUnreadNotificationCount(accountId, session.email),
+    getActivePricingPlans(),
   ]);
   if (!account) redirect("/");
 
@@ -29,6 +32,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     const { data: plan } = await supabase.from("pricing_plans").select("name").eq("id", account.active_plan_id).maybeSingle();
     activePlanName = plan?.name ?? null;
   }
+  const trial = getTrialInfo(account.created_at);
+  // Deneme bitip aktif bir plan seçilmemişse panel kilitlenir — seçilebilecek
+  // hiç plan yoksa (activePlans boş) kimseyi çıkışsız bırakmamak için kilit
+  // devre dışı kalır.
+  const isLocked = trial.isExpired && !activePlanName && activePlans.length > 0;
   // Oturum çerezi 30 gün geçerli kalabiliyor — ekipten çıkarıldıktan sonra
   // bile eski çerez taşınabilir, bu yüzden her girişte yetki tekrar
   // doğrulanır (sadece ilk "Google ile Bağlan" anında değil).
@@ -50,7 +58,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         email={session.email}
         leadCount={leadCount ?? 0}
         setupProgress={setupStatus.requiredDone ? null : { completed: setupStatus.completedCount, total: setupStatus.totalCount }}
-        trial={getTrialInfo(account.created_at)}
+        trial={trial}
         activePlanName={activePlanName}
       />
       <div className="min-w-0 flex-1 overflow-x-hidden">
@@ -58,7 +66,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <span>Form adresi: /form/{account.slug}</span>
           <NotificationBell initialNotifications={notifications} initialUnreadCount={unreadCount} />
         </div>
-        <main className="px-8 py-8">{children}</main>
+        <main className="px-8 py-8">{isLocked ? <TrialLockScreen plans={activePlans} /> : children}</main>
       </div>
     </div>
   );
