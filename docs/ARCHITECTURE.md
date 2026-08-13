@@ -7,7 +7,7 @@
 > Oturum Günlüğü'nde. "Sırada ne var" sorusunun cevabı burada değil,
 > [`PROJECT_PLAN.md`](./PROJECT_PLAN.md)'de.
 >
-> Son güncelleme: 2026-08-12
+> Son güncelleme: 2026-08-13
 
 ## Ürün, bir cümleyle
 
@@ -29,7 +29,7 @@ paneli (`/dashboard`) olan üretimde çalışan bir ürün (bkz.
 | Mail alma | Gmail API (`googleapis`) + Resend Inbound (webhook) | İki paralel lead kaynağı — bkz. §Lead pipeline |
 | Web scraping | Firecrawl | Ürün kataloğu taraması + müşteri site özeti |
 | Embedding | OpenAI `text-embedding-3` | `lib/embeddings.ts` |
-| LLM analiz | Claude (`claude-sonnet-5`) | `lib/claude.ts` — 4 ayrı çağrı: analiz, taslak yanıt, derinlemesine analiz, arama ifadesi üretimi |
+| LLM analiz | Claude (`claude-sonnet-5`) **veya** OpenAI (`gpt-4o`, `AI_PROVIDER=openai`) | `lib/ai.ts` tek switch noktası (`lib/claude.ts`/`lib/openai-chat.ts`, paylaşılan şemalar `lib/ai-schemas.ts`) — 6 ayrı çağrı: analiz, taslak yanıt, derinlemesine analiz, arama ifadesi üretimi, AI görünürlük kontrolü, (Yönlendirme Adresi için) mail alanı ayrıştırma. Şu an production'da `AI_PROVIDER=openai` aktif (Claude kredisi bitene kadar geçici) |
 | Bildirim | Gmail (birincil) + Resend (ikincil, best-effort) | `lib/gmail.ts#sendAnalysisNotificationEmail`, `lib/resend.ts` |
 | Zamanlama | Vercel Cron (`vercel.json`, günde 1) + gerçek zamanlı tetikleme (`after()`) | Cron artık sadece yedek, form gönderildiği an pipeline tetikleniyor |
 | Test | Vitest | `lib/*.test.ts`, kritik iş mantığı (eşzamanlılık kilidi, dedupe, şema doğrulama, temizleme, görünürlük hesaplama) |
@@ -121,7 +121,8 @@ hâlâ `getSessionInfo()` (DAL).
 **`lib/`** — iş mantığı katmanı, route handler'lar ince kalıyor:
 - `pipeline.ts` — 4 pipeline adımı + `claimLead` (atomik durum kilidi) + dedupe
 - `accounts.ts`, `account-session.ts` — kiracı çözümleme + Supabase Auth oturumu (`SessionInfo` arayüzü sabit, 50+ route/sayfa bunu tüketir)
-- `gmail.ts`, `firecrawl.ts`, `embeddings.ts`, `match.ts`, `claude.ts` — entegrasyonlar
+- `gmail.ts`, `firecrawl.ts`, `embeddings.ts`, `match.ts` — entegrasyonlar
+- `ai.ts` — LLM sağlayıcı switch noktası (`AI_PROVIDER`); `claude.ts`/`openai-chat.ts` gerçek implementasyonlar, `ai-schemas.ts` paylaşılan Zod şemaları/prompt metinleri
 - `visibility.ts`, `rank-tier.ts` — arama sıralaması + AI görünürlüğü kontrolü
 - `crypto.ts` — OAuth token şifreleme (AES-256, `TOKEN_ENCRYPTION_KEY`)
 - `lead-status.ts` — satış-durumu sabitleri (pipeline `status`'tan bilinçli olarak ayrı)
@@ -170,6 +171,9 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
 - **Silme yetkisi sadece hesap sahibinde**, satış-durumu/atama güncellemesi
   herhangi bir kabul etmiş üyede, not silme yazan kişi veya sahipte — üç
   farklı yetki seviyesi, kasıtlı.
+- **Deneme süresi bitip aktif plan yoksa panel gerçekten kilitlenir**
+  (`app/dashboard/layout.tsx#isLocked`) — ama seçilebilecek hiç plan yoksa
+  (`pricing_plans` boşsa) kilit devre dışı kalır, kimse çıkışsız bırakılmaz.
 
 ## Bilinen açık riskler / borçlar
 

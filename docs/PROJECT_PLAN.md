@@ -6,7 +6,7 @@
 > Mimarinin şu an ne olduğu için: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 > "Ne zaman/neden böyle yapıldı" için: [`PROGRESS.md`](./PROGRESS.md) Oturum Günlüğü.
 >
-> Son güncelleme: 2026-08-12
+> Son güncelleme: 2026-08-13
 
 ## Şu anki faz
 
@@ -42,9 +42,12 @@ kullanıcı ihtiyacı çıktıkça ekleniyor, önceden planlanmıyor).
   kısa ömürlü token riski. Gerçek müşteriler eklenmeden önce (a) Cloud
   Console'da test kullanıcısı olarak eklemek, (b) uzun vadede uygulama
   doğrulama sürecini başlatmak gerekiyor.
-- [ ] **IP hız sınırı (`checkRateLimit`) geçici devre dışı** —
-  `app/api/form-submit/route.ts`'te yorum satırında, kullanıcının isteğiyle
-  test amaçlı kapatıldı. Test bitince tekrar açılmalı (form spam'e açık).
+- [ ] **`AI_PROVIDER=openai` geçici bir önlem** (2026-08-13, kullanıcının
+  Claude kredisi bitince) — analiz/derinlemesine analiz/taslak/AI görünürlük
+  kontrolü/mail ayrıştırma şu an OpenAI (`gpt-4o`) üzerinden çalışıyor.
+  Claude kredisi yenilenince `lib/ai.ts`'in varsayılanına dönmek için Vercel'de
+  `AI_PROVIDER` env değişkenini silmek/`anthropic` yapmak yeterli, kod
+  değişmiyor. `docs/PROGRESS.md` Oturum 27.
 - [ ] **KVKK metnindeki placeholder'lar doldurulmalı** (`[Şirket unvanı]`,
   `[e-posta]` — `app/form/KvkkNotice.tsx`), gerçek müşteri verisi işlenen
   hesaplar için hukuki inceleme önerilir.
