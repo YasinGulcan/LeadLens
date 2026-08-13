@@ -374,7 +374,10 @@ export async function checkAiVisibility(keyword: string, websiteUrl: string): Pr
     model: MODEL,
     instructions: AI_VISIBILITY_SYSTEM_PROMPT,
     input: keyword,
-    tools: [{ type: "web_search" }],
+    // user_location olmadan sonuçlar lokasyonsuz/küresel ağırlıklı geliyordu —
+    // yerel bir işletmeyi haksız yere geride bırakabiliyordu (bkz. Claude
+    // karşılığındaki aynı gerekçe, lib/claude.ts#checkAiVisibility).
+    tools: [{ type: "web_search", user_location: { type: "approximate", country: "TR" } }],
   });
 
   const citedUrls: string[] = [];
