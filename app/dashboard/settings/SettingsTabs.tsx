@@ -7,6 +7,7 @@ const TABS = [
   { id: "hesabim", label: "Hesabım" },
   { id: "prompt", label: "Sistem Promptu" },
   { id: "plan", label: "Plan" },
+  { id: "profil", label: "İşletme Profili" },
 ] as const;
 
 /**

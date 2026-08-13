@@ -9,6 +9,7 @@ import { DEFAULT_SYSTEM_PROMPT } from "@/lib/claude";
 import { listSavedPrompts } from "@/lib/prompt-library";
 import { Card, Button } from "@/components/ui";
 import { SettingsForm } from "../SettingsForm";
+import { BusinessProfileForm } from "../BusinessProfileForm";
 import { PromptForm } from "../PromptForm";
 import { ProfileNameForm } from "../ProfileNameForm";
 import { ChangePasswordForm } from "../ChangePasswordForm";
@@ -39,7 +40,15 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
 
   const showPlanTab = activePlans.length > 0;
   const activeTab =
-    tab === "plan" && showPlanTab ? "plan" : tab === "prompt" ? "prompt" : tab === "hesabim" ? "hesabim" : "genel";
+    tab === "plan" && showPlanTab
+      ? "plan"
+      : tab === "prompt"
+        ? "prompt"
+        : tab === "hesabim"
+          ? "hesabim"
+          : tab === "profil"
+            ? "profil"
+            : "genel";
   const savedPrompts = activeTab === "prompt" ? await listSavedPrompts(accountId) : [];
 
   if (!account) redirect("/");
@@ -111,15 +120,19 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
             </div>
           </div>
         </div>
+      ) : activeTab === "profil" ? (
+        <BusinessProfileForm
+          initialBusinessSector={account.business_sector}
+          initialWebsiteUrl={account.website_url}
+          initialTeamSize={account.team_size}
+          isOwner={isOwner}
+        />
       ) : (
         <>
           <SettingsForm
             initialBusinessName={account.business_name}
             initialSlug={account.slug}
             initialLeadEmailSubjects={account.lead_email_subjects}
-            initialBusinessSector={account.business_sector}
-            initialWebsiteUrl={account.website_url}
-            initialTeamSize={account.team_size}
             isOwner={isOwner}
           />
 
