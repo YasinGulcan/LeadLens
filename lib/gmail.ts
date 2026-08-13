@@ -338,28 +338,44 @@ export interface ParsedLeadEmail {
   rawBody: string;
 }
 
-// sendFormSubmissionEmail'in text/plain şablonundaki sabit alan sırası —
-// extractField'ın bir alanın değerinin nerede bittiğini (bir sonraki alan
-// başlayana kadar) bilebilmesi için gerekli.
-const TEMPLATE_FIELD_LABELS = ["İsim", "Telefon", "E-posta", "Website", "Mesaj", "Onay"];
+// sendFormSubmissionEmail'in text/plain şablonundaki sabit alan sırası.
+const TEMPLATE_FIELD_LABELS = ["İsim", "Telefon", "E-posta", "Website", "Mesaj", "Onay"] as const;
+type TemplateFieldLabel = (typeof TEMPLATE_FIELD_LABELS)[number];
 
 /**
- * `label:` sonrası değeri, bir SONRAKİ bilinen alan satırı başlayana (ya da
- * gövde bitene) kadar yakalar — sadece bir sonraki satıra kadar değil.
- * "Mesaj" alanı bir textarea'dan geldiği için müşteri Enter'a basmışsa
- * birden fazla satır olabilir; eski regex (`.` yeni satırı eşlemiyor) bu
- * durumda ilk satırdan sonrasını sessizce kaybediyordu.
+ * Şablondaki 6 alanı TEK GEÇİŞTE, sırayla ayrıştırır — her alan bir öncekinin
+ * bittiği yerden aranır (`cursor`). Bağımsız/her alanı gövdenin tamamında
+ * ayrı ayrı arayan eski yaklaşım, "Mesaj" bir textarea'dan geldiği ve
+ * müşteri metninde tesadüfen "Onay:" gibi bir satırla başlayan bir cümle
+ * olursa (örn. "Onay vermiyorum..."), o satırı gerçek Onay/sonraki alan
+ * sanıp erken durabiliyor ya da (daha kötüsü) `extractField(body, "Onay")`
+ * gövdenin tamamında `^Onay:` arayınca Mesaj'ın İÇİNDEKİ sahte satırı
+ * bulup gerçek onay zaman damgası yerine onu dönebiliyordu.
+ *
+ * "Mesaj" tek serbest metinli alan olduğu için GREEDY yakalanır (kendi
+ * içinde tesadüfen bir sonraki etiketle başlayan bir satır olsa bile,
+ * gerçek sınır olan EN SON "Onay:" satırına kadar her şeyi yutar);
+ * diğer tüm alanlar LAZY kalır (ilk gerçek sınırda durur, gereksiz yere
+ * sonraki alanları yutmaz).
  */
-function extractField(body: string, label: string): string | null {
-  const otherLabels = TEMPLATE_FIELD_LABELS.filter((l) => l !== label).join("|");
-  // "label:" sonrası SADECE aynı satırdaki boşluk kırpılır (\s* değil) —
-  // aksi halde değer boşsa greedy \s* ayırıcı \n'i de yutar ve aşağıdaki
-  // lookahead bir sonraki alanı hiç bulamaz. Bitiş: bir sonraki bilinen
-  // alan satırı ya da (multiline modda $'ın her satır sonunda eşleşmesini
-  // önlemek için) gerçek gövde sonu — (?![\s\S]).
-  const match = body.match(new RegExp(`^${label}:[^\\S\\n]*([\\s\\S]*?)(?=\\n(?:${otherLabels}):|(?![\\s\\S]))`, "im"));
-  const value = match?.[1]?.trim();
-  return value ? value : null;
+export function extractTemplateFields(body: string): Record<TemplateFieldLabel, string | null> {
+  const result = {} as Record<TemplateFieldLabel, string | null>;
+  let cursor = 0;
+  for (let i = 0; i < TEMPLATE_FIELD_LABELS.length; i++) {
+    const label = TEMPLATE_FIELD_LABELS[i];
+    const laterLabels = TEMPLATE_FIELD_LABELS.slice(i + 1);
+    const boundary = laterLabels.length > 0 ? `\\n(?:${laterLabels.join("|")}):` : "(?![\\s\\S])";
+    const quantifier = label === "Mesaj" ? "*" : "*?";
+    const remaining = body.slice(cursor);
+    const match = remaining.match(new RegExp(`^${label}:[^\\S\\n]*([\\s\\S]${quantifier})(?=${boundary})`, "im"));
+    if (match) {
+      result[label] = match[1].trim() || null;
+      cursor += (match.index ?? 0) + match[0].length;
+    } else {
+      result[label] = null;
+    }
+  }
+  return result;
 }
 
 function decodeBody(payload: gmail_v1.Schema$MessagePart | undefined): string {
@@ -410,15 +426,16 @@ export async function fetchUnprocessedLeadEmails(account: GmailAccount): Promise
     if (!ref.id) continue;
     const { data: msg } = await gmail.users.messages.get({ userId: "me", id: ref.id, format: "full" });
     const body = decodeBody(msg.payload);
+    const fields = extractTemplateFields(body);
 
     results.push({
       gmailMessageId: ref.id,
-      name: extractField(body, "İsim"),
-      phone: extractField(body, "Telefon"),
-      email: extractField(body, "E-posta"),
-      websiteUrl: extractField(body, "Website"),
-      message: extractField(body, "Mesaj"),
-      consentGivenAt: extractField(body, "Onay"),
+      name: fields["İsim"],
+      phone: fields["Telefon"],
+      email: fields["E-posta"],
+      websiteUrl: fields["Website"],
+      message: fields["Mesaj"],
+      consentGivenAt: fields["Onay"],
       rawBody: body,
     });
   }
