@@ -9,7 +9,12 @@ export interface TrialInfo {
   isEndingSoon: boolean;
 }
 
-/** Tamamen görsel/algısal bir "14 gün ücretsiz deneme" hissiyatı — gerçek bir kısıtlama/kilitleme tetiklemiyor. Ayrı bir DB alanı yok, accounts.created_at'ten her seferinde hesaplanıyor. */
+/**
+ * "14 gün ücretsiz deneme" hissiyatı — ayrı bir DB alanı yok,
+ * accounts.created_at'ten her seferinde hesaplanıyor. `isExpired`, hesabın
+ * bir plan seçmeden panele erişimini kısıtlayan gerçek bir kilidi de tetikler
+ * (bkz. app/dashboard/layout.tsx#isLocked) — salt görsel değil.
+ */
 export function getTrialInfo(createdAt: string): TrialInfo {
   const trialEndMs = new Date(createdAt).getTime() + TRIAL_DAYS * DAY_MS;
   const daysLeft = Math.ceil((trialEndMs - Date.now()) / DAY_MS);

@@ -135,7 +135,9 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
                   {activePlanName
                     ? "Aboneliğiniz aktif, teşekkürler!"
                     : trial.isExpired
-                      ? "Deneme süreniz sona erdi — hiçbir kısıtlama yok, dilediğinizde bir plana geçebilirsiniz."
+                      ? showPlanTab
+                        ? "Deneme süreniz sona erdi — hiçbir kısıtlama yok, dilediğinizde bir plana geçebilirsiniz."
+                        : "Deneme süreniz sona erdi — hiçbir kısıtlama yok."
                       : "14 günlük deneme süreniz boyunca tüm özellikler açık."}
                 </p>
               </div>
