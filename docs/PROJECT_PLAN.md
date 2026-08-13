@@ -34,6 +34,17 @@ kullanıcı ihtiyacı çıktıkça ekleniyor, önceden planlanmıyor).
   sadece proje/organizasyon üyelerine gönderebiliyor, saatte birkaç mail
   limiti var — prod için uygun değil). Bu artık Resend'i değil, doğrudan
   Supabase Auth'un SMTP ayarını ilgilendiriyor. `docs/PROGRESS.md` Oturum 23.
+- [ ] **"Invite user" e-posta şablonu hâlâ Supabase varsayılanı (2026-08-13).**
+  Ekip daveti artık `admin.inviteUserByEmail` ile gidiyor (`docs/PROGRESS.md`
+  Oturum 28) ama Dashboard → Authentication → Email Templates → "Invite user"
+  şablonu elle güncellenmeli, yoksa hem metin jenerik kalır hem de varsayılan
+  `{{ .ConfirmationURL }}` linki bizim `token_hash` tabanlı
+  `/api/auth/invite/callback` route'umuzla uyumsuz olur (GoTrue'nun kendi
+  `/verify` endpoint'ine gidip fragment tabanlı bir redirect üretir, sunucu
+  bunu okuyamaz). Şablonun linki şöyle olmalı:
+  `{{ .SiteURL }}/api/auth/invite/callback?token_hash={{ .TokenHash }}&type=invite`
+  Örnek gövde: "**{{ .SiteURL }}** sizi ekibe katılmaya davet etti. Katılmak
+  için: [Daveti Kabul Et]({{ .SiteURL }}/api/auth/invite/callback?token_hash={{ .TokenHash }}&type=invite)".
 - [ ] **`otp_codes` tablosu artık kullanılmıyor, silinmeyi bekliyor** —
   drop işlemi Claude Code'un otomatik onay sınıflandırıcısı tarafından
   yıkıcı DDL olduğu için engellendi, kullanıcı onayı gerekiyor

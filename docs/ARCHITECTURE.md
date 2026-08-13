@@ -102,9 +102,15 @@ satırının hangi hesaba/üyeliğe karşılık geldiğini, `owner_password_set_
 başına yeterli değil). Kayıt: `signUp()` (geçici rastgele şifreyle, gerçek
 şifre `/set-password`'te) → `verifyOtp(type:'signup')`. Şifre sıfırlama:
 `resetPasswordForEmail()` → `verifyOtp(type:'recovery')`. Ekip daveti
-(`addTeamMember`) anında `admin.createUser` ile auth kimliği önceden
-oluşturuluyor ki davetli ilk "Şifremi Unuttum"unda `resetPasswordForEmail`
-bilinmeyen e-postaya sessiz kalmasın. `lib/auth-identity.ts#
+(`addTeamMember`) diğer akışlardan farklı olarak kod değil **tıklanabilir
+link** kullanıyor: `admin.inviteUserByEmail` (auth kimliğini de kendisi
+oluşturuyor) → davetli linke tıklayınca `app/api/auth/invite/callback`
+`verifyOtp({token_hash, type:'invite'})` ile oturumu sunucu tarafında kurar
+(PKCE desteklenmediği için link doğrudan `token_hash` query param'ı taşıyacak
+şekilde e-posta şablonu özelleştirilmeli, bkz. PROJECT_PLAN.md) → aynı
+`/confirm-join` onay ekranına düşer. E-posta başka bir hesapta zaten
+kayıtlıysa `inviteUserByEmail` hata verir, o durumda eski
+`resetPasswordForEmail`'e düşülür. `lib/auth-identity.ts#
 signInWithoutPassword` (kimliği zaten kurulu birinin gerçek şifresine
 dokunmadan, `admin.generateLink`+`verifyOtp` ile) `/confirm-join`'de
 kullanılıyor; `#provisionAndSignIn` sadece bu akışların normalde
