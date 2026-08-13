@@ -31,9 +31,18 @@ function formatExpiry(value: string): string {
  * (pricing_inquiries) bırakıyor — oturum açıksa o hesabın kozmetik "aktif
  * plan" durumu da güncelleniyor (bkz. /api/pricing-inquiries).
  */
-export function PricingCheckoutModal({ plan, onClose }: { plan: PricingPlan; onClose: () => void }) {
+export function PricingCheckoutModal({
+  plan,
+  onClose,
+  hasSession = false,
+}: {
+  plan: PricingPlan;
+  onClose: () => void;
+  /** Oturum açıkken ad/e-posta/telefon zaten hesaptan biliniyor — iletişim adımı atlanıp doğrudan ödeme adımıyla açılır. */
+  hasSession?: boolean;
+}) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("form");
+  const [step, setStep] = useState<Step>(hasSession ? "payment" : "form");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -100,7 +109,9 @@ export function PricingCheckoutModal({ plan, onClose }: { plan: PricingPlan; onC
         fetch("/api/pricing-inquiries", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ planId: plan.id, name: name.trim(), email: email.trim(), phone: phone.trim() }),
+          body: JSON.stringify(
+            hasSession ? { planId: plan.id } : { planId: plan.id, name: name.trim(), email: email.trim(), phone: phone.trim() }
+          ),
         }),
         new Promise((resolve) => setTimeout(resolve, 1800)), // sahte "ödeme işleniyor" hissi
       ]);
@@ -234,13 +245,15 @@ export function PricingCheckoutModal({ plan, onClose }: { plan: PricingPlan; onC
             <Button type="submit" variant="primary" className="w-full justify-center">
               Ödemeyi Tamamla
             </Button>
-            <button
-              type="button"
-              onClick={() => setStep("form")}
-              className="w-full text-center text-xs text-muted-foreground hover:text-foreground hover:underline"
-            >
-              ‹ Bilgileri düzenle
-            </button>
+            {!hasSession && (
+              <button
+                type="button"
+                onClick={() => setStep("form")}
+                className="w-full text-center text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                ‹ Bilgileri düzenle
+              </button>
+            )}
           </form>
         )}
 

@@ -10,7 +10,7 @@ const BILLING_PERIOD_SHORT: Record<BillingPeriod, string> = { monthly: "ay", yea
 const CURRENCY_SYMBOL: Record<string, string> = { TRY: "₺", USD: "$", EUR: "€" };
 
 /** Landing sayfasındaki fiyatlandırma kartları — kartın tamamı (sadece buton değil) tıklanınca sahte checkout modalı açılır. */
-export function PricingSection({ plans }: { plans: PricingPlan[] }) {
+export function PricingSection({ plans, hasSession = false }: { plans: PricingPlan[]; hasSession?: boolean }) {
   const [selected, setSelected] = useState<PricingPlan | null>(null);
 
   if (plans.length === 0) return null;
@@ -81,7 +81,7 @@ export function PricingSection({ plans }: { plans: PricingPlan[] }) {
         ))}
       </div>
 
-      {selected && <PricingCheckoutModal plan={selected} onClose={() => setSelected(null)} />}
+      {selected && <PricingCheckoutModal plan={selected} onClose={() => setSelected(null)} hasSession={hasSession} />}
     </>
   );
 }
