@@ -85,7 +85,7 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
       {activeTab === "plan" ? (
         <div className="mt-6">
           <p className="text-sm text-muted-foreground">Mevcut planlardan birini inceleyebilirsiniz.</p>
-          <PricingSection plans={activePlans} hasSession />
+          <PricingSection plans={activePlans} hasSession activePlanId={account.active_plan_id} />
         </div>
       ) : activeTab === "prompt" ? (
         <div className="mt-6">
