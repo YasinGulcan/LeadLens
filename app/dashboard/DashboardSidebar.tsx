@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, ListChecks, Database, BarChart3, Link2, Users, Sparkles, Settings, Rocket } from "lucide-react";
+import { Home, ListChecks, Database, BarChart3, Link2, Users, Settings, Rocket } from "lucide-react";
 import { LogoutButton } from "./LogoutButton";
 import { ThemeToggle } from "./ThemeToggle";
 import { Badge } from "@/components/ui";
@@ -68,7 +68,6 @@ export function DashboardSidebar({
     { href: "/dashboard/reports", label: "Raporlar", icon: BarChart3 },
     { href: "/dashboard/gmail", label: "Bağlantılar", icon: Link2 },
     { href: "/dashboard/team", label: "Ekip", icon: Users },
-    { href: "/dashboard/prompt", label: "Sistem Promptu", icon: Sparkles },
     { href: "/dashboard/settings", label: "Ayarlar", icon: Settings },
   ];
 

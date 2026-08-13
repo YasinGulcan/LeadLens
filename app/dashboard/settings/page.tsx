@@ -5,8 +5,11 @@ import { isAccountOwner } from "@/lib/accounts";
 import { getActivePricingPlans } from "@/lib/pricing";
 import { getTrialInfo } from "@/lib/trial";
 import { supabase } from "@/lib/supabase";
+import { DEFAULT_SYSTEM_PROMPT } from "@/lib/claude";
+import { listSavedPrompts } from "@/lib/prompt-library";
 import { Card, Button } from "@/components/ui";
 import { SettingsForm } from "../SettingsForm";
+import { PromptForm } from "../PromptForm";
 import { DangerZone } from "./DangerZone";
 import { SettingsTabs } from "./SettingsTabs";
 import { PricingSection } from "../../PricingSection";
@@ -21,13 +24,18 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
   const { tab } = await searchParams;
 
   const [{ data: account }, isOwner, activePlans] = await Promise.all([
-    supabase.from("accounts").select("business_name, slug, lead_email_subjects, created_at, active_plan_id").eq("id", accountId).single(),
+    supabase
+      .from("accounts")
+      .select("business_name, slug, lead_email_subjects, created_at, active_plan_id, custom_system_prompt")
+      .eq("id", accountId)
+      .single(),
     isAccountOwner(accountId, session.email),
     getActivePricingPlans(),
   ]);
 
   const showPlanTab = activePlans.length > 0;
-  const activeTab = tab === "plan" && showPlanTab ? "plan" : "genel";
+  const activeTab = tab === "plan" && showPlanTab ? "plan" : tab === "prompt" ? "prompt" : "genel";
+  const savedPrompts = activeTab === "prompt" ? await listSavedPrompts(accountId) : [];
 
   if (!account) redirect("/");
 
@@ -57,6 +65,14 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
         <div className="mt-6">
           <p className="text-sm text-muted-foreground">Mevcut planlardan birini inceleyebilirsiniz.</p>
           <PricingSection plans={activePlans} />
+        </div>
+      ) : activeTab === "prompt" ? (
+        <div className="mt-6">
+          <PromptForm
+            initialCustomPrompt={account.custom_system_prompt}
+            defaultPrompt={DEFAULT_SYSTEM_PROMPT}
+            savedPrompts={savedPrompts}
+          />
         </div>
       ) : (
         <>
