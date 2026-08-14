@@ -14,10 +14,23 @@ import { SettingsForm } from "../SettingsForm";
 
 export const dynamic = "force-dynamic";
 
+/** Landing sayfasındaki (`app/page.tsx#STEPS`) "Nasıl çalışır" bölümüyle aynı metin — iki yerde de tutarlı kalsın diye birebir kopyalandı. */
 const HOW_IT_WORKS = [
-  { icon: FileText, title: "Form dolduruluyor", body: "Müşteriniz web sitenizdeki formu dolduruyor." },
-  { icon: Sparkles, title: "Otomatik analiz", body: "Site taranıyor, bilgi tabanınızla eşleştirilip skorlanıyor." },
-  { icon: Send, title: "Satışa bildirim", body: "Ekibiniz skor ve önerilen ürünle birlikte lead'i alıyor." },
+  {
+    icon: FileText,
+    title: "Form dolsun",
+    body: "Müşteriniz web sitenizdeki iletişim/teklif formunu dolduruyor — ekstra bir entegrasyon kurmanıza gerek kalmaz.",
+  },
+  {
+    icon: Sparkles,
+    title: "Analiz otomatik çalışsın",
+    body: "Site taranıyor, ürün kataloğunuzla eşleştiriliyor ve yapay zeka tarafından fit/niyet/değer/aciliyet kırılımıyla skorlanıyor.",
+  },
+  {
+    icon: Send,
+    title: "Rapor satışa düşsün",
+    body: "Ekibiniz skor, sektör, önerilen ürün ve satış temsilcisinin sorması gereken netleştirici soruyla birlikte lead'i alıyor.",
+  },
 ];
 
 export default async function SetupPage({ searchParams }: { searchParams: Promise<{ connectError?: string }> }) {
@@ -109,23 +122,25 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
         />
       </div>
 
-      <div className="mt-10 border-t border-border pt-6">
-        <CardTitle>Nasıl çalışır</CardTitle>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          {HOW_IT_WORKS.map((step) => {
-            const Icon = step.icon;
-            return (
-              <div key={step.title}>
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
-                  <Icon size={16} />
-                </span>
-                <p className="mt-2 text-sm font-medium text-foreground">{step.title}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{step.body}</p>
-              </div>
-            );
-          })}
+      {!status.requiredDone && (
+        <div className="mt-10 border-t border-border pt-6">
+          <CardTitle>Nasıl çalışır</CardTitle>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            {HOW_IT_WORKS.map((step) => {
+              const Icon = step.icon;
+              return (
+                <div key={step.title}>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
+                    <Icon size={16} />
+                  </span>
+                  <p className="mt-2 text-sm font-medium text-foreground">{step.title}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{step.body}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
