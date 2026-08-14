@@ -336,12 +336,12 @@ function StepDraft() {
 
   return (
     <div className="flex h-full flex-col justify-center gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div>
         <h4 className="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           <Sparkles size={13} className="text-accent" />
           Hazır Yanıt Taslağı
         </h4>
-        <div className="relative flex items-center gap-2">
+        <div className="relative mt-3 flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-0.5 rounded-md border border-border bg-surface p-0.5">
             {["Resmi", "Samimi", "Teknik"].map((t) => (
               <span
