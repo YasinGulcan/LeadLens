@@ -9,7 +9,7 @@ import { OtpCodeStep, type OtpActionResult } from "../OtpCodeStep";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
-export function SignupFlow() {
+export function SignupFlow({ preselectedPlan = null }: { preselectedPlan?: { id: string; name: string } | null }) {
   const router = useRouter();
   const [step, setStep] = useState<"form" | "code">("form");
   const [fullName, setFullName] = useState("");
@@ -42,7 +42,7 @@ export function SignupFlow() {
       const res = await fetch("/api/auth/signup/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, phone, email, password, passwordConfirm }),
+        body: JSON.stringify({ fullName, phone, email, password, passwordConfirm, planId: preselectedPlan?.id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Bir hata oluştu.");
@@ -92,6 +92,12 @@ export function SignupFlow() {
         <h1 className="text-2xl font-bold text-foreground">Hesabınızı oluşturun</h1>
         <p className="mt-2 text-sm text-muted-foreground">Ad soyad, telefon ve e-postanızla saniyeler içinde başlayın</p>
       </div>
+
+      {preselectedPlan && (
+        <p className="mt-4 rounded-md border border-accent/30 bg-accent/10 px-3 py-2 text-center text-xs font-medium text-accent">
+          {preselectedPlan.name} planı için kayıt oluyorsunuz — ilk 14 gün ücretsiz, kredi kartı gerekmez.
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <div>

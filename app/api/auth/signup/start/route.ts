@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAccountIdByOwnerEmail, findAccountIdByMemberEmail, createAccountForNewOwner } from "@/lib/accounts";
+import { applySelectedPlan } from "@/lib/pricing";
 import { validatePasswordStrength } from "@/lib/password";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body?.password === "string" ? body.password : "";
   const passwordConfirm = typeof body?.passwordConfirm === "string" ? body.passwordConfirm : "";
+  const planId = typeof body?.planId === "string" ? body.planId : null;
 
   if (!fullName) return NextResponse.json({ error: "Ad soyad zorunlu." }, { status: 400 });
   if (phone.replace(/\D/g, "").length < 10) {
@@ -38,13 +40,14 @@ export async function POST(req: NextRequest) {
   const { data, error } = await client.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName, phone } },
+    options: { data: { full_name: fullName, phone, plan_id: planId } },
   });
   if (error || !data.user) return NextResponse.json({ error: error?.message ?? "Kayıt oluşturulamadı." }, { status: 500 });
 
   if (data.session) {
     const result = await createAccountForNewOwner({ email, userId: data.user.id, fullName, phone });
     if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
+    await applySelectedPlan(result.id, planId);
     return NextResponse.json({ ok: true, confirmed: true, redirect: "/onboarding" });
   }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAccountIdByOwnerEmail, findAccountIdByMemberEmail, createAccountForNewOwner } from "@/lib/accounts";
+import { applySelectedPlan } from "@/lib/pricing";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 /**
@@ -28,9 +29,11 @@ export async function POST(req: NextRequest) {
 
   const fullName = (data.user.user_metadata?.full_name as string | undefined) ?? email.split("@")[0];
   const phone = (data.user.user_metadata?.phone as string | undefined) ?? null;
+  const planId = (data.user.user_metadata?.plan_id as string | undefined) ?? null;
 
   const result = await createAccountForNewOwner({ email, userId: data.user.id, fullName, phone });
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
+  await applySelectedPlan(result.id, planId);
 
   return NextResponse.json({ ok: true, redirect: "/onboarding" });
 }

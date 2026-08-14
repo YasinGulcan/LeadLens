@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { Card, Button, Badge } from "@/components/ui";
 import type { PricingPlan, BillingPeriod } from "@/lib/pricing";
@@ -11,9 +12,12 @@ const CURRENCY_SYMBOL: Record<string, string> = { TRY: "₺", USD: "$", EUR: "�
 
 /**
  * Landing sayfasındaki VE Ayarlar > Plan'daki fiyatlandırma kartları — kartın
- * tamamı (sadece buton değil) tıklanınca sahte checkout modalı açılır.
- * `activePlanId` verilirse (oturum açık ve hesabın zaten aktif bir planı
- * varsa), o karta tıklanamaz — "Aktif Planınız" rozeti/butonu gösterilir.
+ * tamamı (sadece buton değil) tıklanabilir. Oturumsuzken (landing) "signup"
+ * tipi bir plana tıklamak doğrudan /signup'ı açar (bkz. handlePlanClick);
+ * oturumluyken (Ayarlar > Plan) ya da "contact" tipi bir planda sahte
+ * checkout modalı açılır. `activePlanId` verilirse (oturum açık ve hesabın
+ * zaten aktif bir planı varsa), o karta tıklanamaz — "Aktif Planınız"
+ * rozeti/butonu gösterilir.
  */
 export function PricingSection({
   plans,
@@ -27,9 +31,23 @@ export function PricingSection({
   /** Panel içinden (oturumlu) çağrıldığında plan satın alma sadece hesap sahibine açık — üyeler kartları görür ama tıklayamaz. */
   canPurchase?: boolean;
 }) {
+  const router = useRouter();
   const [selected, setSelected] = useState<PricingPlan | null>(null);
 
   if (plans.length === 0) return null;
+
+  // Landing sayfasında (oturumsuz) kendi kendine kayıt olan bir plana
+  // tıklamak artık sahte checkout'u değil, doğrudan /signup'ı açıyor —
+  // gerçek bir hesap/deneme başlatır, seçilen plan kayıt tamamlanınca
+  // otomatik uygulanır (bkz. lib/pricing.ts#applySelectedPlan). "contact"
+  // tipi bir plan olursa (şu an yok) eski iletişim-talebi modalı kullanılır.
+  function handlePlanClick(plan: PricingPlan) {
+    if (!hasSession && plan.ctaType === "signup") {
+      router.push(`/signup?plan=${plan.id}`);
+      return;
+    }
+    setSelected(plan);
+  }
 
   return (
     <>
@@ -49,13 +67,13 @@ export function PricingSection({
               key={plan.id}
               role={canClick ? "button" : undefined}
               tabIndex={canClick ? 0 : undefined}
-              onClick={canClick ? () => setSelected(plan) : undefined}
+              onClick={canClick ? () => handlePlanClick(plan) : undefined}
               onKeyDown={
                 canClick
                   ? (e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        setSelected(plan);
+                        handlePlanClick(plan);
                       }
                     }
                   : undefined
@@ -117,7 +135,7 @@ export function PricingSection({
                   canClick
                     ? (e) => {
                         e.stopPropagation();
-                        setSelected(plan);
+                        handlePlanClick(plan);
                       }
                     : undefined
                 }

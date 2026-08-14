@@ -62,3 +62,21 @@ export async function getActivePricingPlans(): Promise<PricingPlan[]> {
   }
   return (data ?? []).map(toPlan);
 }
+
+/**
+ * Landing sayfasında bir plana tıklayıp doğrudan `/signup`'a yönlendirilen
+ * ziyaretçinin seçtiği plan, kayıt tamamlanınca hesaba kozmetik olarak
+ * uygulanır (bkz. `/api/pricing-inquiries`'in oturumlu dalıyla aynı desen).
+ * `planId` tarayıcıdan geldiği (tahrif edilebilir) için aktif planlar
+ * arasında gerçekten var mı diye doğrulanıyor — değilse sessizce yok sayılır.
+ */
+export async function applySelectedPlan(accountId: string, planId: string | null | undefined): Promise<void> {
+  if (!planId) return;
+  const plans = await getActivePricingPlans();
+  if (!plans.some((p) => p.id === planId)) return;
+  const { error } = await supabase
+    .from("accounts")
+    .update({ active_plan_id: planId, plan_started_at: new Date().toISOString() })
+    .eq("id", accountId);
+  if (error) console.error(`Seçilen plan hesaba uygulanamadı (${accountId}):`, error.message);
+}
