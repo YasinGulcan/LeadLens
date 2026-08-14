@@ -20,6 +20,7 @@ export interface TeamMemberRow {
   email: string;
   invitedAt: string;
   acceptedAt: string | null;
+  receiveCopies: boolean;
 }
 
 export function TeamManager({
@@ -42,6 +43,7 @@ export function TeamManager({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [transferringId, setTransferringId] = useState<string | null>(null);
   const [cancellingTransfer, setCancellingTransfer] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
 
   async function handleInvite(e: React.FormEvent) {
@@ -110,6 +112,24 @@ export function TeamManager({
     }
   }
 
+  async function handleToggleReceiveCopies(id: string, next: boolean) {
+    setTogglingId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/dashboard/team/${id}/receive-copies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ receiveCopies: next }),
+      });
+      if (!res.ok) throw new Error();
+      router.refresh();
+    } catch {
+      setError("Kopya ayarı değiştirilemedi.");
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
   async function handleCancelTransfer() {
     setCancellingTransfer(true);
     try {
@@ -170,6 +190,9 @@ export function TeamManager({
               <th className="px-4 py-2 font-medium">E-posta</th>
               <th className="px-4 py-2 font-medium">Rol</th>
               <th className="px-4 py-2 font-medium">Durum</th>
+              <th className="px-4 py-2 font-medium" title="Form kopyası ve analiz raporu mailleri bu adrese de gitsin mi">
+                Kopya Al
+              </th>
               <th className="px-4 py-2 font-medium" />
             </tr>
           </thead>
@@ -185,6 +208,9 @@ export function TeamManager({
                   <Badge variant="accent">Sahip</Badge>
                 </td>
                 <td className="px-4 py-2 text-muted-foreground">—</td>
+                <td className="px-4 py-2 text-muted-foreground" title="Hesap sahibi zaten bağlı hesabın kendi kutusunu görür">
+                  —
+                </td>
                 <td className="px-4 py-2" />
               </tr>
             )}
@@ -212,6 +238,24 @@ export function TeamManager({
                   )}
                 </td>
                 <td className="px-4 py-2">
+                  {isOwner ? (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleReceiveCopies(m.id, !m.receiveCopies)}
+                      disabled={togglingId === m.id}
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                        m.receiveCopies
+                          ? "bg-accent text-white"
+                          : "bg-surface-hover text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {togglingId === m.id ? "..." : m.receiveCopies ? "Açık" : "Kapalı"}
+                    </button>
+                  ) : (
+                    <Badge variant={m.receiveCopies ? "accent" : "neutral"}>{m.receiveCopies ? "Açık" : "Kapalı"}</Badge>
+                  )}
+                </td>
+                <td className="px-4 py-2">
                   {isOwner && (
                     <div className="flex items-center gap-2">
                       <Button
@@ -233,7 +277,7 @@ export function TeamManager({
             ))}
             {members.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
                   Henüz davet edilen ekip üyesi yok.
                 </td>
               </tr>

@@ -121,8 +121,10 @@ export interface TeamMember {
   id: string;
   email: string;
   invitedAt: string;
-  /** null = davet gönderildi ama kişi henüz "Google ile Bağlan" ile ilk girişini yapmadı. */
+  /** null = davet gönderildi ama kişi henüz hiç giriş yapıp daveti kabul etmedi. */
   acceptedAt: string | null;
+  /** Form kopyası/analiz raporu maillerine Cc'lensin mi — sadece hesap sahibi değiştirebilir, bkz. listTeamMemberEmails. */
+  receiveCopies: boolean;
 }
 
 /** Hesabı OTP ile doğrulayıp kayıt eden (ya da sahiplik devrini kabul eden) e-posta — sadece bu kişi Gmail bağlama/kesme ve ekip yönetimi gibi hassas işlemleri yapabilir. Gmail bağlantısından bağımsız: Mail Kaynağı adımı hiç kurulmamış olsa bile sahiplik bellidir. */
@@ -174,7 +176,7 @@ export async function listTeamMembers(accountId: string): Promise<TeamMember[]> 
   const [{ data, error }, ownerEmail] = await Promise.all([
     supabase
       .from("account_members")
-      .select("id, email, invited_at, accepted_at")
+      .select("id, email, invited_at, accepted_at, receive_copies")
       .eq("account_id", accountId)
       .order("invited_at", { ascending: true }),
     getAccountOwnerEmail(accountId),
@@ -182,7 +184,23 @@ export async function listTeamMembers(accountId: string): Promise<TeamMember[]> 
   if (error) throw new Error(`Ekip üyeleri okunamadı: ${error.message}`);
   return (data ?? [])
     .filter((row) => row.email !== ownerEmail)
-    .map((row) => ({ id: row.id, email: row.email, invitedAt: row.invited_at, acceptedAt: row.accepted_at }));
+    .map((row) => ({
+      id: row.id,
+      email: row.email,
+      invitedAt: row.invited_at,
+      acceptedAt: row.accepted_at,
+      receiveCopies: row.receive_copies,
+    }));
+}
+
+/** Ekip sayfasındaki kopya al/alma anahtarı — sadece hesap sahibi çağırabilir (route seviyesinde kontrol edilir). */
+export async function setMemberReceiveCopies(accountId: string, memberId: string, receiveCopies: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("account_members")
+    .update({ receive_copies: receiveCopies })
+    .eq("id", memberId)
+    .eq("account_id", accountId);
+  if (error) throw new Error(error.message);
 }
 
 export interface AssignableMember {
@@ -207,13 +225,14 @@ export async function isActiveAccountPerson(accountId: string, email: string): P
   return members.some((m) => m.email === email);
 }
 
-/** Rapor/form maillerinde Cc'ye eklenecek üye listesi — sadece daveti kabul edip en az bir kez giriş yapmış üyeler (bkz. accepted_at). Henüz kabul etmemiş biri gerçek lead verisini görmemeli. */
+/** Rapor/form maillerinde Cc'ye eklenecek üye listesi — daveti kabul edip en az bir kez giriş yapmış (bkz. accepted_at, henüz kabul etmemiş biri gerçek lead verisini görmemeli) VE hesap sahibinin bu maillere dahil ettiği (receive_copies) üyeler. */
 async function listTeamMemberEmails(accountId: string): Promise<string[]> {
   const { data } = await supabase
     .from("account_members")
     .select("email")
     .eq("account_id", accountId)
-    .not("accepted_at", "is", null);
+    .not("accepted_at", "is", null)
+    .eq("receive_copies", true);
   return (data ?? []).map((row) => row.email);
 }
 
@@ -234,13 +253,19 @@ export async function addTeamMember(accountId: string, email: string): Promise<T
   const { data, error } = await supabase
     .from("account_members")
     .insert({ account_id: accountId, email })
-    .select("id, email, invited_at, accepted_at")
+    .select("id, email, invited_at, accepted_at, receive_copies")
     .single();
   if (error) {
     const message = error.code === "23505" ? "Bu e-posta zaten bir ekibe davetli." : error.message;
     throw new Error(message);
   }
-  return { id: data.id, email: data.email, invitedAt: data.invited_at, acceptedAt: data.accepted_at };
+  return {
+    id: data.id,
+    email: data.email,
+    invitedAt: data.invited_at,
+    acceptedAt: data.accepted_at,
+    receiveCopies: data.receive_copies,
+  };
 }
 
 /** Davetli bir üye ilk kez "Google ile Bağlan" ile giriş yaptığında çağrılır — daveti "kabul edilmiş" işaretler. */

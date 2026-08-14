@@ -28,8 +28,9 @@ export default async function DashboardTeamPage() {
     <section>
       <h2 className="text-2xl font-bold text-foreground">Ekip</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Davet edilen ekip üyeleri panele giriş yapıp lead/kaynak yönetebilir, form kopyası ve analiz raporu
-        kendilerine de gider. Gmail bağlantısı ve hesap ayarları gibi hassas işlemler sadece hesap sahibinde kalır.
+        Davet edilen ekip üyeleri panele giriş yapıp lead/kaynak yönetebilir. Aşağıdaki tablodaki &quot;Kopya Al&quot;
+        anahtarıyla, form kopyası ve analiz raporu maillerinin hangi üyelerin kendi adresine de gideceğini
+        belirleyebilirsiniz. Gmail bağlantısı ve hesap ayarları gibi hassas işlemler sadece hesap sahibinde kalır.
       </p>
       <TeamManager isOwner={isOwner} ownerEmail={ownerEmail} members={members} pendingOwnerEmail={pendingOwnerEmail} />
 

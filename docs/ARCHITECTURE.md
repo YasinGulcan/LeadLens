@@ -45,7 +45,7 @@ paneli (`/dashboard`) olan üretimde çalışan bir ürün (bkz.
 **Hesap / Auth / Ekip**
 - `accounts` — kiracı; iş bilgisi, onboarding, bildirim e-postası, özel sistem promptu, `active_plan_id`, `owner_user_id` (→ `auth.users.id`), `owner_password_set_at` (gerçek şifre hiç belirlendi mi)
 - `gmail_connections` — hesabın bağlı Gmail'i, kimlikten bağımsız (opsiyonel "Mail Kaynağı" adımı) — koparma işlemi satırı silmez, `disconnected_at` işaretler (bkz. §Gotchas)
-- `account_members` — ekip üyeleri (sahip değil); davet/kabul akışı, `user_id` (→ `auth.users.id`), `password_set_at`
+- `account_members` — ekip üyeleri (sahip değil); davet/kabul akışı, `user_id` (→ `auth.users.id`), `password_set_at`, `receive_copies` (form kopyası/analiz raporu maillerine Cc'lensin mi — varsayılan true, sadece sahip değiştirebilir)
 - `account_activity_log` — ekip aktivite geçmişi
 
 **Ürün bilgi tabanı (RAG)**
