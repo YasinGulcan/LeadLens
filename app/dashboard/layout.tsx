@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
-import { acceptTeamMembership, isAccountOwner, isAuthorizedForAccount } from "@/lib/accounts";
+import { acceptTeamMembership, hasRealPassword, isAccountOwner, isAuthorizedForAccount } from "@/lib/accounts";
 import { getSetupStatus } from "@/lib/setup-checklist";
 import { listNotifications, getUnreadNotificationCount } from "@/lib/notifications";
 import { getTrialInfo } from "@/lib/trial";
@@ -41,13 +41,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // bile eski çerez taşınabilir, bu yüzden her girişte yetki tekrar
   // doğrulanır (sadece ilk "Google ile Bağlan" anında değil).
   if (!(await isAuthorizedForAccount(accountId, session.email))) redirect("/");
+  // Davet/sahiplik devri kabulü, gerçek bir şifre belirlenmeden önce
+  // signInWithoutPassword ile geçici bir oturum kurar (bkz. confirm-join) —
+  // proxy.ts bu oturumu geçerli sayıp içeri aldığı için burada ayrıca
+  // zorlanmazsa kişi hiç şifre belirlemeden panelde gezinebilir.
+  if (!(await hasRealPassword(accountId, session.email))) redirect("/set-password");
   if (!account.onboarded_at) redirect("/onboarding");
 
   const isOwner = await isAccountOwner(accountId, session.email);
-  // "Kabul edildi" işareti sadece taze bir Google girişinde değil, panele her
+  // "Kabul edildi" işareti sadece taze bir davet kabulünde değil, panele her
   // başarılı erişimde de tetiklenir — aksi halde tarayıcıda zaten geçerli bir
-  // oturum çerezi olan (yeniden davet sonrası hiç OAuth'a hiç uğramayan) bir
-  // üye panelde gezinirken "bekliyor" olarak görünmeye devam ederdi.
+  // oturum çerezi olan (yeniden davet sonrası hiç kabul akışına hiç
+  // uğramayan) bir üye panelde gezinirken "bekliyor" olarak görünmeye devam
+  // ederdi.
   if (!isOwner) {
     await acceptTeamMembership(accountId, session.email);
   }

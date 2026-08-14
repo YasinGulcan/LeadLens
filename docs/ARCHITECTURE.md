@@ -209,6 +209,13 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
   devri dalı da eski sahibi üyeliğe demote ederken bu duruma düşebilir
   (`account_members.email` global unique, eski sahip başka yerde zaten
   üyeyse insert çakışır) — 23505 sessizce atlanır, başka bir hata loglanır.
+- **`proxy.ts` "geçerli oturum var mı" diye bakar, "gerçek şifre belirlendi mi"
+  diye bakmaz (2026-08-14).** Davet/sahiplik devri kabulü şifre belirlenmeden
+  önce `signInWithoutPassword` ile geçerli ama geçici bir oturum kurar —
+  bu yüzden `hasRealPassword` kontrolü DAL katmanında (`app/dashboard/
+  layout.tsx`, `app/onboarding/page.tsx`) ayrıca yapılır, yoksa
+  `/set-password`'e zorlanır. `/api/dashboard/*` route'ları bu kontrolü
+  yapmaz (kasıtlı — amaç ekran akışını zorlamak, API'yi kilitlemek değil).
 - **Deneme süresi bitip aktif plan yoksa panel gerçekten kilitlenir**
   (`app/dashboard/layout.tsx#isLocked`) — ama seçilebilecek hiç plan yoksa
   (`pricing_plans` boşsa) kilit devre dışı kalır, kimse çıkışsız bırakılmaz.

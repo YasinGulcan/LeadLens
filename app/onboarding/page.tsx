@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
-import { isAuthorizedForAccount } from "@/lib/accounts";
+import { hasRealPassword, isAuthorizedForAccount } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui";
 import { OnboardingForm } from "./OnboardingForm";
@@ -18,6 +18,7 @@ export default async function OnboardingPage() {
   // onboarding ekranı göstermek yerine sıfırdan başlat — bkz.
   // app/dashboard/layout.tsx'teki aynı desen.
   if (!account || !(await isAuthorizedForAccount(session.accountId, session.email))) redirect("/");
+  if (!(await hasRealPassword(session.accountId, session.email))) redirect("/set-password");
   if (account.onboarded_at) redirect("/dashboard");
 
   return (

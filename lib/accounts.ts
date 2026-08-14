@@ -133,6 +133,29 @@ export async function getAccountOwnerEmail(accountId: string): Promise<string | 
   return data?.owner_email ?? null;
 }
 
+/**
+ * Oturumdaki kişi (sahip ya da üye) hiç gerçek bir şifre belirledi mi.
+ * Davet/sahiplik devri kabul edilip `signInWithoutPassword` ile geçici bir
+ * oturum kurulduğunda bu false kalır — `proxy.ts`'in kontrol ettiği "geçerli
+ * oturum var mı" sorusu bunu yakalamaz (oturum gerçekten geçerlidir), bu
+ * yüzden panel sayfaları (`/dashboard`, `/onboarding`) bunu ayrıca kontrol
+ * edip `/set-password`'e yönlendirmeli.
+ */
+export async function hasRealPassword(accountId: string, email: string): Promise<boolean> {
+  const ownerEmail = await getAccountOwnerEmail(accountId);
+  if (ownerEmail === email) {
+    const { data } = await supabase.from("accounts").select("owner_password_set_at").eq("id", accountId).single();
+    return !!data?.owner_password_set_at;
+  }
+  const { data } = await supabase
+    .from("account_members")
+    .select("password_set_at")
+    .eq("account_id", accountId)
+    .eq("email", email)
+    .maybeSingle();
+  return !!data?.password_set_at;
+}
+
 export async function isAccountOwner(accountId: string, email: string): Promise<boolean> {
   const ownerEmail = await getAccountOwnerEmail(accountId);
   return ownerEmail !== null && ownerEmail === email;
