@@ -44,24 +44,39 @@ export async function POST(req: NextRequest) {
   // inviteUserByEmail hem auth.users kimliğini oluşturuyor hem maili
   // gönderiyor — ayrı bir createUser çağrısına gerek yok.
   const origin = new URL(req.url).origin;
-  try {
-    const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${origin}/invite/callback`,
-    });
-    if (error || !data.user) throw error ?? new Error("Davet gönderilemedi.");
+  const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${origin}/invite/callback`,
+  });
+
+  if (!error && data.user) {
     await supabase.from("account_members").update({ user_id: data.user.id }).eq("id", member.id);
-  } catch (err) {
-    // E-posta başka bir hesapta zaten kayıtlıysa (sahip/üye) invite hata
-    // verir — bu durumda kişi zaten "Şifremi Unuttum" ile giriş yapabildiği
-    // için eski akışa (kod tabanlı sıfırlama) düşüyoruz.
-    console.error(`Davet maili gönderilemedi (${email}), resetPasswordForEmail'e düşülüyor:`, err instanceof Error ? err.message : err);
+  } else if (error?.code === "email_exists") {
+    // E-posta başka bir hesapta zaten kayıtlı (sahip/üye) — o kimliği bu
+    // üyeliğe bağlıyoruz (yoksa /confirm-join'de user_id null kalıp
+    // provisionAndSignIn'in createUser'ı da "zaten kayıtlı" diye tekrar
+    // patlar, davet kalıcı olarak takılı kalır), sonra kişi zaten
+    // "Şifremi Unuttum" ile giriş yapabildiği için eski akışa düşülüyor.
+    try {
+      const { data: linkData } = await supabase.auth.admin.generateLink({ type: "magiclink", email });
+      if (linkData?.user?.id) {
+        await supabase.from("account_members").update({ user_id: linkData.user.id }).eq("id", member.id);
+      }
+    } catch (linkErr) {
+      console.error(`Mevcut kimlik bulunamadı (${email}):`, linkErr instanceof Error ? linkErr.message : linkErr);
+    }
     try {
       const client = await createSupabaseServerClient();
-      const { error } = await client.auth.resetPasswordForEmail(email);
-      if (error) throw error;
+      const { error: resetError } = await client.auth.resetPasswordForEmail(email);
+      if (resetError) throw resetError;
     } catch (fallbackErr) {
-      console.error(`Yedek davet maili de gönderilemedi (${email}):`, fallbackErr instanceof Error ? fallbackErr.message : fallbackErr);
+      console.error(`Yedek davet maili gönderilemedi (${email}):`, fallbackErr instanceof Error ? fallbackErr.message : fallbackErr);
     }
+  } else {
+    // "Zaten kayıtlı" DIŞINDA bir hata (geçici Supabase hatası vb.) —
+    // resetPasswordForEmail'e düşmek burada anlamsız, o sadece zaten var
+    // olan bir kimlik için işe yarar; bilinmeyen bir e-postaya sessizce
+    // hiçbir şey yapmaz. Davet kaydı yapıldı ama mail gitmedi, loglanıyor.
+    console.error(`Davet maili gönderilemedi (${email}):`, error?.message ?? "bilinmeyen hata");
   }
 
   return NextResponse.json({ ok: true, member });

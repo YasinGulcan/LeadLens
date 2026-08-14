@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const accountId = session.accountId;
 
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
+  if (!body || typeof body !== "object") return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
 
   const update: Record<string, unknown> = {};
 

@@ -63,6 +63,7 @@ kullanıcı ihtiyacı çıktıkça ekleniyor, önceden planlanmıyor).
 
 ## Sırada (bilinen, henüz bloklamayan)
 
+- [ ] Sahip-özel route'ların hepsi `getSessionInfo()`'dan sonra ayrıca `isAccountOwner()` çağırıp aynı sahiplik ayrımını 2. kez sorguluyor (10+ route) — `SessionInfo`'ya bir `isOwner` alanı eklenip `getSessionInfo()` içinde bedavaya hesaplanabilir, ama geniş bir refactor (her çağıran güncellenmeli), `docs/PROGRESS.md` Oturum 30.
 - [ ] `/dashboard` genel bakışta lead listesi sabit 50 kayıtla sınırlı — sayfalama yok, lead sayısı arttıkça sorun olur.
 - [ ] `lead_status_history` sorgusu `account_id` filtresi olmadan çekiliyor bazı yerlerde — veri büyüdükçe yavaşlayabilir, ayrıca tenant izolasyonu açısından gözden geçirilmeli.
 - [ ] `pricing_plans`/`pricing_inquiries` var ama gerçek bir ödeme/faturalama akışı (Stripe vb.) henüz yok — şu an satış talebi toplamaktan öteye geçmiyor.
