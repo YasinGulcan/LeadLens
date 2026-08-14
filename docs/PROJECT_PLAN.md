@@ -6,7 +6,7 @@
 > Mimarinin şu an ne olduğu için: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 > "Ne zaman/neden böyle yapıldı" için: [`PROGRESS.md`](./PROGRESS.md) Oturum Günlüğü.
 >
-> Son güncelleme: 2026-08-13
+> Son güncelleme: 2026-08-14
 
 ## Şu anki faz
 
@@ -43,10 +43,6 @@ kullanıcı ihtiyacı çıktıkça ekleniyor, önceden planlanmıyor).
   markalamak istenirse Dashboard → Authentication → Email Templates →
   "Invite user" düzenlenebilir hale gelmesi custom SMTP kurulmasına bağlı
   (yukarıdaki madde) — o karar verilene kadar bu jenerik metinle kalınacak.
-- [ ] **`otp_codes` tablosu artık kullanılmıyor, silinmeyi bekliyor** —
-  drop işlemi Claude Code'un otomatik onay sınıflandırıcısı tarafından
-  yıkıcı DDL olduğu için engellendi, kullanıcı onayı gerekiyor
-  (`drop table if exists otp_codes;`, bkz. migration 0046).
 - [ ] **Google OAuth "Testing" modunda** — en fazla 100 test kullanıcısı +
   kısa ömürlü token riski. Gerçek müşteriler eklenmeden önce (a) Cloud
   Console'da test kullanıcısı olarak eklemek, (b) uzun vadede uygulama

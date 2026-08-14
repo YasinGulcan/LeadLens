@@ -423,6 +423,7 @@ Ayrı ayrı istenen küçük/orta ölçekli iyileştirmeler zinciri, tek oturumd
   - **`/api/dashboard/settings`'e obje olmayan bir JSON gövdesi** (örn. `5`) gönderilirse `"businessName" in body` çökme (500) veriyordu — `typeof body !== "object"` kontrolü eklendi.
 - **Doğrulama:** `npx tsc --noEmit`/`npx eslint .`/`npm test` (81/81) temiz. Davet dead-end fix'i gerçek Supabase API'sine karşı uçtan uca test edildi (önceden var olan bir auth kimliğiyle geçici hesap+üye açılıp, `inviteUserByEmail`'in `email_exists` döndürdüğü, `generateLink`'in doğru mevcut kullanıcıyı bulduğu ve üyelik satırına doğru bağlandığı doğrulandı), sonra temizlendi.
 - **Bulunan ama düzeltilmeyen (düşük öncelik, ayrıca not edildi):** Yeni sahip-özel route'ların hepsi `getSessionInfo()`'dan sonra ayrıca `isAccountOwner()` çağırıyor — `getSessionInfo()` zaten sahiplik ayrımını içeriden yapıyor, bu ekstra DB sorgusu (10+ route'ta) önlenebilir ama geniş bir refactor gerektirdiği için şimdilik ertelendi.
+- **`otp_codes` tablosu silindi** — migration 0046 dosyasında zaten `drop table if exists otp_codes;` vardı ama canlıya hiç uygulanmamıştı (o satır otomatik onay sınıflandırıcısı tarafından engellenmişti, diğer iki `alter table` satırı geçmişti). Kod tabanında hiçbir referansı kalmadığı doğrulandıktan (10 satır boşuna duruyordu) ve kullanıcı onayı alındıktan sonra Supabase MCP ile canlıya uygulandı, tablo artık yok.
 
 ---
 
