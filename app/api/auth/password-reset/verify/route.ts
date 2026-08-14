@@ -5,17 +5,24 @@ import {
   getAccountOwnerEmail,
   getPendingOwnerEmail,
   getAccountById,
+  createAccountForNewOwner,
 } from "@/lib/accounts";
 import { createPendingMembershipValue, PENDING_MEMBERSHIP_COOKIE } from "@/lib/pending-membership";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 /**
  * `/login` → "Şifremi Unuttum" adım 2 — Supabase Auth kodu doğrulanınca
- * (oturum otomatik kurulur) üç senaryodan biri işler: (1) sahip ya da
+ * (oturum otomatik kurulur) dört senaryodan biri işler: (1) sahip ya da
  * daveti önceden kabul etmiş bir üye — `/set-password`'e yönlendirilir;
  * (2) bekleyen bir davet/sahiplik devri hedefi — oturum bilerek bırakılıp
- * (`signOut`) `/confirm-join`'de açık onay istenir; (3) hiçbiri değilse
- * (start'ta zaten elenmiş olmalı) hata.
+ * (`signOut`) `/confirm-join`'de açık onay istenir; (3) `resetPasswordForEmail`
+ * kod gönderdiğine göre bu e-posta `auth.users`'ta kesinlikle var, ama
+ * `accounts`/`account_members`'ta hiçbir kaydı yok — "yetim kimlik"
+ * (ör. eskiden ekipten çıkarılmış, `auth.users` satırı kasıtlı olarak
+ * silinmemiş biri, bkz. `removeTeamMember`). Kod zaten e-posta sahipliğini
+ * kanıtladığı için burada güvenle yeni bir hesap açılır — eskiden "hesap
+ * yok, kayıt olun" deyip `/signup`'a gönderiyorduk, o da aynı e-posta
+ * Supabase'de zaten var diye reddedip çıkışsız bir döngü yaratıyordu.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -24,7 +31,7 @@ export async function POST(req: NextRequest) {
   if (!email || !code) return NextResponse.json({ error: "E-posta ve kod zorunlu." }, { status: 400 });
 
   const client = await createSupabaseServerClient();
-  const { error: verifyError } = await client.auth.verifyOtp({ email, token: code, type: "recovery" });
+  const { data: verifyData, error: verifyError } = await client.auth.verifyOtp({ email, token: code, type: "recovery" });
   if (verifyError) return NextResponse.json({ error: verifyError.message }, { status: 400 });
 
   const ownerAccountId = await getAccountIdByOwnerEmail(email);
@@ -32,8 +39,17 @@ export async function POST(req: NextRequest) {
 
   const member = await findAccountIdByMemberEmail(email);
   if (!member) {
-    await client.auth.signOut();
-    return NextResponse.json({ error: "Bu e-posta ile kayıtlı bir hesap bulunamadı, kayıt olun." }, { status: 404 });
+    const user = verifyData.user;
+    const fullName = (user?.user_metadata?.full_name as string | undefined) ?? email.split("@")[0];
+    const phone = (user?.user_metadata?.phone as string | undefined) ?? null;
+    const result = user
+      ? await createAccountForNewOwner({ email, userId: user.id, fullName, phone })
+      : { error: "Kullanıcı bulunamadı." };
+    if ("error" in result) {
+      await client.auth.signOut();
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json({ ok: true, redirect: "/onboarding" });
   }
 
   const pendingOwnerEmail = await getPendingOwnerEmail(member.accountId);

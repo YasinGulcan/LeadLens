@@ -42,7 +42,18 @@ export async function POST(req: NextRequest) {
     password,
     options: { data: { full_name: fullName, phone, plan_id: planId } },
   });
-  if (error || !data.user) return NextResponse.json({ error: error?.message ?? "Kayıt oluşturulamadı." }, { status: 500 });
+  if (error || !data.user) {
+    // "user_already_exists"/"email_exists" burada normalde beklenmez
+    // (yukarıdaki ön kontrol owner/member'ı zaten eledi) — ama bu e-posta
+    // "yetim" bir auth.users kimliğine sahip olabilir (ör. eskiden ekipten
+    // çıkarılmış, kimliği kasıtlı olarak silinmemiş biri, bkz.
+    // removeTeamMember). Supabase'in ham İngilizce hatasını göstermek
+    // yerine aynı temiz mesaja düşülüyor — doğru sonraki adım (giriş/
+    // Şifremi Unuttum) artık gerçekten çalışıyor.
+    const alreadyExists = error?.code === "user_already_exists" || error?.code === "email_exists";
+    const message = alreadyExists ? "Bu e-posta zaten kullanılıyor. Giriş yapmayı deneyin." : (error?.message ?? "Kayıt oluşturulamadı.");
+    return NextResponse.json({ error: message }, { status: alreadyExists ? 409 : 500 });
+  }
 
   if (data.session) {
     const result = await createAccountForNewOwner({ email, userId: data.user.id, fullName, phone });

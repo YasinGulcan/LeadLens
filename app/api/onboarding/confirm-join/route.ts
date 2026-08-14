@@ -44,12 +44,24 @@ export async function POST(req: NextRequest) {
     }
 
     if (previousOwnerEmail && previousOwnerEmail !== email) {
-      await supabase.from("account_members").insert({
+      const { error: demoteError } = await supabase.from("account_members").insert({
         account_id: accountId,
         email: previousOwnerEmail,
         user_id: currentAccount?.owner_user_id ?? null,
         password_set_at: currentAccount?.owner_password_set_at ?? null,
       });
+      // account_members.email global olarak unique — eski sahip zaten
+      // başka bir hesapta üye/sahipse (23505) bu beklenir, sessizce
+      // atlanır (zaten başka bir yerde erişimi var). Başka bir hata ise
+      // (geçici DB hatası vb.) eski sahip ne sahip ne üye kalıp "yetim"
+      // bir kimliğe düşer — devrin kendisini engellemiyoruz (yeni sahibin
+      // erişimi öncelikli) ama loglanmazsa fark edilmesi imkansız olur.
+      if (demoteError && demoteError.code !== "23505") {
+        console.error(
+          `Sahiplik devri: eski sahip (${previousOwnerEmail}) üye olarak eklenemedi, hesapsız/yetim kalmış olabilir:`,
+          demoteError.message
+        );
+      }
     }
     await supabase.from("account_members").delete().eq("account_id", accountId).eq("email", email);
     try {

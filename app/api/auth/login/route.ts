@@ -90,5 +90,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, redirect: account?.onboarded_at ? "/dashboard" : "/onboarding" });
   }
 
-  return NextResponse.json({ error: "Bu e-posta ile kayıtlı bir hesap bulunamadı, kayıt olun." }, { status: 404 });
+  // Bu e-postanın accounts/account_members'ta hiçbir kaydı yok. Ama daha
+  // önce bir davetin parçası olup ekipten çıkarılmış biriyse (auth.users
+  // kimliği kasıtlı olarak silinmez, bkz. removeTeamMember) "kayıt olun"
+  // demek çıkışsız bir döngü yaratır (signup, Supabase'de e-posta zaten
+  // var diye reddeder) — "Şifremi Unuttum" ise artık bu durumu tanıyıp
+  // yeni bir hesap açıyor (bkz. password-reset/verify). Hangi durumda
+  // olduğunu burada ucuza ayırt edemediğimiz için ikisini de öneriyoruz.
+  return NextResponse.json(
+    {
+      error:
+        "Bu e-posta ile kayıtlı bir hesap bulunamadı. Hiç kaydolmadıysanız kayıt olun; daha önce kullandıysanız \"Şifremi Unuttum\"u deneyin.",
+    },
+    { status: 404 }
+  );
 }

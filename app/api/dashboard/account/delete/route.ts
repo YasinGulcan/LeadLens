@@ -56,17 +56,27 @@ export async function POST(req: NextRequest) {
 
   await revokeGoogleToken(session.accountId);
 
-  const { data: memberRows } = await supabase.from("account_members").select("user_id").eq("account_id", session.accountId);
+  const { data: memberRows } = await supabase.from("account_members").select("user_id, email").eq("account_id", session.accountId);
   const { data: ownerRow } = await supabase.from("accounts").select("owner_user_id").eq("id", session.accountId).single();
 
   const { error } = await supabase.from("accounts").delete().eq("id", session.accountId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Auth.users satırları accounts'a cascade'li değil — en iyi çaba ile ayrıca temizlenir.
-  const userIdsToDelete = [ownerRow?.owner_user_id, ...(memberRows ?? []).map((m) => m.user_id)].filter((id): id is string => !!id);
+  // Auth.users satırları accounts'a cascade'li değil — en iyi çaba ile ayrıca
+  // temizlenir. Başarısız olursa o kişi "yetim" bir auth.users kimliğiyle
+  // kalır (accounts/account_members satırı zaten silindi) — ama artık
+  // çıkışsız değil: "Şifremi Unuttum" bu durumu tanıyıp yeni bir hesap
+  // açıyor (bkz. password-reset/verify). E-posta loglanıyor ki manuel takip
+  // gerekirse kimin etkilendiği görülebilsin (sadece user_id yetersizdi).
+  const usersToDelete = [
+    { id: ownerRow?.owner_user_id, email: session.email },
+    ...(memberRows ?? []).map((m) => ({ id: m.user_id, email: m.email })),
+  ].filter((u): u is { id: string; email: string } => !!u.id);
   await Promise.all(
-    userIdsToDelete.map((id) =>
-      supabase.auth.admin.deleteUser(id).catch((err) => console.error(`Hesap silme: auth kullanıcısı silinemedi (${id}):`, err))
+    usersToDelete.map(({ id, email }) =>
+      supabase.auth.admin
+        .deleteUser(id)
+        .catch((err) => console.error(`Hesap silme: auth kullanıcısı silinemedi (${email}, ${id}):`, err))
     )
   );
 

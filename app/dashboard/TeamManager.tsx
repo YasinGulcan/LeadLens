@@ -7,7 +7,7 @@ import { useConfirm } from "./useConfirm";
 import { Card, Button, Badge } from "@/components/ui";
 
 /** Sunucu beklenmedik şekilde çökerse (boş/HTML gövdeli 500 vb.) res.json() ham bir JS hatasıyla patlamasın diye. */
-async function safeJson(res: Response): Promise<{ error?: string }> {
+async function safeJson(res: Response): Promise<{ error?: string; warning?: string | null }> {
   try {
     return await res.json();
   } catch {
@@ -37,6 +37,7 @@ export function TeamManager({
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [transferringId, setTransferringId] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export function TeamManager({
     setPending(true);
     setError(null);
     setMessage(null);
+    setWarning(null);
     try {
       const res = await fetch("/api/dashboard/team", {
         method: "POST",
@@ -56,7 +58,11 @@ export function TeamManager({
       });
       const data = await safeJson(res);
       if (!res.ok) throw new Error(data.error ?? "Bilinmeyen hata");
-      setMessage(`Davet gönderildi: ${email}`);
+      if (data.warning) {
+        setWarning(data.warning);
+      } else {
+        setMessage(`Davet gönderildi: ${email}`);
+      }
       setEmail("");
       router.refresh();
     } catch (err) {
@@ -154,6 +160,7 @@ export function TeamManager({
       )}
 
       {message && <p className="mt-2 text-xs text-emerald-500 dark:text-emerald-400">{message}</p>}
+      {warning && <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">{warning}</p>}
       {error && <p className="mt-2 text-xs text-red-500 dark:text-red-400">{error}</p>}
 
       <Card className="mt-4 overflow-x-auto">

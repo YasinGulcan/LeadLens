@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
     redirectTo: `${origin}/invite/callback`,
   });
 
+  let warning: string | null = null;
+
   if (!error && data.user) {
     await supabase.from("account_members").update({ user_id: data.user.id }).eq("id", member.id);
   } else if (error?.code === "email_exists") {
@@ -75,9 +77,11 @@ export async function POST(req: NextRequest) {
     // "Zaten kayıtlı" DIŞINDA bir hata (geçici Supabase hatası vb.) —
     // resetPasswordForEmail'e düşmek burada anlamsız, o sadece zaten var
     // olan bir kimlik için işe yarar; bilinmeyen bir e-postaya sessizce
-    // hiçbir şey yapmaz. Davet kaydı yapıldı ama mail gitmedi, loglanıyor.
+    // hiçbir şey yapmaz. Davet kaydı yapıldı ama mail gitmedi — sadece
+    // loglamak yetmiyor, hesap sahibi de görmeli ki elle haber verebilsin.
     console.error(`Davet maili gönderilemedi (${email}):`, error?.message ?? "bilinmeyen hata");
+    warning = "Ekip üyesi eklendi ama davet e-postası gönderilemedi. Kişiye elle haber vermeniz gerekebilir.";
   }
 
-  return NextResponse.json({ ok: true, member });
+  return NextResponse.json({ ok: true, member, warning });
 }
