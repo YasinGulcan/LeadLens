@@ -164,12 +164,19 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
 ## Gotchas (kod okumadan bilinmesi zor kararlar)
 
 - **Hesap sahibinin `account_members`'ta satırı yoktur** — kimliği
-  `gmail_connections.connected_email`'den gelir. `assigned_to` bu yüzden
-  `account_members`e hard FK değil, `author_email` deseniyle tutarlı bir
-  `text` kolonu (migration 0035).
-- **Gmail bağlantısını "koparmak" satırı silmez** — aynı adres giriş kimliği
-  olduğu için silme hesabı kurtarılamaz kilitlerdi. `disconnected_at` ile
-  ayrılıyor: kimlik hâlâ geçerli, pipeline artık okumuyor.
+  `accounts.owner_email`'den gelir (ekip üyeleri `account_members`'ta,
+  Supabase Auth üzerinden e-posta+şifreyle — bkz. §Auth). `assigned_to` bu
+  yüzden `account_members`'e hard FK değil, `author_email` deseniyle tutarlı
+  bir `text` kolonu (migration 0035) — aksi halde sahibe atama temsil
+  edilemezdi. (Eski, artık geçerli olmayan bir tasarımda kimlik
+  `gmail_connections.connected_email`'den geliyordu — Gmail bağlantısı
+  kimlikten tamamen bağımsız hale getirildiğinden bu artık doğru değil.)
+- **Gmail bağlantısını "koparmak" satırı silmez** — `disconnected_at` ile
+  ayrılır: pipeline artık bu hesaptan okumuyor/göndermiyor ama bağlantı
+  geçmişi korunur, "Yeniden Bağla" (OAuth) bunu otomatik temizler. Bunun
+  kimlikle hiçbir ilgisi yok — Gmail bağlantısı `accounts.owner_email`'den
+  tamamen bağımsız (aynı hesaba giriş yaparken kullandığından farklı bir
+  Gmail adresi bağlanabilir, hiç bağlanmayabilir de).
 - **`sales_status` (satış süreci) ve `status` (pipeline durumu) tamamen ayrı
   kavramlar** — biri sistem yönetimli, diğeri satış ekibinin elle
   ilerlettiği. Aynı `lead_status_history` tablosunda birlikte tutuluyor
