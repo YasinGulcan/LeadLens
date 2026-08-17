@@ -16,14 +16,14 @@
  * daha açık — derinlik hissi buradan geliyor.
  */
 :root {
-  --background: #ffffff;
-  --surface: #fafafa;
-  --surface-hover: #f4f4f5;
-  --border: #e4e4e7;
-  --border-subtle: #d4d4d8;
-  --foreground: #18181b;
-  --muted: #71717a;
-  --muted-foreground: #a1a1aa;
+  --background: #f5f5f6;
+  --surface: #eeeeef;
+  --surface-hover: #e6e6e8;
+  --border: #dcdce0;
+  --border-subtle: #c9c9ce;
+  --foreground: #262629;
+  --muted: #6b6b73;
+  --muted-foreground: #97979e;
 
   --accent: #6366f1;
   --accent-hover: #4f46e5;
