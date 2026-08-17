@@ -112,7 +112,12 @@ export function PricingSection({
                   Aktif
                 </Badge>
               ) : (
-                <p className="mt-1 text-xs font-medium text-accent">İlk 14 gün ücretsiz</p>
+                // Hesabın zaten başka bir aktif planı varsa "İlk 14 gün
+                // ücretsiz" yanıltıcı olur (zaten müşterisiniz, bu kart için
+                // yeni bir deneme süresi yok) — sadece hiç aktif planı
+                // olmayanlarda (yeni ziyaretçi/deneme süresindeki hesap)
+                // gösterilir.
+                !activePlanId && <p className="mt-1 text-xs font-medium text-accent">İlk 14 gün ücretsiz</p>
               )}
 
               <div className="mt-5 border-t border-border" />
