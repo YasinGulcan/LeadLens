@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { acceptTeamMembership, clearPendingOwnerTransfer } from "@/lib/accounts";
+import { acceptTeamMembership, clearPendingOwnerTransfer, getAccountOwnerEmail } from "@/lib/accounts";
 import { getPendingMembership, PENDING_MEMBERSHIP_COOKIE } from "@/lib/pending-membership";
 import { provisionAndSignIn, signInWithoutPassword } from "@/lib/auth-identity";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/activity-log";
+import { createNotification } from "@/lib/notifications";
 
 /** `/confirm-join`'deki "Evet" — burada gerçekten üyelik ya da sahiplik devri uygulanır. */
 export async function POST(req: NextRequest) {
@@ -74,6 +75,10 @@ export async function POST(req: NextRequest) {
     await logActivity(accountId, email, "Sahipliği devraldı", previousOwnerEmail);
   } else {
     await acceptTeamMembership(accountId, email);
+    const ownerEmail = await getAccountOwnerEmail(accountId);
+    if (ownerEmail) {
+      await createNotification(accountId, ownerEmail, `${email} davetinizi kabul edip ekibe katıldı`, "/dashboard/team");
+    }
   }
 
   const { data: account } = await supabase

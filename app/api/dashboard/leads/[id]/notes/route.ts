@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
+import { createNotification } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 
 /** Lead detay sayfasındaki "Notlar" bloğu — herhangi bir ekip üyesi not ekleyebilir (sales-status güncellemesiyle aynı yetki deseni). */
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const content = typeof body?.content === "string" ? body.content.trim() : "";
   if (!content) return NextResponse.json({ error: "Not boş olamaz." }, { status: 400 });
 
-  const { data: lead } = await supabase.from("leads").select("account_id").eq("id", id).single();
+  const { data: lead } = await supabase.from("leads").select("account_id, assigned_to, name").eq("id", id).single();
   if (!lead || lead.account_id !== session.accountId) {
     return NextResponse.json({ error: "Bu lead size ait değil." }, { status: 403 });
   }
@@ -23,6 +24,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .select("id, author_email, content, created_at")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Sadece lead'in atandığı kişiye bildirim — o da notu ekleyenin kendisi
+  // değilse (kendine not eklemek bildirim tetiklemez, bkz. assign route'undaki aynı desen).
+  if (lead.assigned_to && lead.assigned_to !== session.email) {
+    await createNotification(
+      session.accountId,
+      lead.assigned_to,
+      `${session.email}, "${lead.name ?? "İsimsiz"}" için bir not ekledi`,
+      `/dashboard/leads/${id}`
+    );
+  }
 
   return NextResponse.json({ ok: true, note: data });
 }

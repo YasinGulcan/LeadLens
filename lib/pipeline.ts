@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { fetchUnprocessedLeadEmails, markEmailProcessed, sendAnalysisNotificationEmail, type GmailAccount } from "./gmail";
-import { loadConnectedGmailAccounts, getAccountById } from "./accounts";
+import { loadConnectedGmailAccounts, getAccountById, getAccountOwnerEmail } from "./accounts";
+import { createNotification } from "./notifications";
 import { sendLeadNotification } from "./resend";
 import { scrapeMarkdown } from "./firecrawl";
 import { stripBoilerplate, safeTruncate } from "./clean";
@@ -365,6 +366,11 @@ export async function runNotifySales(account: GmailAccount) {
 
   if (error) throw new Error(error.message);
 
+  // Panel içi (zil) bildirim alıcıları — e-posta kopyasıyla aynı liste
+  // (sahip + "Kopya Al" açık üyeler), tutarlı bir mental model olsun diye.
+  const ownerEmail = await getAccountOwnerEmail(account.id);
+  const notifyRecipients = [...new Set([ownerEmail, ...account.teamEmails].filter((e): e is string => !!e))];
+
   let sent = 0;
   let failed = 0;
   let skipped = 0;
@@ -431,6 +437,10 @@ export async function runNotifySales(account: GmailAccount) {
         status: "sent_to_sales",
         detail: "Satış ekibine e-posta gönderildi",
       });
+
+      for (const recipient of notifyRecipients) {
+        await createNotification(account.id, recipient, `Yeni lead: ${lead.name ?? "İsimsiz"}`, `/dashboard/leads/${lead.id}`);
+      }
       sent++;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
