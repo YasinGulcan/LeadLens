@@ -63,6 +63,37 @@ export async function getActivePricingPlans(): Promise<PricingPlan[]> {
   return (data ?? []).map(toPlan);
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export interface ActivePlanInfo {
+  daysLeft: number;
+  isEndingSoon: boolean;
+  periodEndsAt: string;
+}
+
+/**
+ * Aktif planın "bu dönem ne zaman biter" bilgisi — gerçek bir ödeme/otomatik
+ * yenileme sistemi yok (bkz. PROJECT_PLAN.md), tamamen bilgilendirme amaçlı;
+ * süre dolunca hiçbir şey kilitlenmez/değişmez. `plan_started_at`'e aylık/
+ * yıllık dönem eklenip, sonuç zaten geçmişteyse (uzun süredir aktif bir
+ * hesap — gerçek bir yenileme hiç olmadığı için birikebilir) bir sonraki
+ * dönem sınırına ulaşana kadar ileri sarılır, böylece hep "bu dönem X gün
+ * kaldı" gibi ileriye dönük, mantıklı bir sayı gösterilir.
+ */
+export function getActivePlanInfo(planStartedAt: string, billingPeriod: BillingPeriod): ActivePlanInfo {
+  const periodEnd = new Date(planStartedAt);
+  const advance = () => {
+    if (billingPeriod === "yearly") periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    else periodEnd.setMonth(periodEnd.getMonth() + 1);
+  };
+  advance();
+  const now = Date.now();
+  while (periodEnd.getTime() <= now) advance();
+
+  const daysLeft = Math.ceil((periodEnd.getTime() - now) / DAY_MS);
+  return { daysLeft, isEndingSoon: daysLeft <= 3, periodEndsAt: periodEnd.toISOString() };
+}
+
 /**
  * Landing sayfasında bir plana tıklayıp doğrudan `/signup`'a yönlendirilen
  * ziyaretçinin seçtiği plan, kayıt tamamlanınca hesaba kozmetik olarak

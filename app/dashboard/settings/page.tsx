@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
-import { getActivePricingPlans } from "@/lib/pricing";
+import { getActivePricingPlans, getActivePlanInfo, type ActivePlanInfo } from "@/lib/pricing";
 import { getTrialInfo } from "@/lib/trial";
 import { supabase } from "@/lib/supabase";
 import { DEFAULT_SYSTEM_PROMPT } from "@/lib/claude";
@@ -30,7 +30,7 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
     supabase
       .from("accounts")
       .select(
-        "business_name, slug, lead_email_subjects, created_at, active_plan_id, custom_system_prompt, business_sector, website_url, team_size"
+        "business_name, slug, lead_email_subjects, created_at, active_plan_id, plan_started_at, custom_system_prompt, business_sector, website_url, team_size"
       )
       .eq("id", accountId)
       .single(),
@@ -71,9 +71,17 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
 
   const trial = getTrialInfo(account.created_at);
   let activePlanName: string | null = null;
+  let activePlanInfo: ActivePlanInfo | null = null;
   if (account.active_plan_id) {
-    const { data: plan } = await supabase.from("pricing_plans").select("name").eq("id", account.active_plan_id).maybeSingle();
+    const { data: plan } = await supabase
+      .from("pricing_plans")
+      .select("name, billing_period")
+      .eq("id", account.active_plan_id)
+      .maybeSingle();
     activePlanName = plan?.name ?? null;
+    if (plan && account.plan_started_at) {
+      activePlanInfo = getActivePlanInfo(account.plan_started_at, plan.billing_period === "yearly" ? "yearly" : "monthly");
+    }
   }
 
   let deletionSummary: { leadCount: number; sourceCount: number; memberCount: number } | null = null;
@@ -148,7 +156,9 @@ export default async function DashboardSettingsPage({ searchParams }: { searchPa
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {activePlanName
-                    ? "Aboneliğiniz aktif, teşekkürler!"
+                    ? activePlanInfo
+                      ? `Aboneliğiniz aktif, teşekkürler! Bu dönem ${activePlanInfo.daysLeft} gün kaldı (${new Date(activePlanInfo.periodEndsAt).toLocaleDateString("tr-TR")}'e kadar).`
+                      : "Aboneliğiniz aktif, teşekkürler!"
                     : trial.isExpired
                       ? showPlanTab
                         ? "Deneme süreniz sona erdi — hiçbir kısıtlama yok, dilediğinizde bir plana geçebilirsiniz."

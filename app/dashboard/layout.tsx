@@ -4,7 +4,7 @@ import { acceptTeamMembership, hasRealPassword, isAccountOwner, isAuthorizedForA
 import { getSetupStatus } from "@/lib/setup-checklist";
 import { listNotifications, getUnreadNotificationCount } from "@/lib/notifications";
 import { getTrialInfo } from "@/lib/trial";
-import { getActivePricingPlans } from "@/lib/pricing";
+import { getActivePricingPlans, getActivePlanInfo, type ActivePlanInfo } from "@/lib/pricing";
 import { supabase } from "@/lib/supabase";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { NotificationBell } from "./NotificationBell";
@@ -18,7 +18,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { accountId } = session;
 
   const [{ data: account }, { count: leadCount }, setupStatus, notifications, unreadCount, activePlans] = await Promise.all([
-    supabase.from("accounts").select("business_name, slug, onboarded_at, created_at, active_plan_id").eq("id", accountId).single(),
+    supabase
+      .from("accounts")
+      .select("business_name, slug, onboarded_at, created_at, active_plan_id, plan_started_at")
+      .eq("id", accountId)
+      .single(),
     supabase.from("leads").select("id", { count: "exact", head: true }).eq("account_id", accountId),
     getSetupStatus(accountId),
     listNotifications(accountId, session.email),
@@ -28,9 +32,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!account) redirect("/");
 
   let activePlanName: string | null = null;
+  let activePlanInfo: ActivePlanInfo | null = null;
   if (account.active_plan_id) {
-    const { data: plan } = await supabase.from("pricing_plans").select("name").eq("id", account.active_plan_id).maybeSingle();
+    const { data: plan } = await supabase
+      .from("pricing_plans")
+      .select("name, billing_period")
+      .eq("id", account.active_plan_id)
+      .maybeSingle();
     activePlanName = plan?.name ?? null;
+    if (plan && account.plan_started_at) {
+      activePlanInfo = getActivePlanInfo(account.plan_started_at, plan.billing_period === "yearly" ? "yearly" : "monthly");
+    }
   }
   const trial = getTrialInfo(account.created_at);
   // Deneme bitip aktif bir plan seçilmemişse panel kilitlenir — seçilebilecek
@@ -67,6 +79,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         setupProgress={setupStatus.requiredDone ? null : { completed: setupStatus.completedCount, total: setupStatus.totalCount }}
         trial={trial}
         activePlanName={activePlanName}
+        activePlanInfo={activePlanInfo}
       />
       <div className="min-w-0 flex-1 overflow-x-hidden">
         <div className="flex items-center justify-between border-b border-border px-8 py-4 text-xs text-muted-foreground">

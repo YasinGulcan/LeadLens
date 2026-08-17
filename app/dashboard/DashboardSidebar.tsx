@@ -7,6 +7,7 @@ import { LogoutButton } from "./LogoutButton";
 import { ThemeToggle } from "./ThemeToggle";
 import { Badge } from "@/components/ui";
 import type { TrialInfo } from "@/lib/trial";
+import type { ActivePlanInfo } from "@/lib/pricing";
 
 interface NavItem {
   href: string;
@@ -49,6 +50,7 @@ export function DashboardSidebar({
   setupProgress,
   trial,
   activePlanName,
+  activePlanInfo,
 }: {
   businessName: string;
   email: string;
@@ -58,6 +60,8 @@ export function DashboardSidebar({
   trial: TrialInfo;
   /** Sahte checkout'tan geçildiyse (bkz. PricingCheckoutModal) dolu — doluysa deneme rozetinin yerini alır. */
   activePlanName: string | null;
+  /** Gerçek bir ödeme sistemi yok — sadece bilgilendirme amaçlı "bu dönem X gün kaldı". */
+  activePlanInfo: ActivePlanInfo | null;
 }) {
   const pathname = usePathname();
 
@@ -109,7 +113,12 @@ export function DashboardSidebar({
         </Link>
         <div className="mt-2">
           {activePlanName ? (
-            <Badge variant="success">{activePlanName} — Aktif</Badge>
+            <span title={activePlanInfo ? `Bu dönem: ${new Date(activePlanInfo.periodEndsAt).toLocaleDateString("tr-TR")}'e kadar` : undefined}>
+              <Badge variant="success">
+                {activePlanName}
+                {activePlanInfo ? ` — ${activePlanInfo.daysLeft} gün kaldı` : " — Aktif"}
+              </Badge>
+            </span>
           ) : trial.isExpired ? (
             <Badge variant="neutral">Deneme Sürümü</Badge>
           ) : (
