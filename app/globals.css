@@ -69,5 +69,9 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* app/layout.tsx next/font ile Geist Sans'ı yükleyip --font-geist-sans'ı
+     tanımlıyor (→ --font-sans, bkz. @theme inline yukarıda) — burada
+     kullanılmazsa yüklenen font boşa gidip tarayıcının varsayılan Arial'ine
+     düşülüyordu. */
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
