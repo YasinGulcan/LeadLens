@@ -19,11 +19,17 @@ export const SALES_STATUS_LABEL: Record<SalesStatus, string> = {
   kaybedildi: "Kaybedildi",
 };
 
-/** "Trafik ışığı" renkleri bilinçli olarak SADECE bu rozette kullanılıyor — panelin geri kalanı nötr + tek accent. */
+/**
+ * "Trafik ışığı" renkleri bilinçli olarak SADECE bu rozette kullanılıyor —
+ * panelin geri kalanı nötr + tek accent. Açık/koyu tema çifti
+ * `components/ui/Badge.tsx`'teki desenle aynı (`text-*-600` açık,
+ * `dark:text-*-400` koyu) — eskiden sadece koyu tema değerleri vardı,
+ * açık temada (ör. `text-zinc-300`) neredeyse görünmüyordu.
+ */
 export const SALES_STATUS_BADGE_CLASS: Record<SalesStatus, string> = {
-  yeni: "bg-zinc-500/15 text-zinc-300",
-  yanitlandi: "bg-blue-500/15 text-blue-400",
-  gorusme_ayarlandi: "bg-indigo-500/15 text-indigo-400",
-  kazanildi: "bg-emerald-500/15 text-emerald-400",
-  kaybedildi: "bg-red-500/10 text-red-400/80",
+  yeni: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-300",
+  yanitlandi: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  gorusme_ayarlandi: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+  kazanildi: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  kaybedildi: "bg-red-500/10 text-red-600 dark:text-red-400",
 };
