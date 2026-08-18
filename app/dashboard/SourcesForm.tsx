@@ -42,6 +42,75 @@ async function parseJsonResponse(res: Response): Promise<{ ok: boolean; data: Re
   }
 }
 
+interface PageGroup {
+  key: string;
+  label: string;
+  pages: SitemapPage[];
+}
+
+// ISO 639-1 dil kodları tam olarak 2 harf — path'in ilk segmenti buna
+// uyuyorsa (örn. /en/, /de/) neredeyse her zaman bir dil varyantıdır.
+const LANGUAGE_SEGMENT = /^[a-z]{2}$/;
+
+// Birçok site (özellikle WordPress) her yazıyı kendi tekil slug'ında kök
+// seviyede yayınlıyor — "path'in ilk segmenti" bu durumda gruplama
+// sağlamıyor, her sayfa kendi tek elemanlı "grubu" oluyor. Bu boyuttaki
+// grupları tek tek göstermek yerine tek bir "Diğer sayfalar" grubunda
+// topluyoruz — gerçek (ör. bir eklentinin ürettiği tekrarlayan) kategoriler
+// (2+ sayfa paylaşıyor) kendi grubunda kalıyor.
+const MIN_GROUP_SIZE = 2;
+
+function pageGroupKey(pageUrl: string): string {
+  try {
+    const segments = new URL(pageUrl).pathname.split("/").filter(Boolean);
+    return segments[0]?.toLowerCase() ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** Bir grubun, sitenin geri kalanına göre azınlıkta kalan bir dil klasörü olup olmadığı — bkz. defaultSelectedUrls. */
+function isMinorityLanguageGroup(group: PageGroup, totalPages: number): boolean {
+  return LANGUAGE_SEGMENT.test(group.key) && group.pages.length < totalPages / 2;
+}
+
+/** 189 sayfalık düz bir listeyi URL'in ilk path segmentine göre gruplara ayırır — en büyük grup en üstte, tekil segmentler "Diğer sayfalar"da toplanır. */
+function groupPages(pages: SitemapPage[]): PageGroup[] {
+  const map = new Map<string, SitemapPage[]>();
+  for (const p of pages) {
+    const key = pageGroupKey(p.url);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(p);
+  }
+  const rawGroups = Array.from(map.entries()).map(([key, groupPages]) => ({
+    key,
+    label: key === "" ? "Kök sayfalar" : `/${key}/`,
+    pages: groupPages,
+  }));
+
+  const mainGroups = rawGroups.filter((g) => g.pages.length >= MIN_GROUP_SIZE);
+  const otherPages = rawGroups.filter((g) => g.pages.length < MIN_GROUP_SIZE).flatMap((g) => g.pages);
+  if (otherPages.length > 0) mainGroups.push({ key: "__other__", label: "Diğer sayfalar", pages: otherPages });
+
+  return mainGroups.sort((a, b) => b.pages.length - a.pages.length);
+}
+
+/**
+ * Varsayılan seçim: sitenin yarısından AZINI oluşturan, 2 harfli bir path
+ * segmentine sahip gruplar (muhtemel dil varyantı, ör. /en/) varsayılan
+ * olarak seçili GELMEZ — marketer bilinçli olarak "Tümünü seç" ile
+ * ekleyebilir, ama Firecrawl kredisi/embedding baştan boşa gitmez.
+ */
+function defaultSelectedUrls(pages: SitemapPage[]): Set<string> {
+  const groups = groupPages(pages);
+  const selected = new Set<string>();
+  for (const group of groups) {
+    if (isMinorityLanguageGroup(group, pages.length)) continue;
+    for (const p of group.pages) selected.add(p.url);
+  }
+  return selected;
+}
+
 export function SourcesForm() {
   const router = useRouter();
   const [url, setUrl] = useState("");
@@ -53,12 +122,35 @@ export function SourcesForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pageFilter, setPageFilter] = useState("");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   function reset() {
     setStep({ kind: "input" });
     setUrl("");
     setLabel("");
     setPageFilter("");
+    setExpandedGroups(new Set());
+  }
+
+  function toggleGroupExpanded(key: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function toggleGroupSelected(group: PageGroup, allSelected: boolean) {
+    setStep((prev) => {
+      if (prev.kind !== "sitemap") return prev;
+      const next = new Set(prev.selected);
+      for (const p of group.pages) {
+        if (allSelected) next.delete(p.url);
+        else next.add(p.url);
+      }
+      return { ...prev, selected: next };
+    });
   }
 
   async function handleDiscover(e: React.FormEvent) {
@@ -78,7 +170,8 @@ export function SourcesForm() {
       if (data.mode === "sitemap") {
         const pages = data.pages as SitemapPage[];
         setPageFilter("");
-        setStep({ kind: "sitemap", pages, selected: new Set(pages.map((p) => p.url)) });
+        setExpandedGroups(new Set());
+        setStep({ kind: "sitemap", pages, selected: defaultSelectedUrls(pages) });
       } else {
         setStep({ kind: "single", page: data.page as SinglePreview });
       }
@@ -154,6 +247,10 @@ export function SourcesForm() {
     // etkiler — filtre aktifken tüm sayfaları (görünmeyenler dahil) seçip
     // "N / toplam" sayacını yanıltıcı şekilde artırmasın diye.
     const allFilteredSelected = filteredPages.length > 0 && filteredPages.every((p) => step.selected.has(p.url));
+    const groups = groupPages(step.pages);
+    const hasDeselectedLanguageGroup = groups.some(
+      (g) => isMinorityLanguageGroup(g, step.pages.length) && g.pages.some((p) => !step.selected.has(p.url))
+    );
 
     return (
       <div className="mt-3 max-w-2xl overflow-hidden rounded-lg border border-border bg-surface">
@@ -191,42 +288,117 @@ export function SourcesForm() {
               {step.selected.size} / {step.pages.length} sayfa seçildi
             </span>
           </div>
+          {hasDeselectedLanguageGroup && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Dil varyantı olabilecek küçük gruplar (ör. /en/) varsayılan olarak seçili değil — gerekiyorsa grubu açıp elle seçebilirsiniz.
+            </p>
+          )}
         </div>
 
-        <ul className="max-h-80 divide-y divide-border overflow-y-auto">
-          {filteredPages.length === 0 && (
-            <li className="px-4 py-6 text-center text-xs text-muted-foreground">Eşleşen sayfa bulunamadı.</li>
-          )}
-          {filteredPages.map((page) => {
-            const checked = step.selected.has(page.url);
-            return (
-              <li key={page.url}>
-                <label
-                  className={`flex cursor-pointer items-center gap-3 px-4 py-3 text-sm transition hover:bg-surface-hover ${
-                    checked ? "bg-surface-hover" : ""
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleSelected(page.url)}
-                    className="h-[18px] w-[18px] shrink-0 cursor-pointer accent-accent"
-                  />
-                  <span className="min-w-0 flex-1 truncate" title={page.url}>
-                    {page.title ? (
-                      <>
-                        <span className="font-medium">{page.title}</span>{" "}
-                        <span className="text-muted-foreground">— {page.url}</span>
-                      </>
-                    ) : (
-                      page.url
-                    )}
-                  </span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
+        {normalizedFilter ? (
+          <ul className="max-h-80 divide-y divide-border overflow-y-auto">
+            {filteredPages.length === 0 && (
+              <li className="px-4 py-6 text-center text-xs text-muted-foreground">Eşleşen sayfa bulunamadı.</li>
+            )}
+            {filteredPages.map((page) => {
+              const checked = step.selected.has(page.url);
+              return (
+                <li key={page.url}>
+                  <label
+                    className={`flex cursor-pointer items-center gap-3 px-4 py-3 text-sm transition hover:bg-surface-hover ${
+                      checked ? "bg-surface-hover" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleSelected(page.url)}
+                      className="h-[18px] w-[18px] shrink-0 cursor-pointer accent-accent"
+                    />
+                    <span className="min-w-0 flex-1 truncate" title={page.url}>
+                      {page.title ? (
+                        <>
+                          <span className="font-medium">{page.title}</span>{" "}
+                          <span className="text-muted-foreground">— {page.url}</span>
+                        </>
+                      ) : (
+                        page.url
+                      )}
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="max-h-96 divide-y divide-border overflow-y-auto">
+            {groups.map((group) => {
+              const selectedInGroup = group.pages.filter((p) => step.selected.has(p.url)).length;
+              const allGroupSelected = selectedInGroup === group.pages.length;
+              const someGroupSelected = selectedInGroup > 0 && !allGroupSelected;
+              const isExpanded = expandedGroups.has(group.key);
+              return (
+                <div key={group.key}>
+                  <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-hover">
+                    <input
+                      type="checkbox"
+                      checked={allGroupSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someGroupSelected;
+                      }}
+                      onChange={() => toggleGroupSelected(group, allGroupSelected)}
+                      className="h-[18px] w-[18px] shrink-0 cursor-pointer accent-accent"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => toggleGroupExpanded(group.key)}
+                      className="flex flex-1 items-center justify-between gap-2 text-left text-sm"
+                    >
+                      <span className="font-medium text-foreground">{group.label}</span>
+                      <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                        {selectedInGroup} / {group.pages.length} seçili
+                        <span>{isExpanded ? "▲" : "▼"}</span>
+                      </span>
+                    </button>
+                  </div>
+                  {isExpanded && (
+                    <ul className="divide-y divide-border bg-background/40">
+                      {group.pages.map((page) => {
+                        const checked = step.selected.has(page.url);
+                        return (
+                          <li key={page.url}>
+                            <label
+                              className={`flex cursor-pointer items-center gap-3 py-2.5 pr-4 pl-10 text-sm transition hover:bg-surface-hover ${
+                                checked ? "bg-surface-hover" : ""
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleSelected(page.url)}
+                                className="h-[16px] w-[16px] shrink-0 cursor-pointer accent-accent"
+                              />
+                              <span className="min-w-0 flex-1 truncate" title={page.url}>
+                                {page.title ? (
+                                  <>
+                                    <span className="font-medium">{page.title}</span>{" "}
+                                    <span className="text-muted-foreground">— {page.url}</span>
+                                  </>
+                                ) : (
+                                  page.url
+                                )}
+                              </span>
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
           <button
