@@ -79,6 +79,7 @@ kullanıcı ihtiyacı çıktıkça ekleniyor, önceden planlanmıyor).
 
 ## İleride (fikir aşamasında, kararlaştırılmadı)
 
+- [ ] Instagram/Facebook Lead Ads entegrasyonu — "Size Ulaşalım" reklam formlarından gelen lead'leri otomatik çekmek. Mimarideki `/api/inbound-email` (Resend webhook → `createLeadFromSubmission`) desenine benzer bir `/api/meta-leads` webhook'u ile teknik olarak yapılabilir, ama Meta'nın Lead Ads erişimi App Review'dan geçmesi gereken kısıtlı bir izin ve her müşterinin kendi Instagram/Facebook sayfasını bağlaması gerekiyor (Gmail OAuth'taki hesap-bazlı bağlantı desenine benzer, token yenileme derdi de muhtemelen çıkar) — küçük bir ekleme değil, ayrı bir entegrasyon işi olarak ele alınmalı.
 - [ ] CRM entegrasyonu (HubSpot/Airtable push)
 - [ ] Lead zenginleştirme (Exa.ai/Websets ile ek şirket bağlamı)
 - [ ] Gmail push (Pub/Sub) — polling yerine webhook, hacim arttıkça
