@@ -11,37 +11,46 @@ import { createPendingMembershipValue, PENDING_MEMBERSHIP_COOKIE } from "@/lib/p
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 /**
- * `app/reset-password/callback/ResetPasswordCallbackFlow.tsx`'in çağırdığı
- * uç nokta — linkin URL fragment'ından okuduğu `access_token`/`refresh_token`'ı
- * buraya POST eder. `setSession` ile oturum kurulunca (e-posta sahipliği
- * kanıtlanmış olur) dört senaryodan biri işler: (1) sahip ya da daveti
- * önceden kabul etmiş bir üye — `/set-password`'e yönlendirilir; (2)
- * bekleyen bir davet/sahiplik devri hedefi — oturum bilerek bırakılıp
- * `/confirm-join`'de açık onay istenir; (3) "yetim kimlik" (auth.users'ta
- * var ama accounts/account_members'ta hiç kaydı yok, bkz. removeTeamMember)
- * — doğrudan bu kimlikle yeni bir hesap açılır, `/onboarding`'e yönlendirilir.
+ * Maildeki "Reset password" linkinin hedefi. `createSupabaseServerClient()`
+ * (`@supabase/ssr`) PKCE akışını varsayılan kullanıyor — `resetPasswordForEmail`
+ * (davet akışının `inviteUserByEmail`'inin aksine) bunu destekliyor, yani
+ * link fragment değil `?code=pkce_...` query param'ı taşıyor. Bu, ayrı bir
+ * client sayfası/fragment-okuma gerektirmeden doğrudan burada
+ * `exchangeCodeForSession` ile karşılanabiliyor — `code_verifier` çerezi
+ * `/api/auth/password-reset/start`'ın yanıtında zaten set edilmişti, aynı
+ * tarayıcıda burada otomatik okunuyor.
+ *
+ * Oturum kurulunca (e-posta sahipliği kanıtlanmış olur) dört senaryodan
+ * biri işler: (1) sahip ya da daveti önceden kabul etmiş bir üye —
+ * `/set-password`'e yönlendirilir; (2) bekleyen bir davet/sahiplik devri
+ * hedefi — oturum bilerek bırakılıp `/confirm-join`'de açık onay istenir;
+ * (3) "yetim kimlik" (auth.users'ta var ama accounts/account_members'ta
+ * hiç kaydı yok, bkz. removeTeamMember) — doğrudan bu kimlikle yeni bir
+ * hesap açılır, `/onboarding`'e yönlendirilir.
  */
-export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
-  const accessToken = typeof body?.access_token === "string" ? body.access_token : "";
-  const refreshToken = typeof body?.refresh_token === "string" ? body.refresh_token : "";
-  if (!accessToken || !refreshToken) {
-    return NextResponse.json({ error: "Bağlantı geçersiz ya da süresi dolmuş." }, { status: 400 });
-  }
+export async function GET(req: NextRequest) {
+  const origin = new URL(req.url).origin;
+  const fail = (message: string) => {
+    const url = new URL("/", origin);
+    url.searchParams.set("connectError", message);
+    return NextResponse.redirect(url);
+  };
+
+  const code = req.nextUrl.searchParams.get("code");
+  const oauthError = req.nextUrl.searchParams.get("error_description") || req.nextUrl.searchParams.get("error");
+  if (oauthError) return fail(decodeURIComponent(oauthError.replace(/\+/g, " ")));
+  if (!code) return fail("Bağlantı geçersiz ya da süresi dolmuş.");
 
   const client = await createSupabaseServerClient();
-  const { data: sessionData, error: sessionError } = await client.auth.setSession({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-  });
-  const user = sessionData?.user;
+  const { data, error } = await client.auth.exchangeCodeForSession(code);
+  const user = data?.user;
   const email = user?.email?.toLowerCase();
-  if (sessionError || !user || !email) {
-    return NextResponse.json({ error: "Bağlantı geçersiz ya da süresi dolmuş, tekrar deneyin." }, { status: 400 });
+  if (error || !user || !email) {
+    return fail("Bağlantı geçersiz ya da süresi dolmuş, tekrar deneyin.");
   }
 
   const ownerAccountId = await getAccountIdByOwnerEmail(email);
-  if (ownerAccountId) return NextResponse.json({ ok: true, redirect: "/set-password" });
+  if (ownerAccountId) return NextResponse.redirect(new URL("/set-password", origin));
 
   const member = await findAccountIdByMemberEmail(email);
   if (!member) {
@@ -50,16 +59,16 @@ export async function POST(req: NextRequest) {
     const result = await createAccountForNewOwner({ email, userId: user.id, fullName, phone });
     if ("error" in result) {
       await client.auth.signOut();
-      return NextResponse.json({ error: result.error }, { status: 400 });
+      return fail(result.error);
     }
-    return NextResponse.json({ ok: true, redirect: "/onboarding" });
+    return NextResponse.redirect(new URL("/onboarding", origin));
   }
 
   const pendingOwnerEmail = await getPendingOwnerEmail(member.accountId);
   const isTransfer = !!pendingOwnerEmail && pendingOwnerEmail === email;
 
   if (!isTransfer && member.acceptedAt) {
-    return NextResponse.json({ ok: true, redirect: "/set-password" });
+    return NextResponse.redirect(new URL("/set-password", origin));
   }
 
   // Bekleyen davet/devir — oturumu burada bırakmıyoruz, /confirm-join'de
@@ -76,7 +85,7 @@ export async function POST(req: NextRequest) {
     previousOwnerEmail,
   });
 
-  const res = NextResponse.json({ ok: true, redirect: "/confirm-join" });
+  const res = NextResponse.redirect(new URL("/confirm-join", origin));
   res.cookies.set(PENDING_MEMBERSHIP_COOKIE, pendingValue, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

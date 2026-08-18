@@ -102,20 +102,33 @@ satırının hangi hesaba/üyeliğe karşılık geldiğini, `owner_password_set_
 başına yeterli değil). Kayıt: `signUp()` (geçici rastgele şifreyle, gerçek
 şifre `/set-password`'te) → `verifyOtp(type:'signup')` (6 haneli kod —
 "Confirm email" şu an kapalı olduğu için pratikte bu adıma hiç düşülmüyor,
-`start` anında oturum hemen kuruluyor). **Şifre sıfırlama VE ekip daveti
-ikisi de kod değil tıklanabilir link kullanıyor** (2026-08-18'de ikisi de
-aynı köke — bkz. Gotchas — çarptı): `resetPasswordForEmail(email,
-{redirectTo:'/reset-password/callback'})` / `admin.inviteUserByEmail`
-(varsayılan, özelleştirilemeyen şablonları gönderir). PKCE desteklenmediği
-için link tıklanınca oturum bilgisi Supabase'in `/verify` uç noktasından
-`app/reset-password/callback` / `app/invite/callback`'e **URL
-fragment'ında** (`#access_token=...`, sunucu göremez) gelir; ilgili client
-flow bunu okuyup `POST /api/auth/password-reset/callback` /
-`.../invite/callback`'e gönderir, route `setSession(...)` ile oturumu
-sunucu tarafında kurar. Şifre sıfırlama callback'i ayrıca "yetim kimlik"
-durumunu (bkz. Gotchas) tanıyıp doğrudan yeni bir hesap açabilir. E-posta
-başka bir hesapta zaten kayıtlıysa `inviteUserByEmail` hata verir, o
-durumda eski `resetPasswordForEmail`'e düşülür. `lib/auth-identity.ts#
+`start` anında oturum hemen kuruluyor).
+
+**Şifre sıfırlama VE ekip daveti ikisi de kod değil tıklanabilir link
+kullanıyor, ama İKİ FARKLI mekanizmayla** (2026-08-18'de karıştırılıp bir
+kez düzeltildi, dikkat): `resetPasswordForEmail(email, {redirectTo})`
+(`createSupabaseServerClient()` üzerinden, `@supabase/ssr`) **PKCE
+kullanıyor** — link `?code=pkce_...` query param'ı taşır (fragment değil),
+`code_verifier` `@supabase/ssr`'ın kendi çerezinde saklanır, bu yüzden
+`/api/auth/password-reset/callback` (GET) doğrudan sunucu tarafında
+`exchangeCodeForSession(code)` ile karşılar — ayrı bir client sayfaya HİÇ
+gerek yok. `admin.inviteUserByEmail` ise **PKCE desteklemiyor**
+(dokümante edilmiş, "browser initiating the invite is often different from
+the browser accepting it") — link tıklanınca oturum bilgisi Supabase'in
+`/verify` uç noktasından `app/invite/callback`'e **URL fragment'ında**
+(`#access_token=...`, sunucu hiç göremez) gelir, bu yüzden o akış ayrı bir
+client sayfası (`InviteCallbackFlow.tsx`) gerektirir, fragment'ı okuyup
+`POST /api/auth/invite/callback`'e taşır, orada `setSession(...)` ile
+oturum kurulur. **Bu ikisini karıştırmayın** — ilkinin ("Şifremi
+Unuttum") ilk tasarımı yanlışlıkla ikinciyle aynı (fragment/client-sayfa)
+desende kurulmuştu, gerçek bir kullanıcı denemesinde "bağlantı geçersiz"
+hatasıyla ortaya çıktı (bkz. PROGRESS.md Oturum 34/35) — kök sebep, test
+sırasında gerçek `resetPasswordForEmail` yerine PKCE kullanmayan
+`admin.generateLink`'in test edilmiş olmasıydı. Şifre sıfırlama
+callback'i ayrıca "yetim kimlik" durumunu (bkz. Gotchas) tanıyıp doğrudan
+yeni bir hesap açabilir. E-posta başka bir hesapta zaten kayıtlıysa
+`inviteUserByEmail` hata verir, o durumda eski `resetPasswordForEmail`'e
+düşülür. `lib/auth-identity.ts#
 signInWithoutPassword` (kimliği zaten kurulu birinin gerçek şifresine
 dokunmadan, `admin.generateLink`+`verifyOtp` ile) `/confirm-join`'de
 kullanılıyor; `#provisionAndSignIn` sadece bu akışların normalde
@@ -230,10 +243,12 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
   kararını şifre sıfırlama için geçersiz kılıyordu, 2026-08-18'de gerçek bir
   kullanıcı denemesinde fark edildi: mailde kod yoktu, sadece işe yaramayan
   bir link vardı). Hem ekip daveti hem şifre sıfırlama bu yüzden şablona hiç
-  dokunmadan, fragment tabanlı client sayfalarla (`app/invite/callback`,
-  `app/reset-password/callback`) çalışacak şekilde kuruldu — bkz. §Auth.
-  Kayıt akışı (`signUp`) şu an bu sorunu YAŞAMIYOR çünkü "Confirm email"
-  kapalı, kod adımına hiç düşülmüyor — açılırsa aynı sorun onda da çıkar.
+  dokunmadan çalışacak şekilde kuruldu — biri fragment tabanlı bir client
+  sayfayla (`app/invite/callback`, PKCE desteklenmiyor), diğeri doğrudan
+  sunucuda PKCE `code` ile (`app/api/auth/password-reset/callback`, client
+  sayfa gerekmiyor) — bkz. §Auth, ikisini karıştırmayın. Kayıt akışı
+  (`signUp`) şu an bu sorunu YAŞAMIYOR çünkü "Confirm email" kapalı, kod
+  adımına hiç düşülmüyor — açılırsa aynı sorun onda da çıkar.
 
 ## Bilinen açık riskler / borçlar
 

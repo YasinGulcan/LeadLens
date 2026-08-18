@@ -17,13 +17,15 @@ export async function POST(req: NextRequest) {
 
   // Supabase'in varsayılan "Reset Password" şablonu (custom SMTP kurulana
   // kadar özelleştirilemiyor, bkz. PROJECT_PLAN.md) 6 haneli kod değil
-  // tıklanabilir bir link gönderiyor — bu yüzden redirectTo, davet
-  // akışındaki aynı desenle (bkz. app/invite/callback) bir client sayfaya
-  // gidiyor; o sayfa URL fragment'ındaki oturum bilgisini okuyup
-  // /api/auth/password-reset/callback'e taşıyor.
+  // tıklanabilir bir link gönderiyor. `createSupabaseServerClient()`
+  // (`@supabase/ssr`) PKCE akışını varsayılan kullanıyor — davet akışının
+  // aksine (inviteUserByEmail PKCE desteklemiyor) burada gerçekten PKCE
+  // kullanılıyor: link `?code=pkce_...` taşıyor, fragment değil — bu yüzden
+  // ayrı bir client sayfaya gerek yok, doğrudan sunucu tarafında
+  // `exchangeCodeForSession` ile karşılanabiliyor (bkz. .../callback).
   const origin = new URL(req.url).origin;
   const client = await createSupabaseServerClient();
-  const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/reset-password/callback` });
+  const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/api/auth/password-reset/callback` });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });
