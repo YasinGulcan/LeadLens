@@ -1,6 +1,6 @@
 import { Badge, type BadgeVariant } from "@/components/ui";
 
-const STATUS_LABEL: Record<string, string> = {
+export const STATUS_LABEL: Record<string, string> = {
   new: "Yeni",
   scraping: "Taranıyor",
   analyzing: "Analiz Ediliyor",

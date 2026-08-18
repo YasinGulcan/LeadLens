@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, UserRound, MoreVertical } from "lucide-react";
-import { StatusBadge } from "./StatusBadge";
+import { StatusBadge, STATUS_LABEL } from "./StatusBadge";
 import { useConfirm } from "./useConfirm";
 import { Card, ScoreBadge, Button } from "@/components/ui";
 import type { AssignableMember } from "@/lib/accounts";
@@ -137,8 +137,8 @@ export function LeadsTable({
     const q = query.trim().toLocaleLowerCase("tr");
     if (!q) return result;
     return result.filter((l) =>
-      [l.name, l.phone, l.website_url, l.recommended_product, l.sector, l.status].some((field) =>
-        field?.toLocaleLowerCase("tr").includes(q)
+      [l.name, l.phone, l.website_url, l.recommended_product, l.sector, STATUS_LABEL[l.status] ?? l.status].some(
+        (field) => field?.toLocaleLowerCase("tr").includes(q)
       )
     );
   }, [leads, query, assignedFilter, currentEmail]);
