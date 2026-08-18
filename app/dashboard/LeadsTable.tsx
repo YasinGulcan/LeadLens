@@ -211,11 +211,13 @@ export function LeadsTable({
           <option value="me" className="bg-surface text-foreground">
             Bana Atananlar
           </option>
-          {assignableMembers.map((m) => (
-            <option key={m.email} value={m.email} className="bg-surface text-foreground">
-              {m.email}
-            </option>
-          ))}
+          {assignableMembers
+            .filter((m) => m.email !== currentEmail)
+            .map((m) => (
+              <option key={m.email} value={m.email} className="bg-surface text-foreground">
+                {m.email}
+              </option>
+            ))}
         </select>
         {(query || assignedFilter !== "all") && (
           <span className="shrink-0 text-xs text-muted-foreground">
