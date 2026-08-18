@@ -60,6 +60,13 @@ const LANGUAGE_SEGMENT = /^[a-z]{2}$/;
 // (2+ sayfa paylaşıyor) kendi grubunda kalıyor.
 const MIN_GROUP_SIZE = 2;
 
+// "Diğer sayfalar" havuzundaki tekil sayfaları ikinci bir kez ayırmak için:
+// aynı sonek/kelimeyle biten sayfalar (ör. "...-seo-danismanligi") genelde
+// aynı hizmet/kategori ailesindendir. En az bu kadar sayfa paylaşmayan bir
+// kelime tek tek bırakılır (leftover) — 2 sayfalık rastgele bir eşleşme
+// için ayrı bir grup açmaya değmez.
+const MIN_SUBGROUP_SIZE = 3;
+
 function pageGroupKey(pageUrl: string): string {
   try {
     const segments = new URL(pageUrl).pathname.split("/").filter(Boolean);
@@ -69,12 +76,53 @@ function pageGroupKey(pageUrl: string): string {
   }
 }
 
+function lastSlugWord(pageUrl: string): string {
+  try {
+    const segments = new URL(pageUrl).pathname.split("/").filter(Boolean);
+    const slug = segments[segments.length - 1] ?? "";
+    const words = slug.toLowerCase().split("-").filter((w) => w.length > 2);
+    return words[words.length - 1] ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * "Diğer sayfalar"a düşecek tekil sayfaları, slug'ın son kelimesine göre
+ * ikinci bir kez gruplar — bir sayfa yalnızca en kalabalık kelime grubuna
+ * atanır (greedy), geri kalanı gerçekten paylaşımsız olanlar leftover'da kalır.
+ */
+function splitByLastWord(pages: SitemapPage[]): { subGroups: PageGroup[]; leftover: SitemapPage[] } {
+  const byWord = new Map<string, SitemapPage[]>();
+  for (const p of pages) {
+    const word = lastSlugWord(p.url);
+    if (!word) continue;
+    if (!byWord.has(word)) byWord.set(word, []);
+    byWord.get(word)!.push(p);
+  }
+
+  const subGroups: PageGroup[] = [];
+  const assigned = new Set<string>();
+  const candidates = Array.from(byWord.entries())
+    .filter(([, group]) => group.length >= MIN_SUBGROUP_SIZE)
+    .sort((a, b) => b[1].length - a[1].length);
+
+  for (const [word, group] of candidates) {
+    const unassigned = group.filter((p) => !assigned.has(p.url));
+    if (unassigned.length < MIN_SUBGROUP_SIZE) continue;
+    for (const p of unassigned) assigned.add(p.url);
+    subGroups.push({ key: `__word_${word}__`, label: `"${word}" ile ilgili sayfalar`, pages: unassigned });
+  }
+
+  return { subGroups, leftover: pages.filter((p) => !assigned.has(p.url)) };
+}
+
 /** Bir grubun, sitenin geri kalanına göre azınlıkta kalan bir dil klasörü olup olmadığı — bkz. defaultSelectedUrls. */
 function isMinorityLanguageGroup(group: PageGroup, totalPages: number): boolean {
   return LANGUAGE_SEGMENT.test(group.key) && group.pages.length < totalPages / 2;
 }
 
-/** 189 sayfalık düz bir listeyi URL'in ilk path segmentine göre gruplara ayırır — en büyük grup en üstte, tekil segmentler "Diğer sayfalar"da toplanır. */
+/** 189 sayfalık düz bir listeyi URL'in ilk path segmentine göre gruplara ayırır — en büyük grup en üstte, tekil segmentler slug'ın son kelimesine göre alt-gruplanır, kalanı "Diğer sayfalar"da toplanır. */
 function groupPages(pages: SitemapPage[]): PageGroup[] {
   const map = new Map<string, SitemapPage[]>();
   for (const p of pages) {
@@ -90,7 +138,10 @@ function groupPages(pages: SitemapPage[]): PageGroup[] {
 
   const mainGroups = rawGroups.filter((g) => g.pages.length >= MIN_GROUP_SIZE);
   const otherPages = rawGroups.filter((g) => g.pages.length < MIN_GROUP_SIZE).flatMap((g) => g.pages);
-  if (otherPages.length > 0) mainGroups.push({ key: "__other__", label: "Diğer sayfalar", pages: otherPages });
+
+  const { subGroups, leftover } = splitByLastWord(otherPages);
+  mainGroups.push(...subGroups);
+  if (leftover.length > 0) mainGroups.push({ key: "__other__", label: "Diğer sayfalar", pages: leftover });
 
   return mainGroups.sort((a, b) => b.pages.length - a.pages.length);
 }
