@@ -47,9 +47,9 @@ export default async function DashboardSourcesPage() {
           <p>
             Yalnızca <span className="font-medium text-foreground">ürün/hizmet açıklayan gerçek içerik sayfalarını</span> ekleyin —
             blog yazıları, dil varyantları (ör. <code className="rounded bg-background px-1 py-0.5">/en/</code>) ya da eklentinin
-            ürettiği teknik sayfalar eklenirse hem gereksiz Firecrawl/embedding maliyeti oluşur hem de AI doğru ürünü bulmakta
-            zorlanabilir (alakasız içerik arttıkça eşleştirme gürültülenir). URL&apos;den Tara adımı bu yüzden sayfaları
-            gruplayıp muhtemel dil varyantlarını varsayılan olarak seçili getirmiyor.
+            ürettiği teknik sayfalar eklenirse <span className="font-medium text-foreground">AI doğru ürünü/hizmeti bulmakta
+            zorlanır</span> (alakasız içerik arttıkça eşleştirme gürültülenir, yanlış ya da genel geçer öneriler artar).
+            URL&apos;den Tara adımı bu yüzden sayfaları gruplayıp muhtemel dil varyantlarını varsayılan olarak seçili getirmiyor.
           </p>
           <p>
             Site içeriğiniz değişirse (fiyat, ürün adı vb.) burası <span className="font-medium text-foreground">otomatik
