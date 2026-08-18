@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui";
+import { SECTORS, OTHER_SECTOR } from "@/lib/sectors";
 
 const TEAM_SIZE_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Belirtilmedi" },
@@ -25,12 +26,19 @@ export function BusinessProfileForm({
   isOwner?: boolean;
 }) {
   const router = useRouter();
-  const [businessSector, setBusinessSector] = useState(initialBusinessSector ?? "");
+  // Mevcut değer listedeki sektörlerden biriyse doğrudan seçili gelir;
+  // eskiden serbest metinle kaydedilmiş, listeye uymayan bir değerse
+  // (ör. "Online Pazarlama") veri kaybolmasın diye "Diğer" + o metin seçili gelir.
+  const initialIsPreset = !initialBusinessSector || SECTORS.includes(initialBusinessSector);
+  const [sector, setSector] = useState(initialIsPreset ? (initialBusinessSector ?? "") : OTHER_SECTOR);
+  const [otherSector, setOtherSector] = useState(initialIsPreset ? "" : (initialBusinessSector ?? ""));
   const [websiteUrl, setWebsiteUrl] = useState(initialWebsiteUrl ?? "");
   const [teamSize, setTeamSize] = useState(initialTeamSize ?? "");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const businessSector = sector === OTHER_SECTOR ? otherSector.trim() : sector;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -62,12 +70,27 @@ export function BusinessProfileForm({
       <fieldset disabled={!isOwner} className="space-y-5 disabled:opacity-60">
       <div>
         <label className="block text-xs font-medium text-muted-foreground">Sektör</label>
-        <input
-          value={businessSector}
-          onChange={(e) => setBusinessSector(e.target.value)}
-          placeholder="örn. Yazılım / SaaS"
+        <select
+          value={sector}
+          onChange={(e) => setSector(e.target.value)}
           className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
-        />
+        >
+          <option value="">Seçin…</option>
+          {SECTORS.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+          <option value={OTHER_SECTOR}>{OTHER_SECTOR}</option>
+        </select>
+        {sector === OTHER_SECTOR && (
+          <input
+            value={otherSector}
+            onChange={(e) => setOtherSector(e.target.value)}
+            placeholder="Sektörünüzü yazın"
+            className="mt-2 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none"
+          />
+        )}
       </div>
       <div>
         <label className="block text-xs font-medium text-muted-foreground">Web Sitesi</label>

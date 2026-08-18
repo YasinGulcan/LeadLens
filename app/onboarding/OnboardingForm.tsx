@@ -4,22 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui";
-
-const SECTORS = [
-  "E-ticaret",
-  "Mobilya",
-  "Gıda & İçecek",
-  "Dijital Ajans / Pazarlama",
-  "Yazılım / SaaS",
-  "Danışmanlık",
-  "Emlak",
-  "Sağlık / Klinik",
-  "Eğitim",
-  "Turizm / Otelcilik",
-  "İnşaat / Yapı",
-  "Üretim / İmalat",
-];
-const OTHER_SECTOR = "Diğer";
+import { SECTORS, OTHER_SECTOR } from "@/lib/sectors";
 
 const TEAM_SIZES: { value: string; label: string }[] = [
   { value: "solo", label: "Sadece ben" },
