@@ -100,27 +100,30 @@ satırının hangi hesaba/üyeliğe karşılık geldiğini, `owner_password_set_
 (login route'unun "şifre yok, Şifremi Unuttum'a git" mesajı buna bakar —
 `user_id` artık signup/davet anında hep provision edildiği için tek
 başına yeterli değil). Kayıt: `signUp()` (geçici rastgele şifreyle, gerçek
-şifre `/set-password`'te) → `verifyOtp(type:'signup')`. Şifre sıfırlama:
-`resetPasswordForEmail()` → `verifyOtp(type:'recovery')`. Ekip daveti
-(`addTeamMember`) diğer akışlardan farklı olarak kod değil **tıklanabilir
-link** kullanıyor: `admin.inviteUserByEmail` (auth kimliğini de kendisi
-oluşturuyor, varsayılan — özelleştirilemeyen, bkz. Gotchas — "Invite user"
-şablonunu gönderir). `inviteUserByEmail` PKCE desteklemediği için link
-tıklanınca oturum bilgisi Supabase'in `/verify` uç noktasından
-`app/invite/callback`'e **URL fragment'ında** (`#access_token=...`, sunucu
-göremez) gelir; `InviteCallbackFlow.tsx` (client) bunu okuyup
-`POST /api/auth/invite/callback`'e gönderir, route `setSession(...)` ile
-oturumu sunucu tarafında kurup aynı `/confirm-join` onay ekranına
-yönlendirir. E-posta başka bir hesapta zaten kayıtlıysa `inviteUserByEmail`
-hata verir, o durumda eski `resetPasswordForEmail`'e düşülür.
-`lib/auth-identity.ts#
+şifre `/set-password`'te) → `verifyOtp(type:'signup')` (6 haneli kod —
+"Confirm email" şu an kapalı olduğu için pratikte bu adıma hiç düşülmüyor,
+`start` anında oturum hemen kuruluyor). **Şifre sıfırlama VE ekip daveti
+ikisi de kod değil tıklanabilir link kullanıyor** (2026-08-18'de ikisi de
+aynı köke — bkz. Gotchas — çarptı): `resetPasswordForEmail(email,
+{redirectTo:'/reset-password/callback'})` / `admin.inviteUserByEmail`
+(varsayılan, özelleştirilemeyen şablonları gönderir). PKCE desteklenmediği
+için link tıklanınca oturum bilgisi Supabase'in `/verify` uç noktasından
+`app/reset-password/callback` / `app/invite/callback`'e **URL
+fragment'ında** (`#access_token=...`, sunucu göremez) gelir; ilgili client
+flow bunu okuyup `POST /api/auth/password-reset/callback` /
+`.../invite/callback`'e gönderir, route `setSession(...)` ile oturumu
+sunucu tarafında kurar. Şifre sıfırlama callback'i ayrıca "yetim kimlik"
+durumunu (bkz. Gotchas) tanıyıp doğrudan yeni bir hesap açabilir. E-posta
+başka bir hesapta zaten kayıtlıysa `inviteUserByEmail` hata verir, o
+durumda eski `resetPasswordForEmail`'e düşülür. `lib/auth-identity.ts#
 signInWithoutPassword` (kimliği zaten kurulu birinin gerçek şifresine
 dokunmadan, `admin.generateLink`+`verifyOtp` ile) `/confirm-join`'de
 kullanılıyor; `#provisionAndSignIn` sadece bu akışların normalde
-düşmemesi gereken bir güvenlik ağı dalı. **Manuel bağımlılık:** 6 haneli
-kod UX'i için Supabase Dashboard → Authentication → Email Templates'te
-"Confirm signup"/"Reset Password" şablonlarının `{{ .Token }}` kullanacak
-şekilde düzenlenmesi gerekiyor (varsayılan şablon link gönderir); gerçek
+düşmemesi gereken bir güvenlik ağı dalı. **Manuel bağımlılık:** kayıt
+akışının 6 haneli kod UX'i için (Confirm email açılırsa) Supabase Dashboard
+→ Authentication → Email Templates'te "Confirm signup" şablonunun
+`{{ .Token }}` kullanacak şekilde düzenlenmesi gerekiyor (varsayılan şablon
+link gönderir, kayıt kodu asla bulamaz); gerçek
 kullanıcılara ulaşmak için de custom SMTP + doğrulanmış domain şart
 (Supabase'in varsayılan e-posta servisi sadece proje üyelerine gönderebilir).
 `proxy.ts`, Supabase'in SSR middleware deseniyle (`@supabase/ssr`) her
@@ -220,11 +223,17 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
   (`app/dashboard/layout.tsx#isLocked`) — ama seçilebilecek hiç plan yoksa
   (`pricing_plans` boşsa) kilit devre dışı kalır, kimse çıkışsız bırakılmaz.
 - **Supabase Dashboard'da Email Templates'in Subject/Body alanları custom
-  SMTP kurulana kadar tamamen kilitli** — "Invite user" gibi şablonların
-  metnini/linkini elle değiştirmek mümkün değil, sadece varsayılan içerik
-  kullanılabilir. Ekip daveti bu yüzden şablona hiç dokunmadan, fragment
-  tabanlı bir client sayfayla (`app/invite/callback`) çalışacak şekilde
-  kuruldu — bkz. §Auth.
+  SMTP kurulana kadar tamamen kilitli** — "Invite user" VE "Reset Password"
+  gibi şablonların metnini/linkini elle değiştirmek mümkün değil, sadece
+  varsayılan içerik kullanılabilir (yani ASLA `{{ .Token }}` kullanacak
+  şekilde düzenlenemez — bu, projenin başında kurulan "kod-girişi" tasarım
+  kararını şifre sıfırlama için geçersiz kılıyordu, 2026-08-18'de gerçek bir
+  kullanıcı denemesinde fark edildi: mailde kod yoktu, sadece işe yaramayan
+  bir link vardı). Hem ekip daveti hem şifre sıfırlama bu yüzden şablona hiç
+  dokunmadan, fragment tabanlı client sayfalarla (`app/invite/callback`,
+  `app/reset-password/callback`) çalışacak şekilde kuruldu — bkz. §Auth.
+  Kayıt akışı (`signUp`) şu an bu sorunu YAŞAMIYOR çünkü "Confirm email"
+  kapalı, kod adımına hiç düşülmüyor — açılırsa aynı sorun onda da çıkar.
 
 ## Bilinen açık riskler / borçlar
 

@@ -16,7 +16,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
  * özelleştirilemediği için (custom SMTP kurulana kadar Dashboard'da
  * subject/body kilitli) token_hash tabanlı doğrudan link kuramıyoruz;
  * bunun yerine oturum tarayıcıda kurulup buraya POST ediliyor. Mantığın
- * geri kalanı `/api/auth/password-reset/verify` ile aynı desen: sahip/üye/
+ * geri kalanı `/api/auth/password-reset/callback` ile aynı desen: sahip/üye/
  * bekleyen-devir kontrolü → `PENDING_MEMBERSHIP_COOKIE` → `/confirm-join`.
  */
 export async function POST(req: NextRequest) {
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Bekleyen davet/devir — oturumu burada bırakmıyoruz, /confirm-join'de
-  // açık onay şart (bkz. password-reset/verify ile aynı desen).
+  // açık onay şart (bkz. password-reset/callback ile aynı desen).
   await client.auth.signOut();
 
   const account = await getAccountById(member.accountId);

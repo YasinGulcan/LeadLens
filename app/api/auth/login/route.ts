@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
   // kimliği kasıtlı olarak silinmez, bkz. removeTeamMember) "kayıt olun"
   // demek çıkışsız bir döngü yaratır (signup, Supabase'de e-posta zaten
   // var diye reddeder) — "Şifremi Unuttum" ise artık bu durumu tanıyıp
-  // yeni bir hesap açıyor (bkz. password-reset/verify). Hangi durumda
+  // yeni bir hesap açıyor (bkz. password-reset/callback). Hangi durumda
   // olduğunu burada ucuza ayırt edemediğimiz için ikisini de öneriyoruz.
   return NextResponse.json(
     {

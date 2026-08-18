@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   // temizlenir. Başarısız olursa o kişi "yetim" bir auth.users kimliğiyle
   // kalır (accounts/account_members satırı zaten silindi) — ama artık
   // çıkışsız değil: "Şifremi Unuttum" bu durumu tanıyıp yeni bir hesap
-  // açıyor (bkz. password-reset/verify). E-posta loglanıyor ki manuel takip
+  // açıyor (bkz. password-reset/callback). E-posta loglanıyor ki manuel takip
   // gerekirse kimin etkilendiği görülebilsin (sadece user_id yetersizdi).
   const usersToDelete = [
     { id: ownerRow?.owner_user_id, email: session.email },

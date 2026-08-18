@@ -11,40 +11,43 @@ import { createPendingMembershipValue, PENDING_MEMBERSHIP_COOKIE } from "@/lib/p
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 /**
- * `/login` → "Şifremi Unuttum" adım 2 — Supabase Auth kodu doğrulanınca
- * (oturum otomatik kurulur) dört senaryodan biri işler: (1) sahip ya da
- * daveti önceden kabul etmiş bir üye — `/set-password`'e yönlendirilir;
- * (2) bekleyen bir davet/sahiplik devri hedefi — oturum bilerek bırakılıp
- * (`signOut`) `/confirm-join`'de açık onay istenir; (3) `resetPasswordForEmail`
- * kod gönderdiğine göre bu e-posta `auth.users`'ta kesinlikle var, ama
- * `accounts`/`account_members`'ta hiçbir kaydı yok — "yetim kimlik"
- * (ör. eskiden ekipten çıkarılmış, `auth.users` satırı kasıtlı olarak
- * silinmemiş biri, bkz. `removeTeamMember`). Kod zaten e-posta sahipliğini
- * kanıtladığı için burada güvenle yeni bir hesap açılır — eskiden "hesap
- * yok, kayıt olun" deyip `/signup`'a gönderiyorduk, o da aynı e-posta
- * Supabase'de zaten var diye reddedip çıkışsız bir döngü yaratıyordu.
+ * `app/reset-password/callback/ResetPasswordCallbackFlow.tsx`'in çağırdığı
+ * uç nokta — linkin URL fragment'ından okuduğu `access_token`/`refresh_token`'ı
+ * buraya POST eder. `setSession` ile oturum kurulunca (e-posta sahipliği
+ * kanıtlanmış olur) dört senaryodan biri işler: (1) sahip ya da daveti
+ * önceden kabul etmiş bir üye — `/set-password`'e yönlendirilir; (2)
+ * bekleyen bir davet/sahiplik devri hedefi — oturum bilerek bırakılıp
+ * `/confirm-join`'de açık onay istenir; (3) "yetim kimlik" (auth.users'ta
+ * var ama accounts/account_members'ta hiç kaydı yok, bkz. removeTeamMember)
+ * — doğrudan bu kimlikle yeni bir hesap açılır, `/onboarding`'e yönlendirilir.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
-  const code = typeof body?.code === "string" ? body.code.trim() : "";
-  if (!email || !code) return NextResponse.json({ error: "E-posta ve kod zorunlu." }, { status: 400 });
+  const accessToken = typeof body?.access_token === "string" ? body.access_token : "";
+  const refreshToken = typeof body?.refresh_token === "string" ? body.refresh_token : "";
+  if (!accessToken || !refreshToken) {
+    return NextResponse.json({ error: "Bağlantı geçersiz ya da süresi dolmuş." }, { status: 400 });
+  }
 
   const client = await createSupabaseServerClient();
-  const { data: verifyData, error: verifyError } = await client.auth.verifyOtp({ email, token: code, type: "recovery" });
-  if (verifyError) return NextResponse.json({ error: verifyError.message }, { status: 400 });
+  const { data: sessionData, error: sessionError } = await client.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  const user = sessionData?.user;
+  const email = user?.email?.toLowerCase();
+  if (sessionError || !user || !email) {
+    return NextResponse.json({ error: "Bağlantı geçersiz ya da süresi dolmuş, tekrar deneyin." }, { status: 400 });
+  }
 
   const ownerAccountId = await getAccountIdByOwnerEmail(email);
   if (ownerAccountId) return NextResponse.json({ ok: true, redirect: "/set-password" });
 
   const member = await findAccountIdByMemberEmail(email);
   if (!member) {
-    const user = verifyData.user;
-    const fullName = (user?.user_metadata?.full_name as string | undefined) ?? email.split("@")[0];
-    const phone = (user?.user_metadata?.phone as string | undefined) ?? null;
-    const result = user
-      ? await createAccountForNewOwner({ email, userId: user.id, fullName, phone })
-      : { error: "Kullanıcı bulunamadı." };
+    const fullName = (user.user_metadata?.full_name as string | undefined) ?? email.split("@")[0];
+    const phone = (user.user_metadata?.phone as string | undefined) ?? null;
+    const result = await createAccountForNewOwner({ email, userId: user.id, fullName, phone });
     if ("error" in result) {
       await client.auth.signOut();
       return NextResponse.json({ error: result.error }, { status: 400 });

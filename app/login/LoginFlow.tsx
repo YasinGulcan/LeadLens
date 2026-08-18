@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui";
-import { OtpCodeStep, type OtpActionResult } from "../OtpCodeStep";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const RESEND_COOLDOWN_SECONDS = 60;
 
 export function LoginFlow() {
   const router = useRouter();
-  const [step, setStep] = useState<"login" | "forgot-email" | "forgot-code">("login");
+  const [step, setStep] = useState<"login" | "forgot-email" | "forgot-sent">("login");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +18,14 @@ export function LoginFlow() {
   const [error, setError] = useState<string | null>(null);
 
   const [resetEmail, setResetEmail] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(RESEND_COOLDOWN_SECONDS);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (step !== "forgot-sent" || resendCooldown <= 0) return;
+    const timer = setInterval(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [step, resendCooldown]);
 
   async function handleLoginSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,6 +52,16 @@ export function LoginFlow() {
     }
   }
 
+  async function sendResetLink(targetEmail: string) {
+    const res = await fetch("/api/auth/password-reset/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: targetEmail }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Bir hata oluştu.");
+  }
+
   async function handleResetEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!EMAIL_PATTERN.test(resetEmail)) {
@@ -53,14 +71,9 @@ export function LoginFlow() {
     setPending(true);
     setError(null);
     try {
-      const res = await fetch("/api/auth/password-reset/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Bir hata oluştu.");
-      setStep("forgot-code");
+      await sendResetLink(resetEmail);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setStep("forgot-sent");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Hata");
     } finally {
@@ -68,38 +81,49 @@ export function LoginFlow() {
     }
   }
 
-  async function handleResetVerify(code: string): Promise<OtpActionResult> {
-    const res = await fetch("/api/auth/password-reset/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: resetEmail, code }),
-    });
-    const data = await res.json();
-    if (!res.ok) return { ok: false, error: data.error };
-    router.push(data.redirect ?? "/set-password");
-    router.refresh();
-    return { ok: true };
+  async function handleResend() {
+    setResendMessage(null);
+    setError(null);
+    try {
+      await sendResetLink(resetEmail);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setResendMessage("Bağlantı tekrar gönderildi.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Hata");
+    }
   }
 
-  async function handleResetResend(): Promise<OtpActionResult> {
-    const res = await fetch("/api/auth/resend-code", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: resetEmail, purpose: "password_reset" }),
-    });
-    const data = await res.json();
-    return res.ok ? { ok: true } : { ok: false, error: data.error };
-  }
-
-  if (step === "forgot-code") {
+  if (step === "forgot-sent") {
     return (
-      <OtpCodeStep
-        email={resetEmail}
-        onVerify={handleResetVerify}
-        onResend={handleResetResend}
-        onBack={() => setStep("forgot-email")}
-        verifyLabel="Doğrula"
-      />
+      <>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-foreground">E-postanızı kontrol edin</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            <strong className="text-foreground">{resetEmail}</strong> adresine bir şifre sıfırlama bağlantısı
+            gönderdik. Gelen kutunuzdaki bağlantıya tıklayıp devam edin.
+          </p>
+        </div>
+
+        {error && <p className="mt-4 text-center text-sm text-red-500 dark:text-red-400">{error}</p>}
+        {resendMessage && <p className="mt-4 text-center text-sm text-emerald-500 dark:text-emerald-400">{resendMessage}</p>}
+
+        <div className="mt-8 flex items-center justify-between text-sm">
+          <button
+            type="button"
+            onClick={() => setStep("forgot-email")}
+            className="text-muted-foreground hover:text-foreground hover:underline"
+          >
+            ‹ Bilgileri düzenle
+          </button>
+          {resendCooldown > 0 ? (
+            <span className="text-muted-foreground">Tekrar gönder ({resendCooldown}s)</span>
+          ) : (
+            <button type="button" onClick={handleResend} className="font-medium text-accent hover:underline">
+              Bağlantıyı tekrar gönder
+            </button>
+          )}
+        </div>
+      </>
     );
   }
 
@@ -108,7 +132,7 @@ export function LoginFlow() {
       <>
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground">Şifrenizi sıfırlayın</h1>
-          <p className="mt-2 text-sm text-muted-foreground">E-postanıza bir sıfırlama kodu gönderelim</p>
+          <p className="mt-2 text-sm text-muted-foreground">E-postanıza bir sıfırlama bağlantısı gönderelim</p>
         </div>
 
         <form onSubmit={handleResetEmailSubmit} className="mt-8 space-y-4">
@@ -127,7 +151,7 @@ export function LoginFlow() {
           {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
 
           <Button type="submit" variant="primary" className="w-full" disabled={pending}>
-            {pending ? "Gönderiliyor..." : "Sıfırlama Kodu Gönder"}
+            {pending ? "Gönderiliyor..." : "Sıfırlama Bağlantısı Gönder"}
           </Button>
         </form>
 
