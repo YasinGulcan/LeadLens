@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
+import { translateDbError } from "@/lib/db-errors";
 
 /** Bir notu sadece yazan kişi ya da hesap sahibi silebilir — lead/kaynak silme gibi sadece-sahip değil, ama tamamen serbest de değil. */
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string; noteId: string }> }) {
@@ -21,7 +22,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { error } = await supabase.from("lead_notes").delete().eq("id", noteId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Not silme başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "Not silinemedi.") }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }

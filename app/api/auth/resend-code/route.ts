@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { translateAuthError } from "@/lib/auth-errors";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -21,6 +22,9 @@ export async function POST(req: NextRequest) {
   const client = await createSupabaseServerClient();
   const { error } = await client.auth.resend({ type: "signup", email });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Kod tekrar gönderme başarısız:", error.message);
+    return NextResponse.json({ error: translateAuthError(error, "Kod tekrar gönderilemedi, tekrar deneyin.") }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

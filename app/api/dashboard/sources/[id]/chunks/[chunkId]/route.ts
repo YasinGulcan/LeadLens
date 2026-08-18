@@ -4,6 +4,7 @@ import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { embedTexts } from "@/lib/embeddings";
 import { logActivity } from "@/lib/activity-log";
+import { translateDbError } from "@/lib/db-errors";
 
 async function loadOwnedChunk(accountId: string, sourceId: string, chunkId: string) {
   const { data: source } = await supabase
@@ -36,7 +37,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!sourceLabel) return NextResponse.json({ error: "Bu chunk size ait değil." }, { status: 403 });
 
   const { error } = await supabase.from("product_chunks").delete().eq("id", chunkId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Chunk silme başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "İçerik silinemedi.") }, { status: 500 });
+  }
 
   await logActivity(session.accountId, session.email, "Chunk sildi", sourceLabel);
   return NextResponse.json({ ok: true });
@@ -58,7 +62,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const [embedding] = await embedTexts([content]);
 
   const { error } = await supabase.from("product_chunks").update({ content, embedding }).eq("id", chunkId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Chunk güncelleme başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "İçerik güncellenemedi.") }, { status: 500 });
+  }
 
   await logActivity(session.accountId, session.email, "Chunk düzenledi", sourceLabel);
   return NextResponse.json({ ok: true });

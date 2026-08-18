@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { validatePasswordStrength } from "@/lib/password";
+import { translateAuthError } from "@/lib/auth-errors";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { supabase } from "@/lib/supabase";
 
@@ -19,7 +20,10 @@ export async function POST(req: NextRequest) {
 
   const client = await createSupabaseServerClient();
   const { error } = await client.auth.updateUser({ password });
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    console.error("Şifre güncelleme başarısız:", error.message);
+    return NextResponse.json({ error: translateAuthError(error, "Şifre güncellenemedi, tekrar deneyin.") }, { status: 400 });
+  }
 
   const { data: account } = await supabase.from("accounts").select("owner_email, onboarded_at").eq("id", session.accountId).single();
   if (!account) return NextResponse.json({ error: "Hesap bulunamadı." }, { status: 404 });

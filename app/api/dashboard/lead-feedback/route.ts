@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionAccountId } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
+import { translateDbError } from "@/lib/db-errors";
 
 const VALID_VALUES = ["helpful", "not_helpful", null];
 
@@ -32,7 +33,8 @@ export async function POST(req: NextRequest) {
     .eq("id", leadId);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Lead geri bildirimi kaydetme başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "Geri bildirim kaydedilemedi.") }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

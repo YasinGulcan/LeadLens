@@ -3,6 +3,7 @@ import { getSessionInfo } from "@/lib/account-session";
 import { isActiveAccountPerson } from "@/lib/accounts";
 import { createNotification } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
+import { translateDbError } from "@/lib/db-errors";
 
 /** Lead detayındaki "Ekip Üyesine Ata" — herhangi bir ekip üyesi atayabilir/değiştirebilir (sales-status güncellemesiyle aynı yetki deseni). */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +23,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const { error } = await supabase.from("leads").update({ assigned_to: email }).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Lead atama başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "Atama yapılamadı.") }, { status: 500 });
+  }
 
   const detail = email === null ? "Atamayı kaldırdı" : email === session.email ? "Lead'i kendine atadı" : `Lead'i ${email} adresine atadı`;
   await supabase.from("lead_status_history").insert({

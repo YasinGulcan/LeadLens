@@ -3,6 +3,7 @@ import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/activity-log";
+import { translateDbError } from "@/lib/db-errors";
 
 /**
  * `/dashboard/sources`'taki "Sil" butonu — sadece hesap sahibi silebilir
@@ -29,7 +30,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { error } = await supabase.from("product_sources").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Kaynak silme başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "Kaynak silinemedi.") }, { status: 500 });
+  }
 
   await logActivity(session.accountId, session.email, "Ürün kaynağı sildi", source.label ?? source.url ?? source.file_name ?? id);
   return NextResponse.json({ ok: true });

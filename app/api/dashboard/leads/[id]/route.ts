@@ -3,6 +3,7 @@ import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/activity-log";
+import { translateDbError } from "@/lib/db-errors";
 
 /**
  * `/dashboard`'daki lead tablosunda "Sil" butonu — sadece hesap sahibi
@@ -25,7 +26,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { error } = await supabase.from("leads").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Lead silme başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "Lead silinemedi.") }, { status: 500 });
+  }
 
   await logActivity(session.accountId, session.email, "Lead sildi", lead.name ?? lead.phone ?? id);
   return NextResponse.json({ ok: true });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
+import { translateDbError } from "@/lib/db-errors";
 import { supabase } from "@/lib/supabase";
 
 /** `/dashboard/prompt`'taki "Sistem Promptu" formu — boş gönderilirse null yazılır (varsayılana döner). Sadece hesap sahibi düzenleyebilir. */
@@ -20,7 +21,10 @@ export async function POST(req: NextRequest) {
     .update({ custom_system_prompt: customSystemPrompt || null })
     .eq("id", accountId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    console.error("Sistem promptu güncelleme başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "Sistem promptu güncellenemedi.") }, { status: 400 });
+  }
 
   return NextResponse.json({ ok: true });
 }

@@ -47,6 +47,10 @@ export function PricingCheckoutModal({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Bot koruması: gerçek kullanıcılar modalı açıp okuyup dolduruyor, bir
+  // script ise doğrudan API'ye anında POST atar (bkz. /api/pricing-inquiries).
+  const [formRenderedAt] = useState(() => Date.now());
+  const [companyWebsiteConfirm, setCompanyWebsiteConfirm] = useState("");
 
   const [cardName, setCardName] = useState("");
   const [cardNumber, setCardNumber] = useState("");
@@ -110,7 +114,9 @@ export function PricingCheckoutModal({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
-            hasSession ? { planId: plan.id } : { planId: plan.id, name: name.trim(), email: email.trim(), phone: phone.trim() }
+            hasSession
+              ? { planId: plan.id, formRenderedAt, companyWebsiteConfirm }
+              : { planId: plan.id, name: name.trim(), email: email.trim(), phone: phone.trim(), formRenderedAt, companyWebsiteConfirm }
           ),
         }),
         new Promise((resolve) => setTimeout(resolve, 1800)), // sahte "ödeme işleniyor" hissi
@@ -151,6 +157,16 @@ export function PricingCheckoutModal({
 
         {step === "form" && (
           <form onSubmit={handleContactSubmit} noValidate className="mt-5 space-y-4">
+            <input
+              type="text"
+              name="companyWebsiteConfirm"
+              value={companyWebsiteConfirm}
+              onChange={(e) => setCompanyWebsiteConfirm(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              className="absolute -left-[9999px] h-0 w-0 opacity-0"
+            />
             <div>
               <label className="block text-xs font-medium text-muted-foreground">Ad Soyad</label>
               <input

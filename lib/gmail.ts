@@ -1,6 +1,7 @@
 import { google, gmail_v1 } from "googleapis";
 import { RANK_TIER_LABEL, rankTier } from "./rank-tier";
 import { decryptToken } from "./crypto";
+import { safeHref } from "./url";
 
 const PROCESSED_LABEL = "LeadLens-Islendi";
 
@@ -195,7 +196,12 @@ export async function sendFormSubmissionEmail(account: GmailAccount, submission:
         <tr>
           <td style="padding:6px 0; color:#6b7280;">Website</td>
           <td style="padding:6px 0;">
-            <a href="${escapeHtml(submission.websiteUrl)}" style="color:#2563eb;">${escapeHtml(submission.websiteUrl)}</a>
+            ${(() => {
+              const href = safeHref(submission.websiteUrl);
+              return href
+                ? `<a href="${escapeHtml(href)}" style="color:#2563eb;">${escapeHtml(submission.websiteUrl)}</a>`
+                : escapeHtml(submission.websiteUrl);
+            })()}
           </td>
         </tr>
       </table>
@@ -261,7 +267,7 @@ export async function sendAnalysisNotificationEmail(
         </span>
       </h2>
       <p style="color:#6b7280; margin-top:0;">
-        ${lead.websiteUrl ? `<a href="${escapeHtml(lead.websiteUrl)}" style="color:#2563eb;">${escapeHtml(lead.websiteUrl)}</a>` : "—"}
+        ${lead.websiteUrl && safeHref(lead.websiteUrl) ? `<a href="${escapeHtml(safeHref(lead.websiteUrl)!)}" style="color:#2563eb;">${escapeHtml(lead.websiteUrl)}</a>` : escapeHtml(lead.websiteUrl ?? "—")}
         ${lead.phone ? ` · ${escapeHtml(lead.phone)}` : ""}
         ${lead.sector ? ` · ${escapeHtml(lead.sector)}` : ""}
       </p>

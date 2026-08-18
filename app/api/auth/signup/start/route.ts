@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAccountIdByOwnerEmail, findAccountIdByMemberEmail, createAccountForNewOwner } from "@/lib/accounts";
 import { applySelectedPlan } from "@/lib/pricing";
 import { validatePasswordStrength } from "@/lib/password";
+import { translateAuthError } from "@/lib/auth-errors";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -51,7 +52,8 @@ export async function POST(req: NextRequest) {
     // yerine aynı temiz mesaja düşülüyor — doğru sonraki adım (giriş/
     // Şifremi Unuttum) artık gerçekten çalışıyor.
     const alreadyExists = error?.code === "user_already_exists" || error?.code === "email_exists";
-    const message = alreadyExists ? "Bu e-posta zaten kullanılıyor. Giriş yapmayı deneyin." : (error?.message ?? "Kayıt oluşturulamadı.");
+    if (error) console.error("Kayıt başlatma başarısız:", error.message);
+    const message = translateAuthError(error, "Kayıt oluşturulamadı.");
     return NextResponse.json({ error: message }, { status: alreadyExists ? 409 : 500 });
   }
 

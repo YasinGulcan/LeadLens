@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
+import { translateDbError } from "@/lib/db-errors";
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const TEAM_SIZES = ["solo", "2-5", "6-20", "20+"] as const;
@@ -76,7 +77,8 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase.from("accounts").update(update).eq("id", accountId);
 
   if (error) {
-    const message = error.code === "23505" ? "Bu slug zaten kullanılıyor." : error.message;
+    console.error("Ayarlar güncelleme başarısız:", error.message);
+    const message = error.code === "23505" ? "Bu slug zaten kullanılıyor." : translateDbError(error, "Ayarlar güncellenemedi.");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 

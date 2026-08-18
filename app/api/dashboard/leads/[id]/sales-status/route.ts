@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
 import { isSalesStatus, SALES_STATUS_LABEL } from "@/lib/lead-status";
+import { translateDbError } from "@/lib/db-errors";
 
 /** Lead detay kartındaki durum rozeti (dropdown) — herhangi bir ekip üyesi güncelleyebilir, değişiklik aktörüyle birlikte loglanır. */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -19,7 +20,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const { error } = await supabase.from("leads").update({ sales_status: status }).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Satış durumu güncelleme başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "Durum güncellenemedi.") }, { status: 500 });
+  }
 
   await supabase.from("lead_status_history").insert({
     lead_id: id,

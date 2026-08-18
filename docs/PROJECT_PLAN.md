@@ -6,7 +6,7 @@
 > Mimarinin şu an ne olduğu için: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 > "Ne zaman/neden böyle yapıldı" için: [`PROGRESS.md`](./PROGRESS.md) Oturum Günlüğü.
 >
-> Son güncelleme: 2026-08-14
+> Son güncelleme: 2026-08-18
 
 ## Şu anki faz
 
@@ -24,16 +24,15 @@ kullanıcı ihtiyacı çıktıkça ekleniyor, önceden planlanmıyor).
 - [x] **Supabase RLS kapalıydı (güvenlik bulgusu, 2026-08-12).** 15
   tabloda RLS açıldı (policy'siz — uygulama service-role client kullanıyor,
   RLS'i bypass ediyor, davranış değişmedi). `docs/PROGRESS.md` Oturum 22.
-- [ ] **Kimlik doğrulama Supabase Auth'a taşındı (2026-08-12) ama kod
-  e-postaları hâlâ gerçek kullanıcılara ulaşmıyor.** İki ayrı manuel adım
-  bekliyor: (1) Supabase Dashboard → Authentication → Email Templates'te
-  "Confirm signup"/"Reset Password" şablonları `{{ .Token }}` kullanacak
-  şekilde düzenlenmeli (yoksa 6 haneli kod değil link gönderiliyor, `/signup`
-  ve `/login` "Şifremi Unuttum" akışları kodu asla bulamaz); (2) custom SMTP
-  + doğrulanmış domain kurulmalı (Supabase'in varsayılan e-posta servisi
-  sadece proje/organizasyon üyelerine gönderebiliyor, saatte birkaç mail
-  limiti var — prod için uygun değil). Bu artık Resend'i değil, doğrudan
-  Supabase Auth'un SMTP ayarını ilgilendiriyor. `docs/PROGRESS.md` Oturum 23.
+- [ ] **Custom SMTP + doğrulanmış domain hâlâ kurulmadı** — Supabase'in
+  varsayılan e-posta servisi sadece proje/organizasyon üyelerine
+  gönderebiliyor, saatte birkaç mail limiti var, prod için uygun değil.
+  Şifre sıfırlama VE ekip daveti artık şablona hiç dokunmadan (link/PKCE
+  tabanlı) çalışıyor (bkz. PROGRESS.md Oturum 34/35) — tek kalan manuel
+  adım, kayıt akışının "Confirm signup" şablonu `{{ .Token }}` kullanacak
+  şekilde düzenlenmesi, ama bu SADECE Supabase projesinde "Confirm email"
+  açılırsa devreye girer (şu an kapalı, kayıt kod adımına hiç düşmüyor).
+  `docs/PROGRESS.md` Oturum 23.
 - [ ] **"Invite user" e-postasının metni hâlâ Supabase'in İngilizce
   varsayılanı ("You've been invited") — kozmetik, akışı bloklamıyor
   (2026-08-13).** Ekip daveti `admin.inviteUserByEmail` ile gidiyor,
@@ -43,10 +42,21 @@ kullanıcı ihtiyacı çıktıkça ekleniyor, önceden planlanmıyor).
   markalamak istenirse Dashboard → Authentication → Email Templates →
   "Invite user" düzenlenebilir hale gelmesi custom SMTP kurulmasına bağlı
   (yukarıdaki madde) — o karar verilene kadar bu jenerik metinle kalınacak.
-- [ ] **Google OAuth "Testing" modunda** — en fazla 100 test kullanıcısı +
-  kısa ömürlü token riski. Gerçek müşteriler eklenmeden önce (a) Cloud
-  Console'da test kullanıcısı olarak eklemek, (b) uzun vadede uygulama
-  doğrulama sürecini başlatmak gerekiyor.
+- [ ] **Google OAuth "Testing" modunda — artık CANLIDA GERÇEKLEŞMİŞ, teorik değil (2026-08-18).**
+  Google, "Testing" durumundaki uygulamalara verilen refresh token'ları
+  kullanımdan bağımsız olarak TAM 7 gün sonra otomatik iptal ediyor.
+  Gerçek "Digital Exchange" hesabının Gmail bağlantısı 7.1 gün sonra
+  gerçekten kırıldı, `/api/form-submit` `invalid_grant` hatasıyla HTTP 500
+  dönmeye başladı — form o süre boyunca hiçbir gerçek lead'i kaydetmedi.
+  Panel `disconnected_at` sadece kopma işlemini işaretlediği için (bkz.
+  ARCHITECTURE.md §Gotchas), token Google tarafında sessizce öldüğünde
+  panelde hâlâ "Bağlı" gösteriyor — proaktif bir sağlık kontrolü yok.
+  Acil geçici çözüm: Ayarlar → Mail Kaynağı → "Yeniden Bağla" her ~7 günde
+  bir elle tekrarlanmalı. Kalıcı çözüm iki seçenek: (a) Cloud Console'da
+  test kullanıcısı olarak eklemek (100 kullanıcı sınırı, süre sınırı
+  kalkmaz, sadece o kullanıcılar için), (b) Google'ın hassas Gmail
+  scope'ları için uygulama doğrulama sürecini başlatmak (kalıcı, ama süre
+  alır) — henüz karar verilmedi.
 - [ ] **`AI_PROVIDER=openai` geçici bir önlem** (2026-08-13, kullanıcının
   Claude kredisi bitince) — analiz/derinlemesine analiz/taslak/AI görünürlük
   kontrolü/mail ayrıştırma şu an OpenAI (`gpt-4o`) üzerinden çalışıyor.

@@ -3,6 +3,7 @@ import { getSessionInfo } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
 import { matchProductChunks } from "@/lib/match";
 import { generateDeepAnalysis } from "@/lib/ai";
+import { translateDbError } from "@/lib/db-errors";
 
 /**
  * Lead detay sayfasındaki "Derinlemesine Analiz Oluştur" — istendiğinde
@@ -40,10 +41,14 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     });
 
     const { error } = await supabase.from("leads").update({ deep_analysis: deepAnalysis }).eq("id", id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("Derin analiz kaydetme başarısız:", error.message);
+      return NextResponse.json({ error: translateDbError(error, "Analiz kaydedilemedi.") }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true, deepAnalysis });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    console.error("Derin analiz oluşturma başarısız:", err instanceof Error ? err.message : String(err));
+    return NextResponse.json({ error: "Analiz oluşturulamadı, tekrar deneyin." }, { status: 500 });
   }
 }

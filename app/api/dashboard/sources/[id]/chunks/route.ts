@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionAccountId } from "@/lib/account-session";
 import { supabase } from "@/lib/supabase";
+import { translateDbError } from "@/lib/db-errors";
 
 /** `/dashboard/sources`'ta bir kaynağı genişletince chunk içeriklerini getirir. */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,7 +21,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .eq("source_id", id)
     .order("created_at", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Chunk listeleme başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "İçerik yüklenemedi.") }, { status: 500 });
+  }
 
   return NextResponse.json({ chunks: chunks ?? [] });
 }

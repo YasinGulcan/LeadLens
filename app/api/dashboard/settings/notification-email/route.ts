@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
+import { translateDbError } from "@/lib/db-errors";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,7 +25,10 @@ export async function POST(req: NextRequest) {
     .from("accounts")
     .update({ notification_email: notificationEmailRaw || null })
     .eq("id", accountId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    console.error("Bildirim e-postası güncelleme başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "Bildirim e-postası güncellenemedi.") }, { status: 400 });
+  }
 
   return NextResponse.json({ ok: true });
 }

@@ -4,6 +4,7 @@ import { isAccountOwner } from "@/lib/accounts";
 import { decryptToken } from "@/lib/crypto";
 import { supabase } from "@/lib/supabase";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { translateDbError } from "@/lib/db-errors";
 
 /** Bağlı Gmail'in refresh token'ını Google'da iptal eder — best-effort, başarısız olsa da hesap silme işlemini engellemez. */
 async function revokeGoogleToken(accountId: string): Promise<void> {
@@ -60,7 +61,10 @@ export async function POST(req: NextRequest) {
   const { data: ownerRow } = await supabase.from("accounts").select("owner_user_id").eq("id", session.accountId).single();
 
   const { error } = await supabase.from("accounts").delete().eq("id", session.accountId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Hesap silme başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "Hesap silinemedi, tekrar deneyin.") }, { status: 500 });
+  }
 
   // Auth.users satırları accounts'a cascade'li değil — en iyi çaba ile ayrıca
   // temizlenir. Başarısız olursa o kişi "yetim" bir auth.users kimliğiyle

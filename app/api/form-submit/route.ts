@@ -6,15 +6,24 @@ import { getAccountBySlug, loadGmailAccount } from "@/lib/accounts";
 
 export const maxDuration = 60; // after() ile arka planda çalışan pipeline için (scrape+analiz+bildirim)
 
+// Ödenen LLM çağrılarına (scrape+analiz) ve maillere giden alanların üst
+// sınırı yok — biri kasıtlı olarak dev bir "mesaj" gönderip her yeniden
+// denemede tam haliyle prompt'a gitmesine sebep olabilirdi.
+const MAX_LENGTHS = { name: 200, phone: 50, email: 200, websiteUrl: 500, message: 5000 } as const;
+
+function capLength(value: string, max: number): string {
+  return value.length > max ? value.slice(0, max) : value;
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
 
   const accountSlug = typeof body?.accountSlug === "string" ? body.accountSlug.trim() : "";
-  const name = typeof body?.name === "string" ? body.name.trim() : "";
-  const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
-  const email = typeof body?.email === "string" ? body.email.trim() : "";
-  const websiteUrl = typeof body?.websiteUrl === "string" ? body.websiteUrl.trim() : "";
-  const message = typeof body?.message === "string" ? body.message.trim() : "";
+  const name = capLength(typeof body?.name === "string" ? body.name.trim() : "", MAX_LENGTHS.name);
+  const phone = capLength(typeof body?.phone === "string" ? body.phone.trim() : "", MAX_LENGTHS.phone);
+  const email = capLength(typeof body?.email === "string" ? body.email.trim() : "", MAX_LENGTHS.email);
+  const websiteUrl = capLength(typeof body?.websiteUrl === "string" ? body.websiteUrl.trim() : "", MAX_LENGTHS.websiteUrl);
+  const message = capLength(typeof body?.message === "string" ? body.message.trim() : "", MAX_LENGTHS.message);
   const consentGiven = body?.consentGiven === true;
   const honeypot = typeof body?.companyWebsiteConfirm === "string" ? body.companyWebsiteConfirm.trim() : "";
 

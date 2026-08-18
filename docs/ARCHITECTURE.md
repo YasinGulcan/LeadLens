@@ -7,7 +7,7 @@
 > Oturum Günlüğü'nde. "Sırada ne var" sorusunun cevabı burada değil,
 > [`PROJECT_PLAN.md`](./PROJECT_PLAN.md)'de.
 >
-> Son güncelleme: 2026-08-13
+> Son güncelleme: 2026-08-18
 
 ## Ürün, bir cümleyle
 
@@ -40,7 +40,7 @@ paneli (`/dashboard`) olan üretimde çalışan bir ürün (bkz.
 - `leads` — çekirdek kayıt; `status` (new → scraping → analyzing → analyzed → notifying → sent_to_sales, hata her adımda `error`e düşebilir) pipeline durumunu, `sales_status` (ayrı kavram, bkz. `lib/lead-status.ts`) satışın elle ilerlettiği süreci tutar
 - `lead_status_history` — her durum geçişinin (sistem veya insan, `actor_email` varsa insan) append-only kaydı; ekip aktivite akışının da kaynağı
 - `lead_notes` — ekip üyelerinin lead'e serbest not eklemesi (durum geçmişinden ayrı, elle silinebilir)
-- `form_submission_attempts` — spam/rate-limit izleme
+- `form_submission_attempts` — spam/rate-limit izleme; `/api/form-submit` VE `/api/pricing-inquiries` aynı havuzu paylaşır (`lib/spam-protection.ts`'in IP-bazlı fonksiyonları ikisi tarafından da çağrılır)
 
 **Hesap / Auth / Ekip**
 - `accounts` — kiracı; iş bilgisi, onboarding, bildirim e-postası, özel sistem promptu, `active_plan_id`, `owner_user_id` (→ `auth.users.id`), `owner_password_set_at` (gerçek şifre hiç belirlendi mi)
@@ -235,6 +235,28 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
 - **Deneme süresi bitip aktif plan yoksa panel gerçekten kilitlenir**
   (`app/dashboard/layout.tsx#isLocked`) — ama seçilebilecek hiç plan yoksa
   (`pricing_plans` boşsa) kilit devre dışı kalır, kimse çıkışsız bırakılmaz.
+- **Ham Supabase/Postgres hata mesajları asla doğrudan kullanıcıya gösterilmez (2026-08-18).**
+  `lib/auth-errors.ts#translateAuthError` (GoTrue kodları: rate limit/
+  zayıf şifre/aynı şifre/zaten kayıtlı vb.) ve `lib/db-errors.ts#translateDbError`
+  (Postgres kodları, şu an sadece 23505) tüm `app/api/**` route'larında
+  `error.message`'ın yerine kullanılır — ham mesaj sadece `console.error`'a
+  gider, response'a asla. Bilinmeyen bir hata kodu/mesajıyla karşılaşılırsa
+  çeviri fonksiyonları genel bir Türkçe `fallback`'e düşer, hiçbir zaman
+  İngilizce sızdırmaz. Yeni bir route eklerken bu ikisi kullanılmalı, ham
+  `error.message` döndürülmemeli.
+- **Herkese açık (oturumsuz) POST uçları honeypot + zamanlama + IP rate-limit
+  üçlüsünden geçmeli (2026-08-18).** `lib/spam-protection.ts`
+  (`getClientIp`/`checkRateLimit`/`isSuspiciouslyFast`) hem `/api/form-submit`
+  hem `/api/pricing-inquiries` tarafından paylaşılıyor — honeypot dolu ya da
+  form render'dan 2 saniyeden kısa sürede gönderilmişse sessizce
+  `{ok:true}` dönülür (bota belli etmeden), gerçek istekler IP başına
+  saatte 5 ile sınırlanır. Yeni bir herkese açık form eklenirse aynı üçlü
+  kullanılmalı.
+- **`lib/url.ts#safeHref`** — lead formundaki "web sitesi" alanı kullanıcı
+  girdisi olduğu için (`javascript:`/`data:` gibi şemalar yazılabilir),
+  `lib/gmail.ts`'in `<a href>` ürettiği yerlerde ham değer değil bu
+  fonksiyonun döndürdüğü (yalnızca http/https, aksi halde `null`) değer
+  kullanılır — `null` dönerse link değil düz metin render edilir.
 - **Supabase Dashboard'da Email Templates'in Subject/Body alanları custom
   SMTP kurulana kadar tamamen kilitli** — "Invite user" VE "Reset Password"
   gibi şablonların metnini/linkini elle değiştirmek mümkün değil, sadece

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionInfo } from "@/lib/account-session";
 import { createNotification } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
+import { translateDbError } from "@/lib/db-errors";
 
 /** Lead detay sayfasındaki "Notlar" bloğu — herhangi bir ekip üyesi not ekleyebilir (sales-status güncellemesiyle aynı yetki deseni). */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -23,7 +24,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .insert({ lead_id: id, account_id: session.accountId, author_email: session.email, content })
     .select("id, author_email, content, created_at")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Not ekleme başarısız:", error.message);
+    return NextResponse.json({ error: translateDbError(error, "Not eklenemedi.") }, { status: 500 });
+  }
 
   // Sadece lead'in atandığı kişiye bildirim — o da notu ekleyenin kendisi
   // değilse (kendine not eklemek bildirim tetiklemez, bkz. assign route'undaki aynı desen).
