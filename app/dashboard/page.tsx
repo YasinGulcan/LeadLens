@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Inbox, CheckCircle2, Flame, Layers, ShieldCheck, Lock, Users, ArrowRight, Sparkles } from "lucide-react";
 import { getSessionInfo } from "@/lib/account-session";
+import { isAccountOwner } from "@/lib/accounts";
 import { supabase } from "@/lib/supabase";
 import { relativeTimeTr } from "@/lib/format";
 import { Card, CardTitle, Badge, StatCard, ScoreCircle } from "@/components/ui";
@@ -38,7 +39,7 @@ export default async function DashboardOverviewPage() {
   const ninetyDaysAgo = new Date(new Date().getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
 
-  const [{ data: recentLeads }, { count: totalLeadCount }, setupStatus] = await Promise.all([
+  const [{ data: recentLeads }, { count: totalLeadCount }, setupStatus, isOwner] = await Promise.all([
     supabase
       .from("leads")
       .select("id, name, sector, priority, status, match_score, sales_note, site_finding, created_at")
@@ -48,7 +49,22 @@ export default async function DashboardOverviewPage() {
       .limit(200),
     supabase.from("leads").select("id", { count: "exact", head: true }).eq("account_id", accountId),
     getSetupStatus(accountId),
+    isAccountOwner(accountId, session.email),
   ]);
+
+  let fullName: string | null = null;
+  if (isOwner) {
+    const { data } = await supabase.from("accounts").select("owner_full_name").eq("id", accountId).single();
+    fullName = data?.owner_full_name ?? null;
+  } else {
+    const { data } = await supabase
+      .from("account_members")
+      .select("full_name")
+      .eq("account_id", accountId)
+      .eq("email", session.email)
+      .maybeSingle();
+    fullName = data?.full_name ?? null;
+  }
 
   const leads = recentLeads ?? [];
   const thisMonthLeads = leads.filter((l) => l.created_at >= startOfMonth);
@@ -69,7 +85,7 @@ export default async function DashboardOverviewPage() {
       </Suspense>
 
       <div>
-        <h2 className="text-2xl font-bold text-foreground">Hoş geldiniz.</h2>
+        <h2 className="text-2xl font-bold text-foreground">Hoş geldiniz{fullName ? `, ${fullName}` : ""}.</h2>
       </div>
 
       <SetupBanner status={setupStatus} />
