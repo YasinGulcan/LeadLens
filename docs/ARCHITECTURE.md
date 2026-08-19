@@ -235,6 +235,11 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
 - **Deneme süresi bitip aktif plan yoksa panel gerçekten kilitlenir**
   (`app/dashboard/layout.tsx#isLocked`) — ama seçilebilecek hiç plan yoksa
   (`pricing_plans` boşsa) kilit devre dışı kalır, kimse çıkışsız bırakılmaz.
+- **`accounts.notification_email` analiz raporunun EK bir Cc alıcısı — ana alıcının YERİNE geçmez (2026-08-18).**
+  `lib/gmail.ts#sendSelfEmail` her zaman bağlı hesabın kendi kutusuna gönderir; `notification_email` doluysa sadece
+  ek bir Cc'dir (kendi Gmail'ini bağlamak istemeyen ama raporu görmek isteyen biri için, ör. üst yönetim). Önceden
+  yanlışlıkla ana alıcının (`To`) yerine geçiyordu — biri bu alanı doldurunca hesap sahibi raporu bir daha hiç
+  görmüyordu, gerçek niyet (kullanıcıdan öğrenildi) hep EKLEME'ydi.
 - **Ham Supabase/Postgres hata mesajları asla doğrudan kullanıcıya gösterilmez (2026-08-18).**
   `lib/auth-errors.ts#translateAuthError` (GoTrue kodları: rate limit/
   zayıf şifre/aynı şifre/zaten kayıtlı vb.) ve `lib/db-errors.ts#translateDbError`

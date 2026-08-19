@@ -11,7 +11,7 @@ export interface GmailAccount {
   /** Birden fazla olabilir — herhangi biriyle gelen mail lead olarak yakalanır (bkz. fetchUnprocessedLeadEmails). */
   leadEmailSubjects: string[];
   encryptedRefreshToken: string;
-  /** Form kopyası + rapor buraya gider; boşsa bağlı hesabın kendi adresi kullanılır. */
+  /** Doluysa analiz raporuna EK bir Cc alıcısı (bağlı hesabın kendi kutusunun YERİNE geçmez) — kendi Gmail'ini bağlamak istemeyen ama raporu görmek isteyen biri için, bkz. sendSelfEmail. */
   notificationEmail: string | null;
   /** Davetli ekip üyeleri — form kopyası ve rapor bunlara da Cc olarak gider. */
   teamEmails: string[];
@@ -66,29 +66,34 @@ function encodeBodyBase64(text: string): string {
 }
 
 /**
- * Bağlı Gmail hesabı üzerinden e-posta gönderir. `to` verilmezse hesabın
- * kendi adresine gider (self-email) — `fetchUnprocessedLeadEmails`'in
- * okuduğu kutu bu olduğu için form kopyası (kuyruk mekanizması) HER ZAMAN
- * kendine gitmeli, asla `notificationEmail`'e yönlendirilmemeli. Sadece son
- * analiz raporu gibi salt bildirim amaçlı mailler `to` ile başka bir adrese
- * (hesabın `notificationEmail` ayarına) yönlendirilebilir.
+ * Bağlı Gmail hesabı üzerinden e-posta gönderir — HER ZAMAN hesabın kendi
+ * adresine gider (self-email); `fetchUnprocessedLeadEmails`'in okuduğu kutu
+ * bu olduğu için form kopyası (kuyruk mekanizması) bunu asla kaçırmamalı.
+ * `extraCc` — hesabın `notificationEmail` ayarı: kendi Gmail'ini bağlamak
+ * istemeyen (ör. mailinin taranmasını istemeyen üst yönetimden biri) ama
+ * raporu görmek isteyen birine EK bir alıcı — asıl kutunun YERİNE geçmez,
+ * ona ek olarak Cc'lenir.
  */
 async function sendSelfEmail(
   account: GmailAccount,
   subject: string,
   body: string,
   contentType: "text/plain" | "text/html" = "text/plain",
-  to?: string
+  extraCc?: string
 ): Promise<void> {
   const gmail = getClientForAccount(account);
-  if (!to) {
-    const profile = await gmail.users.getProfile({ userId: "me" });
-    to = profile.data.emailAddress ?? undefined;
+  const profile = await gmail.users.getProfile({ userId: "me" });
+  const to = profile.data.emailAddress;
+  if (!to) throw new Error("Bağlı hesabın e-postası okunamadı.");
+
+  const ccList = [...account.teamEmails];
+  if (extraCc && extraCc.toLowerCase() !== to.toLowerCase() && !ccList.some((e) => e.toLowerCase() === extraCc.toLowerCase())) {
+    ccList.push(extraCc);
   }
 
   const message = [
     `To: ${to}`,
-    ...(account.teamEmails.length > 0 ? [`Cc: ${account.teamEmails.join(", ")}`] : []),
+    ...(ccList.length > 0 ? [`Cc: ${ccList.join(", ")}`] : []),
     `Subject: ${encodeSubject(subject)}`,
     "MIME-Version: 1.0",
     `Content-Type: ${contentType}; charset=utf-8`,

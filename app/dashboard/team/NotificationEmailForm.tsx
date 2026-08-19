@@ -42,11 +42,11 @@ export function NotificationEmailForm({
 
   return (
     <form onSubmit={handleSubmit} className="max-w-lg space-y-2">
-      <label className="block text-xs font-medium text-muted-foreground">Bildirim E-postası (opsiyonel)</label>
+      <label className="block text-xs font-medium text-muted-foreground">Ek Rapor Alıcısı (opsiyonel)</label>
       <p className="text-xs text-muted-foreground">
-        Analiz raporu buraya gönderilir. Boş bırakılırsa bağlı Gmail hesabınızın kendi adresine gider. (Form
-        kopyası — lead&apos;in ilk yakalandığı e-posta — teknik nedenlerle her zaman bağlı hesabın kendi kutusuna
-        gitmek zorunda, değiştirilemez.)
+        Analiz raporu her zaman bağlı Gmail hesabınızın kendi kutusuna gider — buraya bir adres girerseniz o kutunun
+        YERİNE değil, ona EK olarak bu adrese de gönderilir. Kendi Gmail&apos;ini bağlamak istemeyen ama raporu
+        görmek isteyen biri (ör. üst yönetimden biri) için kullanışlıdır.
       </p>
       {!isOwner && <p className="text-xs text-muted-foreground">Sadece hesap sahibi bu adresi değiştirebilir.</p>}
       <fieldset disabled={!isOwner} className="space-y-2 disabled:opacity-60">
