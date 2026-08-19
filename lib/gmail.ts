@@ -11,8 +11,8 @@ export interface GmailAccount {
   /** Birden fazla olabilir — herhangi biriyle gelen mail lead olarak yakalanır (bkz. fetchUnprocessedLeadEmails). */
   leadEmailSubjects: string[];
   encryptedRefreshToken: string;
-  /** Doluysa analiz raporuna EK bir Cc alıcısı (bağlı hesabın kendi kutusunun YERİNE geçmez) — kendi Gmail'ini bağlamak istemeyen ama raporu görmek isteyen biri için, bkz. sendSelfEmail. */
-  notificationEmail: string | null;
+  /** Analiz raporuna EK Cc alıcıları (bağlı hesabın kendi kutusunun YERİNE geçmez) — ekip üyeliği gerektirmeden (davet/giriş yok) raporu görmek isteyen kişiler, bkz. lib/accounts.ts#ReportRecipient ve sendSelfEmail. */
+  notificationEmails: string[];
   /** Davetli ekip üyeleri — form kopyası ve rapor bunlara da Cc olarak gider. */
   teamEmails: string[];
 }
@@ -69,17 +69,16 @@ function encodeBodyBase64(text: string): string {
  * Bağlı Gmail hesabı üzerinden e-posta gönderir — HER ZAMAN hesabın kendi
  * adresine gider (self-email); `fetchUnprocessedLeadEmails`'in okuduğu kutu
  * bu olduğu için form kopyası (kuyruk mekanizması) bunu asla kaçırmamalı.
- * `extraCc` — hesabın `notificationEmail` ayarı: kendi Gmail'ini bağlamak
- * istemeyen (ör. mailinin taranmasını istemeyen üst yönetimden biri) ama
- * raporu görmek isteyen birine EK bir alıcı — asıl kutunun YERİNE geçmez,
- * ona ek olarak Cc'lenir.
+ * `extraCc` — hesabın rapor alıcıları (`notificationEmails`): ekip üyeliği
+ * gerektirmeden (davet/giriş yok) raporu görmek isteyen kişiler — asıl
+ * kutunun YERİNE geçmez, ona ek olarak Cc'lenir (dedupe'lenmiş).
  */
 async function sendSelfEmail(
   account: GmailAccount,
   subject: string,
   body: string,
   contentType: "text/plain" | "text/html" = "text/plain",
-  extraCc?: string
+  extraCc?: string[]
 ): Promise<void> {
   const gmail = getClientForAccount(account);
   const profile = await gmail.users.getProfile({ userId: "me" });
@@ -87,8 +86,10 @@ async function sendSelfEmail(
   if (!to) throw new Error("Bağlı hesabın e-postası okunamadı.");
 
   const ccList = [...account.teamEmails];
-  if (extraCc && extraCc.toLowerCase() !== to.toLowerCase() && !ccList.some((e) => e.toLowerCase() === extraCc.toLowerCase())) {
-    ccList.push(extraCc);
+  for (const extra of extraCc ?? []) {
+    if (extra.toLowerCase() === to.toLowerCase()) continue;
+    if (ccList.some((e) => e.toLowerCase() === extra.toLowerCase())) continue;
+    ccList.push(extra);
   }
 
   const message = [
@@ -335,7 +336,7 @@ export async function sendAnalysisNotificationEmail(
     </div>
   `.trim();
 
-  await sendSelfEmail(account, subject, html, "text/html", account.notificationEmail ?? undefined);
+  await sendSelfEmail(account, subject, html, "text/html", account.notificationEmails);
 }
 
 export interface ParsedLeadEmail {

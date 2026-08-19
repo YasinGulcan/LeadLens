@@ -43,9 +43,10 @@ paneli (`/dashboard`) olan üretimde çalışan bir ürün (bkz.
 - `form_submission_attempts` — spam/rate-limit izleme; `/api/form-submit` VE `/api/pricing-inquiries` aynı havuzu paylaşır (`lib/spam-protection.ts`'in IP-bazlı fonksiyonları ikisi tarafından da çağrılır)
 
 **Hesap / Auth / Ekip**
-- `accounts` — kiracı; iş bilgisi, onboarding, bildirim e-postası, özel sistem promptu, `active_plan_id`, `owner_user_id` (→ `auth.users.id`), `owner_password_set_at` (gerçek şifre hiç belirlendi mi)
+- `accounts` — kiracı; iş bilgisi, onboarding, özel sistem promptu, `active_plan_id`, `owner_user_id` (→ `auth.users.id`), `owner_password_set_at` (gerçek şifre hiç belirlendi mi). Eski tekil `notification_email` sütunu migration 0051'de kaldırıldı, yerini `report_recipients` aldı.
 - `gmail_connections` — hesabın bağlı Gmail'i, kimlikten bağımsız (opsiyonel "Mail Kaynağı" adımı) — koparma işlemi satırı silmez, `disconnected_at` işaretler (bkz. §Gotchas)
 - `account_members` — ekip üyeleri (sahip değil); davet/kabul akışı, `user_id` (→ `auth.users.id`), `password_set_at`, `receive_copies` (form kopyası/analiz raporu maillerine Cc'lensin mi — varsayılan true, sadece sahip değiştirebilir)
+- `report_recipients` — ekip üyeliği gerektirmeyen (davet/giriş yok), sadece analiz raporuna Cc'lenen kişiler; `receive_copies` aynı desende (migration 0051)
 - `account_activity_log` — ekip aktivite geçmişi
 
 **Ürün bilgi tabanı (RAG)**
@@ -235,11 +236,12 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
 - **Deneme süresi bitip aktif plan yoksa panel gerçekten kilitlenir**
   (`app/dashboard/layout.tsx#isLocked`) — ama seçilebilecek hiç plan yoksa
   (`pricing_plans` boşsa) kilit devre dışı kalır, kimse çıkışsız bırakılmaz.
-- **`accounts.notification_email` analiz raporunun EK bir Cc alıcısı — ana alıcının YERİNE geçmez (2026-08-18).**
-  `lib/gmail.ts#sendSelfEmail` her zaman bağlı hesabın kendi kutusuna gönderir; `notification_email` doluysa sadece
-  ek bir Cc'dir (kendi Gmail'ini bağlamak istemeyen ama raporu görmek isteyen biri için, ör. üst yönetim). Önceden
-  yanlışlıkla ana alıcının (`To`) yerine geçiyordu — biri bu alanı doldurunca hesap sahibi raporu bir daha hiç
-  görmüyordu, gerçek niyet (kullanıcıdan öğrenildi) hep EKLEME'ydi.
+- **`report_recipients` analiz raporunun EK Cc alıcıları — ana alıcının YERİNE geçmez, ekip üyeliği de gerektirmez (2026-08-18).**
+  `lib/gmail.ts#sendSelfEmail` her zaman bağlı hesabın kendi kutusuna gönderir; `GmailAccount.notificationEmails`
+  doluysa sadece ek Cc'dir (dedupe'lenmiş) — kendi Gmail'ini bağlamak/ekibe katılmak istemeyen ama raporu görmek
+  isteyen kişiler için (ör. üst yönetim). Önceden tekil bir `accounts.notification_email` sütunuydu ve
+  yanlışlıkla ana alıcının (`To`) yerine geçiyordu (biri doldurunca hesap sahibi raporu bir daha hiç
+  görmüyordu, gerçek niyet EKLEME'ydi) — migration 0051 ile çoklu-alıcı destekleyen ayrı bir tabloya taşındı.
 - **Ham Supabase/Postgres hata mesajları asla doğrudan kullanıcıya gösterilmez (2026-08-18).**
   `lib/auth-errors.ts#translateAuthError` (GoTrue kodları: rate limit/
   zayıf şifre/aynı şifre/zaten kayıtlı vb.) ve `lib/db-errors.ts#translateDbError`

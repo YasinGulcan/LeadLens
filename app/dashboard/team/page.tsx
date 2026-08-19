@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { getSessionInfo } from "@/lib/account-session";
-import { getAccountById, getAccountOwnerEmail, getPendingOwnerEmail, listTeamMembers } from "@/lib/accounts";
+import { getAccountOwnerEmail, getPendingOwnerEmail, listTeamMembers, listReportRecipients } from "@/lib/accounts";
 import { listActivityLog, getActivityLogCount } from "@/lib/activity-log";
 import { TeamManager } from "../TeamManager";
 import { ActivityLogTable } from "./ActivityLogTable";
-import { NotificationEmailForm } from "./NotificationEmailForm";
+import { ReportRecipientsManager } from "./ReportRecipientsManager";
 import { CardTitle } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +13,10 @@ export default async function DashboardTeamPage() {
   const session = await getSessionInfo();
   if (!session) redirect("/");
 
-  const [account, ownerEmail, members, pendingOwnerEmail, activityLog, activityLogCount] = await Promise.all([
-    getAccountById(session.accountId),
+  const [ownerEmail, members, reportRecipients, pendingOwnerEmail, activityLog, activityLogCount] = await Promise.all([
     getAccountOwnerEmail(session.accountId),
     listTeamMembers(session.accountId),
+    listReportRecipients(session.accountId),
     getPendingOwnerEmail(session.accountId),
     listActivityLog(session.accountId),
     getActivityLogCount(session.accountId),
@@ -35,9 +35,9 @@ export default async function DashboardTeamPage() {
       <TeamManager isOwner={isOwner} ownerEmail={ownerEmail} members={members} pendingOwnerEmail={pendingOwnerEmail} />
 
       <div className="mt-10">
-        <CardTitle className="px-1">Bildirimler</CardTitle>
+        <CardTitle className="px-1">Ek Rapor Alıcıları</CardTitle>
         <div className="mt-3 px-1">
-          <NotificationEmailForm initialNotificationEmail={account?.notificationEmail ?? null} isOwner={isOwner} />
+          <ReportRecipientsManager initialRecipients={reportRecipients} isOwner={isOwner} />
         </div>
       </div>
 

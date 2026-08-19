@@ -11,7 +11,6 @@ export interface Account {
   slug: string;
   leadEmailSubjects: string[];
   status: string;
-  notificationEmail: string | null;
   /** Panelde düzenlenebilen, lead analiz asistanının sistem promptu — boş/null ise lib/claude.ts'teki varsayılan kullanılır. */
   customSystemPrompt: string | null;
   inboundEmailToken: string | null;
@@ -23,7 +22,7 @@ export interface Account {
 }
 
 const ACCOUNT_COLUMNS =
-  "id, business_name, slug, lead_email_subjects, status, notification_email, custom_system_prompt, inbound_email_token, primary_lead_source, business_sector, website_url, team_size";
+  "id, business_name, slug, lead_email_subjects, status, custom_system_prompt, inbound_email_token, primary_lead_source, business_sector, website_url, team_size";
 
 function toAccount(row: {
   id: string;
@@ -31,7 +30,6 @@ function toAccount(row: {
   slug: string;
   lead_email_subjects: string[];
   status: string;
-  notification_email: string | null;
   custom_system_prompt: string | null;
   inbound_email_token: string | null;
   primary_lead_source: string;
@@ -45,7 +43,6 @@ function toAccount(row: {
     slug: row.slug,
     leadEmailSubjects: row.lead_email_subjects,
     status: row.status,
-    notificationEmail: row.notification_email,
     customSystemPrompt: row.custom_system_prompt,
     inboundEmailToken: row.inbound_email_token,
     primaryLeadSource: row.primary_lead_source === "forwarding" ? "forwarding" : "gmail",
@@ -93,7 +90,7 @@ export async function listAccounts(): Promise<Account[]> {
 export async function loadGmailAccount(accountId: string): Promise<GmailAccount | null> {
   const { data: acc, error: accError } = await supabase
     .from("accounts")
-    .select("id, lead_email_subjects, notification_email")
+    .select("id, lead_email_subjects")
     .eq("id", accountId)
     .single();
   if (accError || !acc) return null;
@@ -112,7 +109,7 @@ export async function loadGmailAccount(accountId: string): Promise<GmailAccount 
     id: acc.id,
     leadEmailSubjects: acc.lead_email_subjects,
     encryptedRefreshToken: connection.encrypted_refresh_token,
-    notificationEmail: acc.notification_email,
+    notificationEmails: await listReportRecipientEmails(accountId),
     teamEmails: await listTeamMemberEmails(accountId),
   };
 }
@@ -256,6 +253,61 @@ async function listTeamMemberEmails(accountId: string): Promise<string[]> {
     .eq("account_id", accountId)
     .not("accepted_at", "is", null)
     .eq("receive_copies", true);
+  return (data ?? []).map((row) => row.email);
+}
+
+export interface ReportRecipient {
+  id: string;
+  email: string;
+  /** Bu e-postaya raporun bir kopyası şu an gidiyor mu — kaldırmadan geçici olarak kapatılabilir. */
+  receiveCopies: boolean;
+}
+
+/**
+ * Ekip üyeliği gerektirmeyen (davet/giriş yok), sadece analiz raporuna
+ * Cc'lenen kişiler — ör. kendi Gmail'ini bağlamak istemeyen ama raporu
+ * görmek isteyen üst yönetimden biri. `account_members.receive_copies`
+ * deseniyle birebir aynı, ayrı bir tabloda (`report_recipients`) çünkü
+ * ekip üyeliğinin gerektirdiği davet/kabul/şifre alanlarının hiçbiri yok.
+ */
+export async function listReportRecipients(accountId: string): Promise<ReportRecipient[]> {
+  const { data, error } = await supabase
+    .from("report_recipients")
+    .select("id, email, receive_copies")
+    .eq("account_id", accountId)
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(`Rapor alıcıları okunamadı: ${error.message}`);
+  return (data ?? []).map((r) => ({ id: r.id, email: r.email, receiveCopies: r.receive_copies }));
+}
+
+export async function addReportRecipient(accountId: string, email: string): Promise<{ error: string } | ReportRecipient> {
+  const { data, error } = await supabase
+    .from("report_recipients")
+    .insert({ account_id: accountId, email })
+    .select("id, email, receive_copies")
+    .single();
+  if (error) {
+    return { error: error.code === "23505" ? "Bu e-posta zaten ekli." : error.message };
+  }
+  return { id: data.id, email: data.email, receiveCopies: data.receive_copies };
+}
+
+export async function removeReportRecipient(accountId: string, id: string): Promise<void> {
+  const { error } = await supabase.from("report_recipients").delete().eq("id", id).eq("account_id", accountId);
+  if (error) throw new Error(error.message);
+}
+
+export async function setReportRecipientReceiveCopies(accountId: string, id: string, receiveCopies: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("report_recipients")
+    .update({ receive_copies: receiveCopies })
+    .eq("id", id)
+    .eq("account_id", accountId);
+  if (error) throw new Error(error.message);
+}
+
+async function listReportRecipientEmails(accountId: string): Promise<string[]> {
+  const { data } = await supabase.from("report_recipients").select("email").eq("account_id", accountId).eq("receive_copies", true);
   return (data ?? []).map((row) => row.email);
 }
 

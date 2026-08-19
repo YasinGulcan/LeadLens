@@ -44,7 +44,16 @@ export function TeamManager({
   const [transferringId, setTransferringId] = useState<string | null>(null);
   const [cancellingTransfer, setCancellingTransfer] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  // Sunucudan `router.refresh()` ile yeni veri gelene kadar geçen sürede
+  // (birkaç yüz ms) buton eski değere geri dönüp sonra tekrar yenisine
+  // atlıyormuş gibi görünüyordu ("buglu" hissettiriyordu) — bu override,
+  // tıklanan anda ekranı kesinleştirir, istek başarısız olursa geri alınır.
+  const [receiveCopiesOverrides, setReceiveCopiesOverrides] = useState<Record<string, boolean>>({});
   const { confirm, dialog } = useConfirm();
+
+  function getReceiveCopies(member: TeamMemberRow): boolean {
+    return receiveCopiesOverrides[member.id] ?? member.receiveCopies;
+  }
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -112,11 +121,14 @@ export function TeamManager({
     }
   }
 
-  async function handleToggleReceiveCopies(id: string, next: boolean) {
-    setTogglingId(id);
+  async function handleToggleReceiveCopies(member: TeamMemberRow) {
+    const current = getReceiveCopies(member);
+    const next = !current;
+    setTogglingId(member.id);
     setError(null);
+    setReceiveCopiesOverrides((prev) => ({ ...prev, [member.id]: next }));
     try {
-      const res = await fetch(`/api/dashboard/team/${id}/receive-copies`, {
+      const res = await fetch(`/api/dashboard/team/${member.id}/receive-copies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ receiveCopies: next }),
@@ -124,6 +136,7 @@ export function TeamManager({
       if (!res.ok) throw new Error();
       router.refresh();
     } catch {
+      setReceiveCopiesOverrides((prev) => ({ ...prev, [member.id]: current }));
       setError("Kopya ayarı değiştirilemedi.");
     } finally {
       setTogglingId(null);
@@ -241,18 +254,18 @@ export function TeamManager({
                   {isOwner ? (
                     <button
                       type="button"
-                      onClick={() => handleToggleReceiveCopies(m.id, !m.receiveCopies)}
+                      onClick={() => handleToggleReceiveCopies(m)}
                       disabled={togglingId === m.id}
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                        m.receiveCopies
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-60 ${
+                        getReceiveCopies(m)
                           ? "bg-accent text-white"
                           : "bg-surface-hover text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {togglingId === m.id ? "..." : m.receiveCopies ? "Açık" : "Kapalı"}
+                      {getReceiveCopies(m) ? "Açık" : "Kapalı"}
                     </button>
                   ) : (
-                    <Badge variant={m.receiveCopies ? "accent" : "neutral"}>{m.receiveCopies ? "Açık" : "Kapalı"}</Badge>
+                    <Badge variant={getReceiveCopies(m) ? "accent" : "neutral"}>{getReceiveCopies(m) ? "Açık" : "Kapalı"}</Badge>
                   )}
                 </td>
                 <td className="px-4 py-2">
