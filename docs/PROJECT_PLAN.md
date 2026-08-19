@@ -21,12 +21,13 @@ kullanıcı ihtiyacı çıktıkça ekleniyor, önceden planlanmıyor).
 
 ## Şimdi (bloklayıcı veya yüksek riskli — önce bunlar)
 
-- [ ] **CANLIDA giriş VE herkese açık form uçları büyük olasılıkla bozuk (2026-08-18, kullanıcı tespit etti).**
-  `SUPABASE_SERVICE_ROLE_KEY` (Vercel Production ortam değişkeni) Supabase'deki güncel anahtarla eşleşmiyor
-  gibi görünüyor — canlıda gerçek bir hesabın girişi "hesap bulunamadı" veriyor, gerçek bir müşterinin herkese
-  açık form sayfası 404 veriyor, aynı sorgular yerelde (aynı DB'ye karşı) sorunsuz çalışıyor. Kullanıcının
-  Supabase Dashboard → API → `service_role` anahtarını Vercel'deki değerle güncelleyip redeploy etmesi gerekiyor
-  — ben secret'lara erişemediğim için yapamam. `docs/PROGRESS.md` Oturum 38.
+- [x] **CANLIDA giriş VE herkese açık form uçları bozuktu — düzeltildi (2026-08-18/19).** Kök sebep tahmin
+  edilenden farklı çıktı: sadece `SUPABASE_SERVICE_ROLE_KEY` değil, Vercel Production'daki `SUPABASE_URL` da
+  **tamamen farklı bir Supabase projesine** (`ufmqaokleojxmruhckwr`) işaret ediyordu — gerçek/güncel proje
+  (`ohqnwffcrtfxtvxfwllv`, tüm oturum boyunca yerelde kullanılan) değil. Vercel CLI ile (kullanıcının açık izniyle)
+  `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`/`SUPABASE_ANON_KEY` üçü de doğru projeye güncellendi, geçici bir
+  teşhis route'u (izole bir git worktree'de, production'a deploy edilip silindi) ile doğrulandı. `docs/PROGRESS.md`
+  Oturum 38/41.
 - [ ] **Birçok route Supabase sorgu hatasını (`error`) hiç kontrol etmiyor, sadece `data`'yı kullanıyor** —
   yukarıdaki üretim kesintisinin teşhisini zorlaştıran asıl şey buydu: yanlış/geçersiz bir kimlik bilgisiyle
   bile sorgular sessizce `null` dönüyor, kod bunu "kayıt yok" ile ayırt edemiyor. Sistemik bir tarama/düzeltme

@@ -264,6 +264,22 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
   `lib/gmail.ts`'in `<a href>` ürettiği yerlerde ham değer değil bu
   fonksiyonun döndürdüğü (yalnızca http/https, aksi halde `null`) değer
   kullanılır — `null` dönerse link değil düz metin render edilir.
+- **Vercel'deki `SUPABASE_*` ortam değişkenleri geçmişte yanlış bir Supabase
+  PROJESİNE (URL + anahtarların hepsi, sadece anahtar değil) işaret ediyordu
+  (2026-08-19'da bulunup düzeltildi).** Kod sadece üç değişken okuyor:
+  `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (`lib/supabase.ts`),
+  `SUPABASE_ANON_KEY` (`lib/supabase-server.ts`) — Vercel'in Supabase
+  entegrasyonunun otomatik oluşturduğu `NEXT_PUBLIC_SUPABASE_*` ve
+  `SUPABASE_POSTGRES_*` değişkenlerinin HİÇBİRİ kod tarafından kullanılmıyor
+  (muhtemelen proje bir noktada farklı bir Supabase projesinden bu projeye
+  taşındı ama entegrasyon yeniden senkronize edilmedi, sadece `.env.local`
+  elle güncellendi). Bu üç değişkenden biri yanlış/eski kalırsa hata sessiz
+  kalır — Supabase sorgu hataları çoğu route'ta kontrol edilmediği için
+  (bkz. yukarıdaki "ham hata mesajları" maddesi) "kayıt bulunamadı" gibi
+  yanıltıcı bir sonuca dönüşür, asıl sebep asla loglanmaz. Ortam değişkeni
+  şüphesi varsa: geçici bir teşhis route'u (izole bir `git worktree`'de,
+  ana koda hiç dokunmadan) production'a deploy edip `process.env` + ham
+  Supabase hatasını doğrudan JSON olarak döndürmek en hızlı teşhis yolu.
 - **Supabase Dashboard'da Email Templates'in Subject/Body alanları custom
   SMTP kurulana kadar tamamen kilitli** — "Invite user" VE "Reset Password"
   gibi şablonların metnini/linkini elle değiştirmek mümkün değil, sadece
