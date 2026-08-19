@@ -113,8 +113,8 @@ export function ReportRecipientsManager({
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Analiz raporu her zaman bağlı Gmail hesabınızın kendi kutusuna gider — buraya eklenen kişiler ekibe
-        katılmadan (davet/giriş gerekmeden) sadece bu raporun bir kopyasını kendi e-postalarında alır.
+        Form kopyası ve analiz raporu her zaman bağlı Gmail hesabınızın kendi kutusuna gider — buraya eklenen
+        kişiler ekibe katılmadan (davet/giriş gerekmeden) ikisinin de bir kopyasını kendi e-postalarında alır.
       </p>
 
       {isOwner && (

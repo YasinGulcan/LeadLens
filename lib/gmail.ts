@@ -157,14 +157,26 @@ function toRawMessage(message: string): string {
   return Buffer.from(message).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/** Bağlı hesabın kendi adresine (self-email) multipart mail gönderir — form kopyası (kuyruk mekanizması) asla başka bir adrese yönlendirilmemeli. */
+/**
+ * Bağlı hesabın kendi adresine (self-email) multipart mail gönderir — form
+ * kopyası (kuyruk mekanizması) asla başka bir adrese YÖNLENDİRİLMEMELİ (`to`
+ * hep kendi kutusu), ama ekip üyeleri VE rapor alıcıları (ikisi de "Kopya
+ * Al" mantığıyla) Cc'ye eklenir — analiz raporuyla aynı alıcı kümesi.
+ */
 async function sendMultipartSelfEmail(account: GmailAccount, subject: string, text: string, html: string): Promise<void> {
   const gmail = getClientForAccount(account);
   const profile = await gmail.users.getProfile({ userId: "me" });
   const to = profile.data.emailAddress;
   if (!to) throw new Error("Bağlı hesabın e-postası okunamadı.");
 
-  const raw = toRawMessage(buildMultipartMessage(to, account.teamEmails, subject, text, html));
+  const ccList = [...account.teamEmails];
+  for (const extra of account.notificationEmails) {
+    if (extra.toLowerCase() === to.toLowerCase()) continue;
+    if (ccList.some((e) => e.toLowerCase() === extra.toLowerCase())) continue;
+    ccList.push(extra);
+  }
+
+  const raw = toRawMessage(buildMultipartMessage(to, ccList, subject, text, html));
   await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
 }
 
