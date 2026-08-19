@@ -77,6 +77,11 @@ kullanıcı ihtiyacı çıktıkça ekleniyor, önceden planlanmıyor).
 - [ ] **KVKK metnindeki placeholder'lar doldurulmalı** (`[Şirket unvanı]`,
   `[e-posta]` — `app/form/KvkkNotice.tsx`), gerçek müşteri verisi işlenen
   hesaplar için hukuki inceleme önerilir.
+- [ ] **`SALES_NOTIFICATION_EMAIL` ortam değişkeni tanımlı değil** — Resend
+  ikincil bildirim kanalı (`lib/resend.ts#sendLeadNotification`) her lead'de
+  sessizce hata veriyor (2026-08-19'da canlı loglarda görüldü). Ana kanal
+  (Gmail) etkilenmiyor, ama ikincil bildirim hiç gitmiyor. Hangi adrese
+  gitmesi gerektiği kullanıcı kararı — belirlenince Vercel'e eklenmeli.
 
 ## Sırada (bilinen, henüz bloklamayan)
 

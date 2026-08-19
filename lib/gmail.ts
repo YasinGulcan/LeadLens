@@ -17,14 +17,19 @@ export interface GmailAccount {
   teamEmails: string[];
 }
 
-// accountId → Gmail client. Her istekte OAuth2 client'ı yeniden kurmamak için
-// hafif bir bellek içi cache (aynı process içinde, cron/route çağrıları arası).
-const clientCache = new Map<string, gmail_v1.Gmail>();
-
+/**
+ * Her çağrıda taze bir client kurar — kasıtlı olarak cache'lenmiyor. Önceden
+ * accountId → client bellek içi cache'i vardı ("OAuth2 client'ı yeniden
+ * kurmamak için"), ama bu client'ı inşa etmenin kendisi hiç ağ çağrısı
+ * yapmıyor (ucuz bir obje oluşturma) — asıl kazanç hayaliydi. Buna karşılık
+ * gerçek bir bug'a yol açtı: bir hesap "Yeniden Bağla" ile yeni bir refresh
+ * token aldığında, uzun süredir ayakta olan bir process (ör. saatlerdir
+ * çalışan `next dev`) DB'deki güncel token'ı hiç görmeden eski/ölü client'ı
+ * kullanmaya devam ediyordu — gerçek bir kullanıcı denemesinde saatlerce
+ * süren bir "Gönderim başarısız" bulmacasına yol açtı (kök sebep: process
+ * yeniden başlamadan cache hiç geçersiz olmuyordu).
+ */
 function getClientForAccount(account: GmailAccount): gmail_v1.Gmail {
-  const cached = clientCache.get(account.id);
-  if (cached) return cached;
-
   const clientId = process.env.GMAIL_CLIENT_ID;
   const clientSecret = process.env.GMAIL_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
@@ -34,9 +39,7 @@ function getClientForAccount(account: GmailAccount): gmail_v1.Gmail {
   const refreshToken = decryptToken(account.encryptedRefreshToken);
   const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
   oauth2Client.setCredentials({ refresh_token: refreshToken });
-  const client = google.gmail({ version: "v1", auth: oauth2Client });
-  clientCache.set(account.id, client);
-  return client;
+  return google.gmail({ version: "v1", auth: oauth2Client });
 }
 
 export interface FormSubmission {

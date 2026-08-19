@@ -188,6 +188,21 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
   edilemezdi. (Eski, artık geçerli olmayan bir tasarımda kimlik
   `gmail_connections.connected_email`'den geliyordu — Gmail bağlantısı
   kimlikten tamamen bağımsız hale getirildiğinden bu artık doğru değil.)
+- **`lib/gmail.ts#getClientForAccount` artık hiçbir şeyi cache'lemiyor, her
+  çağrıda taze bir OAuth2 client kuruyor (2026-08-19'da kaldırıldı).**
+  Öncesinde accountId → client bellek içi bir cache vardı — ama bu client'ı
+  inşa etmek zaten hiç ağ çağrısı yapmıyor (sadece obje oluşturma), yani
+  cache'in gerçek bir performans kazancı yoktu. Buna karşılık gerçek bir
+  bug'a yol açıyordu: bir hesap "Yeniden Bağla" ile yeni bir refresh token
+  aldığında, önceden o hesap için client'ı zaten cache'lemiş olan UZUN SÜRELİ
+  bir process (ör. saatlerdir açık bir `next dev`) DB'deki yeni token'ı hiç
+  görmeden eskisini kullanmaya devam ediyordu (process yeniden başlamadan
+  cache asla geçersiz olmuyordu) — gerçek bir kullanıcı denemesinde saatlerce
+  süren, yanıltıcı bir "Gönderim başarısız" bulmacasına yol açtı (aynı kodu
+  taze bir process'te — script/prod serverless — çalıştırınca hep başarılıydı,
+  fark bu cache'di). Benzer "sonsuza kadar cache'le" bir desen başka bir
+  yerde daha eklenirse aynı riski taşır — token/kimlik bilgisi DB'den
+  okunuyorsa ve değişebiliyorsa, process ömrü boyunca cache'lenmemeli.
 - **Gmail bağlantısını "koparmak" satırı silmez** — `disconnected_at` ile
   ayrılır: pipeline artık bu hesaptan okumuyor/göndermiyor ama bağlantı
   geçmişi korunur, "Yeniden Bağla" (OAuth) bunu otomatik temizler. Bunun
