@@ -68,6 +68,15 @@ kullanıcı ihtiyacı çıktıkça ekleniyor, önceden planlanmıyor).
   kalkmaz, sadece o kullanıcılar için), (b) Google'ın hassas Gmail
   scope'ları için uygulama doğrulama sürecini başlatmak (kalıcı, ama süre
   alır) — henüz karar verilmedi.
+- [ ] **`SourcesForm.tsx#TEMP_DEFAULT_SELECTION_CAP = 20` geçici bir sınır**
+  (2026-08-20, kullanıcının isteğiyle — bir sunum öncesi hızlı test için
+  492 chunk'lık bir taramanın dakikalarca sürmesini önlemek için eklendi).
+  "URL'den Tara"da varsayılan seçim artık en küçük/belirgin gruplardan
+  başlayarak en fazla 20 sayfayla sınırlı — büyük/genel gruplar (blog
+  arşivi vb.) sınıra takılırsa dahil edilmiyor. Kullanıcı "aç" diyince
+  `defaultSelectedUrls`'teki bu sınır (ve `bySizeAscending` önceliklendirmesi)
+  kaldırılıp Oturum 37'deki orijinal davranışa (sadece dil-varyantı hariç
+  hepsi seçili) dönülmeli. `docs/PROGRESS.md` Oturum 43.
 - [ ] **`AI_PROVIDER=openai` geçici bir önlem** (2026-08-13, kullanıcının
   Claude kredisi bitince) — analiz/derinlemesine analiz/taslak/AI görünürlük
   kontrolü/mail ayrıştırma şu an OpenAI (`gpt-4o`) üzerinden çalışıyor.
