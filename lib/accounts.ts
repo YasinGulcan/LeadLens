@@ -369,9 +369,34 @@ export async function updateDisplayName(accountId: string, email: string, fullNa
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Ekip üyesini çıkarır. `account_members.email` global olarak unique olduğu
+ * için bu satır silindikten sonra bu e-posta artık HİÇBİR account_members
+ * satırında olamaz — bu yüzden e-posta başka bir hesabın sahibi de değilse,
+ * artık gerçekten "serbest" demektir ve auth.users kimliği de temizlenir
+ * (best-effort). Bu, çıkarılan kişinin kendi hesabını sıfırdan normal
+ * kayıt akışıyla açabilmesini sağlar — aksi halde "yetim kimlik" durumuna
+ * düşüp (bkz. Gotchas) sadece "Şifremi Unuttum" ile kurtarılabilirdi.
+ */
 export async function removeTeamMember(accountId: string, memberId: string): Promise<void> {
+  const { data: member } = await supabase
+    .from("account_members")
+    .select("email, user_id")
+    .eq("id", memberId)
+    .eq("account_id", accountId)
+    .maybeSingle();
+
   const { error } = await supabase.from("account_members").delete().eq("id", memberId).eq("account_id", accountId);
   if (error) throw new Error(error.message);
+
+  if (member?.email && member.user_id) {
+    const stillOwner = await getAccountIdByOwnerEmail(member.email);
+    if (!stillOwner) {
+      await supabase.auth.admin.deleteUser(member.user_id).catch((err) => {
+        console.error(`Ekipten çıkarma: auth kullanıcısı silinemedi (${member.email}):`, err);
+      });
+    }
+  }
 }
 
 /** Bu e-posta bir hesabın ekip üyesiyse o hesabın id'sini döner (sahiplik kontrolü ayrı — bkz. isAccountOwner). */

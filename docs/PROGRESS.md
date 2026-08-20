@@ -541,6 +541,12 @@ Ayrı ayrı istenen küçük/orta ölçekli iyileştirmeler zinciri, tek oturumd
 
 - Kullanıcı sunum işini bitirip "sayfaları getir kısmını aktif edelim" dedi — `SourcesForm.tsx#TEMP_DEFAULT_SELECTION_CAP` (20 sayfa sınırı, en küçük gruptan başlama önceliklendirmesi) tamamen kaldırıldı, Oturum 37'deki orijinal `defaultSelectedUrls` (sadece azınlık dil-varyantı grupları hariç hepsi seçili) geri geldi. `npx tsc --noEmit`/`npx eslint .`/`npm test` (81/81) temiz.
 
+### 2026-08-20 — Oturum 46 (CEO sunumu hazırlığı sırasında "yetim kimlik" tasarım kararı tersine çevrildi)
+
+- **Kullanıcı ekipten çıkardığı bir kişiyle (yasingulcan92@gmail.com) yeniden kayıt denedi, "zaten kullanılıyor" hatası aldı.** Bu, Oturum 31'de bulunup "normal/beklenen" sayılan yetim kimlik durumuydu (`removeTeamMember` kasıtlı olarak `auth.users`'ı silmiyordu). Kurtarma yolu ("Şifremi Unuttum") anlatılınca kullanıcı **tasarım kararının kendisine itiraz etti**: "ekipten çıkardığım biri isterse kendi hesabını açabilmeli" — haklı bir nokta, önceki tasarım gereksiz yere temkinliydi.
+- **`lib/accounts.ts#removeTeamMember` artık best-effort olarak `auth.users` kimliğini de temizliyor.** `account_members.email` global unique olduğu için (schema'da doğrulandı, migration 0019) silme sonrası bu e-posta hiçbir account_members satırında kalamaz — üyelik silindikten sonra bu e-posta başka bir hesabın SAHİBİ de değilse (`getAccountIdByOwnerEmail` ile kontrol), `auth.users` kimliği de siliniyor. Kişi artık normal `/signup` ile sıfırdan kendi hesabını açabiliyor, "yetim kimlik" limboya düşmüyor. Eski (bu değişiklikten önce) çıkarılmış kişiler için "Şifremi Unuttum" kurtarma yolu hâlâ duruyor (bkz. ARCHITECTURE.md).
+- **Doğrulama:** `npx tsc --noEmit`/`npx eslint .`/`npm test` (81/81)/`npx next build` temiz. Mevcut yetim kaydı (yasingulcan92@gmail.com) elle temizlenip gerçek `/api/auth/signup/start`'a karşı test edildi — kayıt başarıyla tamamlandı (`{"ok":true,"redirect":"/onboarding"}`), sonra test kaydı temizlenip e-posta kullanıcı için gerçekten serbest bırakıldı.
+
 ---
 
 *Yeni oturumda ilk iş: `docs/ARCHITECTURE.md` ve `docs/PROJECT_PLAN.md`'ı oku, sonra bu dosyanın Oturum Günlüğü'nün son birkaç girdisine bak.*

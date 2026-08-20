@@ -229,18 +229,24 @@ için bu kilit olmadan aynı lead iki kez işlenip para boşa giderdi.
   prop'ları frontend'de (`<fieldset disabled>` + "Sadece hesap sahibi..."
   notu) — aynı desen `lib/accounts.ts#isAccountOwner`'ı kullanan 10+ route'ta
   tekrarlanıyor.
-- **"Yetim kimlik" (2026-08-14):** `removeTeamMember` bir üyeyi çıkarırken
-  `auth.users` kimliğini kasıtlı olarak SİLMEZ (aynı e-posta başka bir
-  hesaba ait olabilir) — bu yüzden bir e-postanın Supabase Auth'ta kimliği
-  olup `accounts`/`account_members`'ta hiçbir kaydı olmaması normal, beklenen
-  bir durum. `/signup` bu durumda temiz bir "zaten kullanılıyor" hatası verir;
-  `/login` hem kayıt hem "Şifremi Unuttum"u önerir; asıl kurtarma yolu
-  `/api/auth/password-reset/verify` — kod doğrulanıp (e-posta sahipliği
-  kanıtlanıp) sahip/üye bulunamazsa doğrudan bu kimlikle yeni bir hesap açar
-  (`createAccountForNewOwner`). `/api/onboarding/confirm-join`'in sahiplik
-  devri dalı da eski sahibi üyeliğe demote ederken bu duruma düşebilir
-  (`account_members.email` global unique, eski sahip başka yerde zaten
-  üyeyse insert çakışır) — 23505 sessizce atlanır, başka bir hata loglanır.
+- **"Yetim kimlik" — artık NORMAL bir durum değil, `removeTeamMember`
+  best-effort olarak temizliyor (2026-08-14, davranış 2026-08-20'de
+  değişti).** Önceden `removeTeamMember` bir üyeyi çıkarırken `auth.users`
+  kimliğini kasıtlı olarak SİLMİYORDU ("aynı e-posta başka bir hesaba ait
+  olabilir" varsayımıyla) — kullanıcı bunun yanlış olduğunu belirtti:
+  "ekipten çıkardığım biri isterse kendi hesabını açabilmeli." Artık
+  `account_members.email` global unique olduğu için (silme sonrası bu
+  e-posta başka HİÇBİR account_members satırında olamaz) — üye çıkarılırken
+  bu e-posta başka bir hesabın sahibi de değilse `auth.users` kimliği de
+  siliniyor, kişi normal `/signup` ile sıfırdan kendi hesabını açabiliyor.
+  Yine de eski (bu değişiklikten önce) çıkarılmış kişiler ya da silme
+  başarısız olursa (best-effort) hâlâ yetim kalabilir — o durumda kurtarma
+  yolu hâlâ "Şifremi Unuttum" (`/api/auth/password-reset/callback`, sahip/
+  üye bulunamazsa `createAccountForNewOwner` ile otomatik yeni hesap açar).
+  `/api/onboarding/confirm-join`'in sahiplik devri dalı da eski sahibi
+  üyeliğe demote ederken benzer bir çakışmaya düşebilir (eski sahip başka
+  yerde zaten üyeyse insert 23505 verir) — sessizce atlanır, başka bir hata
+  loglanır.
 - **`proxy.ts` "geçerli oturum var mı" diye bakar, "gerçek şifre belirlendi mi"
   diye bakmaz (2026-08-14).** Davet/sahiplik devri kabulü şifre belirlenmeden
   önce `signInWithoutPassword` ile geçerli ama geçici bir oturum kurar —
