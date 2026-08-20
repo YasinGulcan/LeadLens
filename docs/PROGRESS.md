@@ -531,6 +531,12 @@ Ayrı ayrı istenen küçük/orta ölçekli iyileştirmeler zinciri, tek oturumd
 - **`SourcesForm.tsx#defaultSelectedUrls`'e geçici bir `TEMP_DEFAULT_SELECTION_CAP = 20` sınırı eklendi** — varsayılan seçim artık en küçük/belirgin gruplardan başlanarak (büyükten değil, en fazla 20 sayfaya ulaşana kadar) dolduruluyor; büyük/genel gruplar (blog arşivi, "Diğer sayfalar") sınıra takılırsa kısmen/hiç dahil edilmiyor. Mantık: küçük gruplar genelde asıl hizmet/ürün sayfaları, büyük gruplar genelde tekrarlayan/daha az kritik içerik.
 - **Doğrulama:** `npx tsc --noEmit`/`npx eslint .`/`npm test` (81/81)/`npx next build` temiz. Kullanıcının gerçek test ettiği sitede (2gethersocial.co, 123 sayfa) doğrulandı: varsayılan seçili 20/123, seçilenler gerçekten hizmet/ürün sayfaları (marka elçisi yönetimi, influencer barter, UGC paketleri vb.). **Bu geçici bir durum** — kullanıcı "aç" deyince `PROJECT_PLAN.md`'de not edilen adımlarla eski davranışa dönülmeli.
 
+### 2026-08-20 — Oturum 44 (Ana sayfaya "Paneli İncele" bölümü eklendi)
+
+- **Kullanıcı ana sayfada bir "paneli incele" kısmı istedi — netleştirme için sorulunca: tıklanabilir sahte demo, hero'dan hemen sonra.** Mevcut `LandingDemoPreview.tsx` zaten hero'dan hemen sonra duruyordu ama TAMAMEN kendi kendine oynayan, tek bir lead'in senaryosunu anlatan scripted bir widget'tı (ziyaretçi hiçbir şeye tıklamıyor) — istenen bu değil, ziyaretçinin KENDİ gezdiği bir şey.
+- **Yeni `app/PanelPreview.tsx`** — `LandingDemoPreview`'in hemen altına, ayrı bir "Paneli inceleyin" bölümü olarak eklendi. Sahte bir leadler listesi (4 lead, farklı skor/durum/sektör) gösteriyor, bir satıra tıklayınca gerçek panelin lead detay görünümüne (skor kırılımı dahil — `ScoreBreakdown` component'inin ta kendisi, panel tasarımı değişirse otomatik senkron kalsın diye) geçiyor, "← Lead'ler" ile geri dönülüyor. Hiçbir backend çağrısı yok, tüm veriler sabit/sahte — `LandingDemoPreview` ile aynı prensip.
+- **Doğrulama:** `npx tsc --noEmit`/`npx eslint .`/`npm test` (81/81)/`npx next build` temiz. Gerçek dev sunucusunun SSR çıktısında yeni bölümün ve sahte lead isimlerinin doğru render olduğu doğrulandı — tıklama etkileşimi tarayıcı otomasyonu olmadığı için görsel olarak test edilemedi, kullanıcıya açıkça belirtildi.
+
 ---
 
 *Yeni oturumda ilk iş: `docs/ARCHITECTURE.md` ve `docs/PROJECT_PLAN.md`'ı oku, sonra bu dosyanın Oturum Günlüğü'nün son birkaç girdisine bak.*
