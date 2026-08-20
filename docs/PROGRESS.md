@@ -537,6 +537,10 @@ Ayrı ayrı istenen küçük/orta ölçekli iyileştirmeler zinciri, tek oturumd
 - **Yeni `app/PanelPreview.tsx`** — `LandingDemoPreview`'in hemen altına, ayrı bir "Paneli inceleyin" bölümü olarak eklendi. Sahte bir leadler listesi (4 lead, farklı skor/durum/sektör) gösteriyor, bir satıra tıklayınca gerçek panelin lead detay görünümüne (skor kırılımı dahil — `ScoreBreakdown` component'inin ta kendisi, panel tasarımı değişirse otomatik senkron kalsın diye) geçiyor, "← Lead'ler" ile geri dönülüyor. Hiçbir backend çağrısı yok, tüm veriler sabit/sahte — `LandingDemoPreview` ile aynı prensip.
 - **Doğrulama:** `npx tsc --noEmit`/`npx eslint .`/`npm test` (81/81)/`npx next build` temiz. Gerçek dev sunucusunun SSR çıktısında yeni bölümün ve sahte lead isimlerinin doğru render olduğu doğrulandı — tıklama etkileşimi tarayıcı otomasyonu olmadığı için görsel olarak test edilemedi, kullanıcıya açıkça belirtildi.
 
+### 2026-08-20 — Oturum 45 (Oturum 43'ün geçici seçim sınırı kaldırıldı)
+
+- Kullanıcı sunum işini bitirip "sayfaları getir kısmını aktif edelim" dedi — `SourcesForm.tsx#TEMP_DEFAULT_SELECTION_CAP` (20 sayfa sınırı, en küçük gruptan başlama önceliklendirmesi) tamamen kaldırıldı, Oturum 37'deki orijinal `defaultSelectedUrls` (sadece azınlık dil-varyantı grupları hariç hepsi seçili) geri geldi. `npx tsc --noEmit`/`npx eslint .`/`npm test` (81/81) temiz.
+
 ---
 
 *Yeni oturumda ilk iş: `docs/ARCHITECTURE.md` ve `docs/PROJECT_PLAN.md`'ı oku, sonra bu dosyanın Oturum Günlüğü'nün son birkaç girdisine bak.*

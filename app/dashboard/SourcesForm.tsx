@@ -146,33 +146,18 @@ function groupPages(pages: SitemapPage[]): PageGroup[] {
   return mainGroups.sort((a, b) => b.pages.length - a.pages.length);
 }
 
-// GEÇİCİ (kullanıcı isteğiyle, sunum öncesi hızlı test için eklendi) —
-// varsayılan seçimi bu sayıda sayfayla sınırlar, büyük siteler dakikalarca
-// süren taramalara/yüzlerce chunk'a yol açmasın diye. Kaldırmak için bu
-// satırı `Infinity` yapmak yeterli; "aç" denince bu blok tamamen silinmeli.
-const TEMP_DEFAULT_SELECTION_CAP = 20;
-
 /**
  * Varsayılan seçim: sitenin yarısından AZINI oluşturan, 2 harfli bir path
  * segmentine sahip gruplar (muhtemel dil varyantı, ör. /en/) varsayılan
  * olarak seçili GELMEZ — marketer bilinçli olarak "Tümünü seç" ile
  * ekleyebilir, ama Firecrawl kredisi/embedding baştan boşa gitmez.
- * Ardından TEMP_DEFAULT_SELECTION_CAP sınırı uygulanır — en küçük/belirgin
- * gruplardan başlanır (genelde asıl hizmet/ürün sayfaları), en büyük/genel
- * gruplar (blog arşivi, "Diğer sayfalar" gibi tekrarlayan içerik) sınıra
- * takılırsa kısmen ya da hiç dahil edilmez.
  */
 function defaultSelectedUrls(pages: SitemapPage[]): Set<string> {
   const groups = groupPages(pages);
-  const eligibleGroups = groups.filter((g) => !isMinorityLanguageGroup(g, pages.length));
-  const bySizeAscending = [...eligibleGroups].sort((a, b) => a.pages.length - b.pages.length);
-
   const selected = new Set<string>();
-  for (const group of bySizeAscending) {
-    for (const p of group.pages) {
-      if (selected.size >= TEMP_DEFAULT_SELECTION_CAP) return selected;
-      selected.add(p.url);
-    }
+  for (const group of groups) {
+    if (isMinorityLanguageGroup(group, pages.length)) continue;
+    for (const p of group.pages) selected.add(p.url);
   }
   return selected;
 }
