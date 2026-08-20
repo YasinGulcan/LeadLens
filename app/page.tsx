@@ -7,7 +7,6 @@ import { getActivePricingPlans } from "@/lib/pricing";
 import { Card } from "@/components/ui";
 import { AuthMenu } from "./AuthMenu";
 import { LandingDemoPreview } from "./LandingDemoPreview";
-import { PanelPreview } from "./PanelPreview";
 import { PricingSection } from "./PricingSection";
 
 export const dynamic = "force-dynamic";
@@ -178,20 +177,6 @@ export default async function HomePage({
       {/* Ürün görseli */}
       <section className="mx-auto flex w-full max-w-5xl justify-center px-6 pt-4 pb-12">
         <LandingDemoPreview />
-      </section>
-
-      {/* Paneli incele — kendi kendine oynayan senaryonun aksine, ziyaretçinin kendi tıklayarak gezdiği sahte bir leadler listesi */}
-      <section className="mx-auto flex w-full max-w-5xl flex-col items-center px-6 pb-16">
-        <div className="text-center">
-          <Eyebrow>Panel</Eyebrow>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Paneli inceleyin</h2>
-          <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-            Örnek lead&apos;lere tıklayıp gerçek panelde neyle karşılaşacağınızı görün.
-          </p>
-        </div>
-        <div className="mt-8 flex justify-center">
-          <PanelPreview />
-        </div>
       </section>
 
       {/* Nasıl çalışır */}
